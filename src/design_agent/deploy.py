@@ -25,7 +25,7 @@ from design_agent.config import Settings
 from design_agent.runtime.sandbox.publish import declared_base
 from design_agent.skills_lock import verify
 from design_agent.tools.mcp import McpConfigError, declared_servers
-from design_agent.workspace.manifest import build_manifest
+from design_agent.workspace.manifest import SKILL_BINARIES, build_manifest
 
 STAGE = Path(".mda") / "deploy-src"
 #: What a deployment needs, relative to the project root. Everything else stays home.
@@ -110,6 +110,12 @@ def env_split(values: Mapping[str, str | None]) -> tuple[dict[str, str], list[st
     return shipped, sorted(held)
 
 
+def env_values(root: Path) -> dict[str, str | None]:
+    """The project's `.env` entries, or none when there is no `.env`."""
+    env_file = root / ".env"
+    return dict(dotenv_values(env_file)) if env_file.is_file() else {}
+
+
 def preflight(
     root: Path, settings: Settings, *, allow_docker_base: bool = False, require_keys: bool = True
 ) -> Preflight:
@@ -149,18 +155,21 @@ def preflight(
                 )
     except McpConfigError as error:
         report.problems.append(f"config/mcp.toml: {error}")
-    env_file = root / ".env"
-    values = dotenv_values(env_file) if env_file.is_file() else {}
-    shipped, held = env_split(values)
+    shipped, held = env_split(env_values(root))
     report.shipped_env, report.held_env = sorted(shipped), held
-    lead = settings.lead_model().upstream.provider
-    needed = {
-        "anthropic": "ANTHROPIC_API_KEY",
-        "openai": "OPENAI_API_KEY",
-        "google_genai": "GOOGLE_API_KEY",
-    }.get(lead)
+    spec = settings.lead_model()
+    # A gateway model ships the gateway key: LANGSMITH_API_KEY is the deploy credential, held back.
+    needed = (
+        "LANGSMITH_GATEWAY_API_KEY"
+        if spec.via_gateway
+        else {
+            "anthropic": "ANTHROPIC_API_KEY",
+            "openai": "OPENAI_API_KEY",
+            "google_genai": "GOOGLE_API_KEY",
+        }.get(spec.provider)
+    )
     if needed is not None and needed not in shipped:
-        message = f"the lead model ({lead}) needs {needed} in .env"
+        message = f"the lead model ({spec}) needs {needed} in .env"
         (report.problems if require_keys else report.warnings).append(message)
     if shutil.which("mda") is None and not (root / ".venv" / "bin" / "mda").exists():
         report.problems.append("the `mda` command is not installed: run `uv sync`")
@@ -178,7 +187,12 @@ def _copy(source: Path, target: Path) -> None:
 
 
 def stage(root: Path, *, destination: Path | None = None) -> Path:
-    """Copy what ships into a fresh staging directory and write its filtered `.env`."""
+    """Copy what ships into a fresh staging directory and write its filtered `.env`.
+
+    MDA syncs `skills/` to Context Hub, which takes only UTF-8 text, so a skill's binary files
+    (fonts, images) move to `skill-binaries/<skill>/` and ship as deployment files; the workspace
+    stager puts them back under `/workspace/skills/<skill>/`.
+    """
     target = destination or root / STAGE
     shutil.rmtree(target, ignore_errors=True)
     target.mkdir(parents=True)
@@ -186,6 +200,14 @@ def stage(root: Path, *, destination: Path | None = None) -> Path:
         source = root / relative
         if source.exists():
             _copy(source, target / relative)
+    skills = target / "skills"
+    for path in sorted(p for p in skills.rglob("*") if p.is_file()) if skills.is_dir() else []:
+        try:
+            path.read_bytes().decode("utf-8")
+        except UnicodeDecodeError:
+            moved = target / SKILL_BINARIES / path.relative_to(skills)
+            moved.parent.mkdir(parents=True, exist_ok=True)
+            path.rename(moved)
     env_file = root / ".env"
     if env_file.is_file():
         shipped, _ = env_split(dotenv_values(env_file))

@@ -45,7 +45,12 @@ stay home (Slack tokens for self-hosting, `DATABASE_URL`, your LangSmith key). I
 What ships: code, `instructions.md`, `skills/`, `workspace/tools/`, `config/`, the sample brand and
 your `workspace/brand/`, open fonts and your `private-fonts/` (licensed fonts reach the sandbox as
 deployment files, never through Git), the sandbox recipe and the MDA declarations
-(`agent.py`, `identity.py`, `channels/`, `schedules/`, `sandbox/`, `tools/mcp.py`).
+(`agent.py`, `identity.py`, `channels/`, `schedules/`, `sandbox/`, `tools/mcp.py`). MDA syncs
+`skills/` to Context Hub, which takes only UTF-8 text, so the few binary skill files (a vendored
+preset's fonts) move to `skill-binaries/` and reach `/workspace/skills/` through the stager.
+
+To try a change without touching the deployment people use, deploy under another name:
+`uv run design-agent deploy --name design-agent-test`.
 
 ## 3. Deploy
 

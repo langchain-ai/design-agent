@@ -120,3 +120,30 @@ def test_deploy_asks_first_and_passes_langsmith_credentials_only_in_the_environm
         argv[1:] == ["deploy", str(tmp_path), "--name", "design-agent"]
         and env["LANGSMITH_API_KEY"] == "ls-test"
     )
+
+
+def test_a_gateway_model_needs_the_gateway_key_shipped(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(deploy, "declared_base", lambda _root: "snapshot")
+    settings = Settings(_env_file=None, model="langsmith:anthropic/claude-opus-5-5")  # type: ignore[call-arg]
+    monkeypatch.setattr(deploy, "env_values", lambda _root: {"ANTHROPIC_API_KEY": "sk"})
+    report = deploy.preflight(ROOT, settings)
+    assert any("needs LANGSMITH_GATEWAY_API_KEY" in p for p in report.problems)
+    monkeypatch.setattr(deploy, "env_values", lambda _root: {"LANGSMITH_GATEWAY_API_KEY": "lsv2"})
+    assert not any("needs" in p for p in deploy.preflight(ROOT, settings).problems)
+
+
+def test_staging_moves_binary_skill_files_out_of_context_hub(tmp_path: Path) -> None:
+    from design_agent.brand.schema import load_brand_pack
+    from design_agent.workspace.manifest import build_manifest
+
+    staged = deploy.stage(ROOT, destination=tmp_path / "stage")
+    for path in (p for p in (staged / "skills").rglob("*") if p.is_file()):
+        path.read_bytes().decode("utf-8")  # Context Hub takes only UTF-8 text
+    moved = sorted((staged / "skill-binaries").rglob("*.woff2"))
+    assert moved, "the vendored frame-preset fonts ship as deployment files"
+    pack = load_brand_pack(ROOT / "examples/brands/example-studio", project_root=ROOT)
+    staged_paths = {str(a.destination) for a in build_manifest(staged, pack).assets}
+    rel = moved[0].relative_to(staged / "skill-binaries").as_posix()
+    assert f"/workspace/skills/{rel}" in staged_paths, "and still reach the sandbox's skills"

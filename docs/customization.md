@@ -10,9 +10,14 @@ sample pack in `examples/brands/example-studio/` shows every field. `uv run desi
 validate` checks it and `brand css` regenerates `tokens.css`. The [brand-onboarding
 skill](../.agents/skills/brand-onboarding/SKILL.md) builds a pack from your sources.
 
+Colour roles: `design.roles.light` and `design.roles.dark` in `tokens.json` name the token for each
+role (`ground`, `ink`, `accent`, `muted`, `quiet`, `rule`, and a `series` list). Charts and diagrams
+use them; a role you leave out is measured from the palette.
+
 Fonts: each family in `fonts.toml` points at an open font in `fonts/` or a licensed file in
-`private-fonts/` (Git-ignored). Licensed fonts reach the sandbox as deployment files (MDA) or a
-read-only mount (self-hosted), never through Git.
+`private-fonts/` (Git-ignored), and `family` is the name inside the file (`fonts verify` checks it).
+Web formats work: `tokens.css` declares `.woff2` and `.woff` faces with `@font-face`. Licensed fonts
+reach the sandbox as deployment files (MDA) or a read-only mount (self-hosted), never through Git.
 
 ## Instructions and skills
 

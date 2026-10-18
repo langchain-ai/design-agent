@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Changed
+
+- `langsmith:anthropic/*` and `langsmith:openai/*` models use the LangSmith Gateway's native
+  routes, so prompt caching, context editing, tool search and effort work through the gateway.
+- Tool history drops server tool calls nothing will answer and leaves the latest assistant turn
+  as written when it repairs a thread.
+- Brand packs can name colour roles per mode; web-format brand fonts load through `@font-face`;
+  `fonts verify` checks each file's family; the render font gate accepts web fonts.
+- `ask` prints the run's estimated cost; `deploy --name` deploys a separate copy; binary skill
+  files ship outside Context Hub; `demo` always uses the sample brand; evals keep the task set's
+  brand.
+
 ### Added
 
 - One shared Deep Agents assembly for Managed Deep Agents, the CLI and the self-hosted path, with
