@@ -24,12 +24,12 @@
   </p>
 </div>
 
-**Build your company's design agent, batteries included.** Fork it, add your brand, and put it in
-your team's Slack with Managed Deep Agents. People ask it like they'd ask a designer and get
-finished, on-brand graphics, decks, diagrams and films back.
+**The design agent LangChain runs, open source.** Add your brand and deploy it to your team's Slack
+with Managed Deep Agents. Anyone can ask it like they'd ask a designer, attach what they have, and
+get finished, on-brand files back, from a resized ad to a launch film.
 
-It's the agent we run at LangChain. Since August it has shipped over 3,000 assets, posts with its
-work drew about 4.5M views on X, and three in four requests come from outside marketing.
+Since August it has shipped over 3,000 assets for us, posts with its work drew about 4.5M views on
+X, and three in four requests come from outside marketing.
 
 ## See it work
 
@@ -42,30 +42,27 @@ work drew about 4.5M views on X, and three in four requests come from outside ma
 | Building it yourself | Starting here |
 | --- | --- |
 | Months on a harness, a sandbox, skills and a Slack UX | Fork it, add your brand, deploy with one command |
-| A coding agent that makes the look every AI makes | Work that follows your brand, checked on every render |
-| Design requests wait in a queue | Anyone asks in Slack: a graphic in minutes, a film overnight |
-| Every team fixes the same mistakes | Fix a skill once, and every asset after gets better |
+| Polished work that looks like a hundred others | Work that follows your brand, checked on every render |
+| Design requests wait in a queue | Anyone asks in Slack: a graphic in minutes, a long deck overnight |
+| Every team fixes the same mistakes | Fix a skill once, and every asset after it follows |
 
-## Batteries included
+## What's already built
 
-- **A lead agent that works for hours.** It plans, takes your notes mid-job, and hands long work to
-  helpers running in parallel.
+- **Your designers' judgment:** 35 skills and a design wiki for stills, decks, charts, diagrams,
+  storyboards, motion, sound and thumbnails, and your brand as one pack of colours, fonts, logos
+  and voice, checked in code on every render.
 - **A designer's computer for every thread,** with Chrome, FFmpeg,
-  [HyperFrames](https://hyperframes.heygen.com), D2 and your fonts. Keys stay outside it.
-- **35 skills and a design wiki** for stills, decks, charts, diagrams, storyboards, motion, sound
-  and thumbnails.
-- **Your brand as code:** colours, fonts, logos and voice in one pack, checked on every render.
-- **The Slack experience:** a plan and ETA, live progress, steering mid-job, and approval before
-  anything goes public.
-- **A shared canvas** in [Paper](https://paper.design) for storyboards and layouts.
-- **Evals built from real requests,** and every run traced in LangSmith.
-- **One-command deploy** to Managed Deep Agents, or self-host it with Docker.
-- **Skills for your coding agent** to set it up, brand it, deploy it, extend it and fix it.
+  [HyperFrames](https://hyperframes.heygen.com), D2 and your fonts, plus a shared
+  [Paper](https://paper.design) canvas for storyboards and layouts. Keys stay outside it.
+- **Slack that holds up on long jobs:** a lead that plans and gives an ETA, takes notes mid-job,
+  hands long work to helpers running in parallel, and asks before anything goes public.
+- **Everything to run it:** one-command deploy to Managed Deep Agents or self-hosting with Docker,
+  evals built from real requests, and every run traced in LangSmith.
 
 ## Get started
 
-**Hand it to your coding agent.** Open Claude Code, Codex or Cursor in the repo and say what you
-want. [AGENTS.md](AGENTS.md) sends it to the right [skill](.agents/skills/):
+Open the repo in Claude Code, Codex or Cursor and ask for what you want. [AGENTS.md](AGENTS.md)
+routes each request to a step-by-step [skill](.agents/skills/):
 
 | Say | It will |
 | --- | --- |
@@ -75,7 +72,7 @@ want. [AGENTS.md](AGENTS.md) sends it to the right [skill](.agents/skills/):
 | "Teach it to make our weekly newsletter header." | add a skill for it and try it on a real request |
 | "Did that change make it better?" | run the evals before and after, and show you the numbers |
 
-**Or by hand.** You need **Python 3.11+**, [uv](https://docs.astral.sh/uv/) and **Docker**. The demo
+**Or set it up by hand.** You need **Python 3.11+**, [uv](https://docs.astral.sh/uv/) and **Docker**. The demo
 runs the real agent, sandbox and checks with a scripted model, and leaves a launch card in three
 sizes and a 4-second teaser in `workspace/out/demo/`:
 
@@ -137,8 +134,9 @@ a separate copy to try changes on.
 median request costs about 50 cents in model spend, and long films and decks cost more. Managed Deep
 Agents [hosting is paid](https://www.langchain.com/pricing).
 
-**Will it use my brand?** Yes. Add your brand pack and every file follows it. Your coding agent
-builds the pack with you from your brand guide, website, files or a Paper file.
+**Will it use my brand?** Yes. Add your brand pack and every file follows it. The
+[brand-onboarding skill](.agents/skills/brand-onboarding/SKILL.md) builds the pack with you from
+your brand guide, website, files or a Paper file.
 
 **Where do I start?** With the graphic your team asks for every week. Let people brief the agent,
 review the work and ask for changes in Slack, then teach it the next thing.
@@ -167,7 +165,8 @@ Read the [architecture](docs/architecture/README.md), or start changing it:
 [instructions.md](instructions.md) · [skills/](skills/) · [Customization](docs/customization.md) ·
 [Evals](docs/evals.md) · [Operations](OPERATIONS.md) · [Contributing](CONTRIBUTING.md).
 
-**Build yours.** Fork the repo and ask your coding agent to set it up. [Get started](#get-started).
+**Build your own.** Fork it, add your brand tokens, fonts and skills, and deploy it to your team's
+Slack. [Get started](#get-started).
 
 ## Built with
 

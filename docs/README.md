@@ -1,8 +1,8 @@
 # Documentation
 
-Every guide, by what you're trying to do. Coding agents: the skills in
-[.agents/skills/](../.agents/skills/) walk through each job step by step; [AGENTS.md](../AGENTS.md)
-says which one fits.
+Every guide, by what you're trying to do. Working in Claude Code, Codex or Cursor? Each job also has
+a step-by-step skill in [.agents/skills/](../.agents/skills/), and [AGENTS.md](../AGENTS.md) says
+which one fits.
 
 ## Set it up and make it yours
 
