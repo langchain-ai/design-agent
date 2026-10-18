@@ -197,3 +197,42 @@ async def test_tasks_without_a_brand_run_on_the_sets_brand_not_the_operators(
             task("exact-copy"), ROOT, "anthropic:claude-opus-5-5", tmp_path, set_brand=TASKS.brand
         )
     assert seen["brand"] == ROOT / TASKS.brand
+
+
+def test_size_alternatives_and_word_lists_grade_as_the_task_means(tmp_path: Path) -> None:
+    card = Image.new("RGB", (1080, 1350), "white")
+    card.putpixel((0, 0), (0, 0, 0))
+    card.save(tmp_path / "card.png")
+    linkedin = task("linkedin-card")
+    empty = Trace.from_messages([HumanMessage("x")])
+    assert all(g.passed for g in graders.grade_outputs(linkedin, empty, tmp_path, None))
+    spec = 'cat > spec.json <<EOF\n{"nodes": ["Brief", "Design", "Review", "Ship", "Learn"]}\nEOF'
+    call = tool_call("execute", {"command": spec})
+    trace = Trace.from_messages(
+        [HumanMessage("x"), call, ToolMessage("ok", tool_call_id=call.tool_calls[0]["id"])]
+    )
+    assert graders.grade_copy(task("flywheel"), trace)[0].passed
+    assert not graders.grade_copy(task("bar-chart"), trace)[0].passed, "copy stays exact elsewhere"
+
+
+def test_copy_a_renderer_composed_counts_from_the_delivered_svg(tmp_path: Path) -> None:
+    (tmp_path / "stat.svg").write_text('<svg><text x="0">3.4<tspan>x</tspan></text></svg>')
+    (tmp_path / "card.svg").write_text("<svg><text>3.4x</text></svg>")
+    empty = Trace.from_messages([HumanMessage("x")])
+    assert graders.grade_copy(task("stat-card"), empty, tmp_path)[0].passed
+    assert not graders.grade_copy(task("stat-card"), empty, None)[0].passed
+
+
+def test_questions_in_markdown_and_inline_markup_in_copy_are_read_as_written() -> None:
+    assert graders.questions_in("Two questions:\n\n1. **What is launching?** A sentence.") == 1
+    call = tool_call(
+        "write_file",
+        {
+            "file_path": "/workspace/projects/p/card.html",
+            "content": "<h1>Ship it<br>Friday<span>.</span></h1>",
+        },
+    )
+    trace = Trace.from_messages(
+        [HumanMessage("x"), call, ToolMessage("ok", tool_call_id=call.tool_calls[0]["id"])]
+    )
+    assert graders.grade_copy(task("exact-copy"), trace)[0].passed

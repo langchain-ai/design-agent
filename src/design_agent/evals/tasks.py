@@ -30,7 +30,8 @@ class _Strict(BaseModel):
 
 class OutputSpec(_Strict):
     glob: str
-    size: str | None = Field(default=None, pattern=r"^\d+x\d+$")
+    size: str | None = Field(default=None, pattern=r"^\d+x\d+(\|\d+x\d+)*$")
+    """`WxH`, or acceptable alternatives for an image (`1200x627|1080x1350`)."""
     seconds: float | None = Field(default=None, gt=0)
     count: int = Field(default=1, ge=1)
 
@@ -38,6 +39,8 @@ class OutputSpec(_Strict):
 class Expect(_Strict):
     outputs: tuple[OutputSpec, ...] = ()
     copy_lines: tuple[str, ...] = Field(default=(), alias="copy")
+    copy_case: Literal["exact", "any"] = Field(default="exact", alias="copyCase")
+    """`any` when the task lists words, not copy: labels may be set in the brand's casing."""
     max_questions: int | None = Field(default=None, ge=0)
     behaviors: tuple[Behavior, ...] = ()
 

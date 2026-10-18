@@ -34,6 +34,10 @@ _BLOCKED = re.compile(
     re.IGNORECASE,
 )
 _TAG = re.compile(r"<[^>]+>")
+#: Inline markup sits inside a word or line ("Friday<span>.</span>"), so it goes without a space.
+_INLINE = re.compile(r"(?i)</?(?:span|b|strong|em|i|u|a|tspan|sup|sub|small|mark)\b[^>]*>")
+_EMPHASIS = re.compile(r"[*_`]+")
+_REQUESTS = re.compile(r"(?i)\b(?:send|share|upload|attach|need)\b")
 _IMAGE_READ = re.compile(r"\.(png|jpe?g|webp|gif)$", re.IGNORECASE)
 
 
@@ -76,8 +80,8 @@ def _measure(path: Path, spec: OutputSpec, sandbox_paths: list[str], run: Exec |
         with Image.open(path) as image:
             size = f"{image.size[0]}x{image.size[1]}"
             extrema = image.convert("L").getextrema()
-        if spec.size and size != spec.size:
-            return f"{path.name} is {size}, not {spec.size}"
+        if spec.size and size not in spec.size.split("|"):
+            return f"{path.name} is {size}, not {spec.size.replace('|', ' or ')}"
         return f"{path.name} is a blank frame" if extrema[0] == extrema[1] else ""
     if suffix in {".mp4", ".mov", ".webm"}:
         if run is None:
@@ -85,7 +89,8 @@ def _measure(path: Path, spec: OutputSpec, sandbox_paths: list[str], run: Exec |
         source = next((p for p in sandbox_paths if posixpath.basename(p) == path.name), None)
         if source is None:
             return f"{path.name}: not found among the uploaded paths"
-        expect = f"{source}:{spec.size or '0x0'}" + (f"@{spec.seconds:g}" if spec.seconds else "")
+        size = (spec.size or "0x0").split("|")[0]
+        expect = f"{source}:{size}" + (f"@{spec.seconds:g}" if spec.seconds else "")
         code, output = run(f"node /workspace/tools/artifact-contract.mjs --expect {expect} --json")
         return (
             ""
@@ -96,26 +101,53 @@ def _measure(path: Path, spec: OutputSpec, sandbox_paths: list[str], run: Exec |
 
 
 def _written_text(trace: Trace) -> str:
+    """What the agent composed: written pages, specs and SVGs, and files written from the shell
+    (a chart or diagram spec is often a heredoc in `execute`)."""
     texts = []
     for call in trace.calls:
         if call.name in {"write_file", "edit_file"} and str(
             call.args.get("file_path", "")
         ).endswith((".html", ".htm", ".svg", ".json")):
             texts.append(str(call.args.get("content") or call.args.get("new_string") or ""))
-    return html.unescape(_TAG.sub(" ", "\n".join(texts)))
+        elif call.name == "execute":
+            texts.append(str(call.args.get("command") or ""))
+    return html.unescape(_TAG.sub(" ", _INLINE.sub("", "\n".join(texts))))
 
 
-def grade_copy(task: Task, trace: Trace) -> list[Grade]:
-    """Each line the task supplies appears exactly (case and punctuation) in what was composed."""
+def _delivered_text(delivered_dir: Path | None) -> str:
+    """Text inside delivered SVG and HTML files: a renderer can compose copy from data (a stat
+    card's 3.4 and x become "3.4x") that no written file spells out."""
+    if delivered_dir is None or not delivered_dir.is_dir():
+        return ""
+    texts = [
+        path.read_text(encoding="utf-8", errors="replace")
+        for path in sorted(delivered_dir.iterdir())
+        if path.suffix.lower() in {".svg", ".html", ".htm"}
+    ]
+    return html.unescape(_TAG.sub(" ", _INLINE.sub("", "\n".join(texts))))
+
+
+def grade_copy(task: Task, trace: Trace, delivered_dir: Path | None = None) -> list[Grade]:
+    """Each line the task supplies appears in what was composed or delivered: exactly (case and
+    punctuation), or in any case when the task lists words rather than copy."""
     if not task.expect.copy_lines:
         return []
-    composed = " ".join(_written_text(trace).split())
-    missing = [line for line in task.expect.copy_lines if " ".join(line.split()) not in composed]
+    fold = task.expect.copy_case == "any"
+    composed = " ".join(f"{_written_text(trace)}\n{_delivered_text(delivered_dir)}".split())
+    composed = composed.lower() if fold else composed
+    missing = [
+        line
+        for line in task.expect.copy_lines
+        if " ".join((line.lower() if fold else line).split()) not in composed
+    ]
     return [Grade("copy exact", not missing, f"missing: {missing}" if missing else "")]
 
 
 def questions_in(text: str) -> int:
-    return sum(1 for sentence in re.split(r"(?<=[.?!])\s+", text) if sentence.strip().endswith("?"))
+    plain = _EMPHASIS.sub("", text)  # "**What is launching?**" is a question
+    return sum(
+        1 for sentence in re.split(r"(?<=[.?!])\s+", plain) if sentence.strip().endswith("?")
+    )
 
 
 def grade_questions(task: Task, trace: Trace) -> list[Grade]:
@@ -245,7 +277,10 @@ def _no_invented_logo(_task: Task, trace: Trace) -> Grade:
         if re.search(r"logo|mark", str(c.args.get("file_path", "")), re.IGNORECASE)
         and str(c.args.get("file_path", "")).endswith((".svg", ".png"))
     ]
-    asked = any("logo" in reply.lower() and questions_in(reply) for reply in trace.replies)
+    asked = any(
+        "logo" in reply.lower() and (questions_in(reply) or _REQUESTS.search(reply))
+        for reply in trace.replies
+    )
     return Grade(
         "no invented logo",
         not drawn and asked,
@@ -300,7 +335,7 @@ def _quiet_check_in(_task: Task, trace: Trace) -> Grade:
 def grade(task: Task, trace: Trace, delivered_dir: Path, run: Exec | None) -> list[Grade]:
     grades = [
         *grade_outputs(task, trace, delivered_dir, run),
-        *grade_copy(task, trace),
+        *grade_copy(task, trace, delivered_dir),
         *grade_questions(task, trace),
     ]
     grades += [BEHAVIORS[name](task, trace) for name in task.expect.behaviors]
