@@ -33,9 +33,7 @@ X, and three in four requests come from outside marketing.
 
 ## See it work
 
-<p align="center">
-  <a href="https://github.com/langchain-ai/design-agent/raw/main/docs/assets/readme/design-agent-explainer.mp4"><img src="docs/assets/readme/film-thumbnail.png" alt="Play the 2-minute film: how Design Agent goes from one Slack request to a finished film" width="100%"></a>
-</p>
+https://github.com/user-attachments/assets/168c3a22-dab1-4a8f-a582-689a1f24e0db
 
 <p align="center"><sub>One Slack request for a launch film: the plan, the storyboard, helpers rendering in parallel, the checks and the final cut.</sub></p>
 
