@@ -7,16 +7,18 @@
       </picture>
     </a>
   </p>
-  <h1>Design Agent</h1>
-  <p><strong>An open-source AI design agent.</strong> Ask for a launch card, a deck, a diagram, a chart or a<br>short film in Slack, and get finished, on-brand files back in the thread.</p>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/header/dots.svg?title=Design%20Agent&subtitle=Ask%20in%20Slack%20for%20a%20card%2C%20a%20deck%2C%20a%20diagram%20or%20a%20film%2C%20and%20get%20on-brand%20files%20back&logo=lu:PenTool&font=inter&mode=dark">
+    <img src="https://shieldcn.dev/header/dots.svg?title=Design%20Agent&subtitle=Ask%20in%20Slack%20for%20a%20card%2C%20a%20deck%2C%20a%20diagram%20or%20a%20film%2C%20and%20get%20on-brand%20files%20back&logo=lu:PenTool&font=inter&mode=light" alt="Design Agent: ask in Slack for a card, a deck, a diagram or a film, and get on-brand files back" width="100%">
+  </picture>
   <p>
-    <a href="https://github.com/langchain-ai/design-agent/actions/workflows/ci.yml"><img src="https://github.com/langchain-ai/design-agent/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-    <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License: Apache 2.0"></a>
-    <img src="https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&amp;logoColor=white" alt="Python 3.11+">
-    <a href="https://github.com/langchain-ai/deepagents"><img src="https://img.shields.io/badge/built%20on-Deep%20Agents-1C3C3C?logo=langchain&amp;logoColor=white" alt="Built on Deep Agents"></a>
-    <a href="https://docs.langchain.com/langsmith/python/managed-deep-agents-overview"><img src="https://img.shields.io/badge/deploy-Managed%20Deep%20Agents-006DDD" alt="Deploy with Managed Deep Agents"></a>
-    <a href="https://hyperframes.heygen.com"><img src="https://img.shields.io/badge/video-HyperFrames-111111" alt="Video with HyperFrames"></a>
-    <a href="https://paper.design"><img src="https://img.shields.io/badge/canvas-Paper-111111" alt="Canvas in Paper"></a>
+    <a href="LICENSE"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/license-Apache%202.0-7FC8FF.svg?variant=outline&logo=lu:Scale&mode=dark"><img src="https://shieldcn.dev/badge/license-Apache%202.0-006DDD.svg?variant=outline&logo=lu:Scale&mode=light" alt="License: Apache 2.0"></picture></a>
+    <a href="https://www.python.org"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/python-3.11%2B-7FC8FF.svg?variant=outline&logo=python&mode=dark"><img src="https://shieldcn.dev/badge/python-3.11%2B-006DDD.svg?variant=outline&logo=python&mode=light" alt="Python 3.11+"></picture></a>
+    <a href="https://github.com/langchain-ai/deepagents"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/built%20on-Deep%20Agents-7FC8FF.svg?variant=outline&logo=lu:Layers&mode=dark"><img src="https://shieldcn.dev/badge/built%20on-Deep%20Agents-006DDD.svg?variant=outline&logo=lu:Layers&mode=light" alt="Built on Deep Agents"></picture></a>
+    <a href="https://docs.langchain.com/langsmith/python/managed-deep-agents-overview"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/deploy-Managed%20Deep%20Agents-7FC8FF.svg?variant=outline&logo=lu:Rocket&mode=dark"><img src="https://shieldcn.dev/badge/deploy-Managed%20Deep%20Agents-006DDD.svg?variant=outline&logo=lu:Rocket&mode=light" alt="Deploy with Managed Deep Agents"></picture></a>
+    <a href="docs/self-hosting.md"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/self--host-Docker-7FC8FF.svg?variant=outline&logo=docker&mode=dark"><img src="https://shieldcn.dev/badge/self--host-Docker-006DDD.svg?variant=outline&logo=docker&mode=light" alt="Self-host with Docker"></picture></a>
+    <a href="https://hyperframes.heygen.com"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/video-HyperFrames-7FC8FF.svg?variant=outline&logo=lu:Clapperboard&mode=dark"><img src="https://shieldcn.dev/badge/video-HyperFrames-006DDD.svg?variant=outline&logo=lu:Clapperboard&mode=light" alt="Video with HyperFrames"></picture></a>
+    <a href="https://paper.design"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/canvas-Paper-7FC8FF.svg?variant=outline&logo=lu:PenTool&mode=dark"><img src="https://shieldcn.dev/badge/canvas-Paper-006DDD.svg?variant=outline&logo=lu:PenTool&mode=light" alt="Canvas in Paper"></picture></a>
   </p>
   <p>
     <a href="#get-started">Get started</a> ·
@@ -27,10 +29,9 @@
   </p>
 </div>
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/langchain-ai/design-agent/raw/main/docs/assets/readme/hero-dark.png">
-  <img src="https://github.com/langchain-ai/design-agent/raw/main/docs/assets/readme/hero-light.png" alt="Design Agent at work: a Slack request for a launch film, and the agent's computer with its project folders, a HyperFrames render in the terminal, the film preview, layers and references" width="100%">
-</picture>
+<p align="center">
+  <img src="https://github.com/langchain-ai/design-agent/raw/main/docs/assets/readme/hero.png" alt="Design Agent at work: a Slack request for a launch film, and the agent's computer with its project folders, a HyperFrames render in the terminal, the film preview, layers and references" width="100%">
+</p>
 
 We built Design Agent as our own design teammate at LangChain, and now it's open source.
 
@@ -47,8 +48,8 @@ anything big, like a film, it shows you a storyboard first, and you approve it b
 ## See it work
 
 <p align="center">
-  <a href="https://github.com/langchain-ai/design-agent/raw/main/docs/assets/readme/design-agent-explainer.mp4"><img src="https://github.com/langchain-ai/design-agent/raw/main/docs/assets/readme/explainer-preview.gif" alt="From the explainer film: the lead hands out a film in three acts, and a flock of helper parrots works the act folders in parallel" width="100%"></a>
-  <br><sub><b><a href="https://github.com/langchain-ai/design-agent/raw/main/docs/assets/readme/design-agent-explainer.mp4">▶ Watch the 2-minute film</a></b>: one Slack request, from the sandbox to skills, Paper, the helpers, HyperFrames, the checks and the sound.</sub>
+  <a href="https://github.com/langchain-ai/design-agent/blob/main/docs/assets/readme/design-agent-explainer.mp4"><img src="https://github.com/langchain-ai/design-agent/raw/main/docs/assets/readme/explainer-preview.gif" alt="From the explainer film: the lead hands out a film in three acts, and a flock of helper parrots works the act folders in parallel" width="100%"></a>
+  <br><sub><b><a href="https://github.com/langchain-ai/design-agent/blob/main/docs/assets/readme/design-agent-explainer.mp4">▶ Click to watch the 2-minute film</a></b>: one Slack request, from the sandbox to skills, Paper, the helpers, HyperFrames, the checks and the sound.</sub>
 </p>
 
 ## What you can ask for
