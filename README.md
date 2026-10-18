@@ -41,7 +41,7 @@ deployment paths: [Managed Deep Agents](https://docs.langchain.com/langsmith/pyt
 in one command, or self-hosted with Docker.
 
 > [!NOTE]
-> The figures and samples in this README use LangChain's brand, the brand we run it with. Design Agent
+> The images and film in this README use LangChain's brand, the brand we run it with. Design Agent
 > ships with an original sample brand, and every output follows the brand pack you give it: build
 > yours with the [brand-onboarding skill](.agents/skills/brand-onboarding/SKILL.md).
 
@@ -51,23 +51,6 @@ in one command, or self-hosted with Docker.
 [FAQ](#faq) · [Built with](#built-with)
 
 ## What it makes
-
-<table>
-  <tr>
-    <td width="50%"><img src="docs/assets/readme/gallery/slide-diagram.png" alt="A light-mode opening slide: two people, one agent, private user memories and one shared agent memory"><br><sub><b>Slides and diagrams.</b> An opening slide for a technical demo.</sub></td>
-    <td width="50%"><img src="docs/assets/readme/gallery/trace-diagram.png" alt="A dark trace diagram of a travel-booking agent with the wrong-date tool call flagged in red"><br><sub><b>Explainers.</b> An agent trace with the faulty step flagged.</sub></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/assets/readme/gallery/dashboard-chart.png" alt="A light-mode dashboard of online evaluation costs over time as stacked bars"><br><sub><b>Charts.</b> Rendered from data; every number computed in code.</sub></td>
-    <td width="50%"><img src="docs/assets/readme/gallery/launch-card.png" alt="A dark 1200 by 630 card: Deploy your agent with one command"><br><sub><b>Social cards.</b> This one came from a deployed agent over the API.</sub></td>
-  </tr>
-  <tr>
-    <td colspan="2"><img src="docs/assets/readme/gallery/x-header.png" alt="A dark X header with converging dots and the line: your iteration engine for building reliable agents"><br><sub><b>Banners and headers</b>, sized for each platform.</sub></td>
-  </tr>
-  <tr>
-    <td colspan="2"><img src="docs/assets/readme/gallery/storyboard.jpg" alt="The first frames of a storyboard for a 45-second film about scheduled agent runs, with timing, motion and sound notes under each frame"><br><sub><b>Motion.</b> Storyboard first, with timing, motion and sound for every frame; then a HyperFrames film.</sub></td>
-  </tr>
-</table>
 
 - **Stills and sets:** layouts rendered in a real browser, each size recomposed rather than scaled;
   PDFs and decks; image edits; GIFs.
@@ -83,10 +66,10 @@ in one command, or self-hosted with Docker.
 
 ## How it works
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/layers-dark.png">
-  <img src="docs/assets/readme/layers-light.png" alt="The layers: what we built (the lead and its helpers, the context, the designer's computer) on top of what comes off the shelf (Managed Deep Agents, Deep Agents, the model)" width="100%">
-</picture>
+<p align="center">
+  <a href="docs/assets/readme/design-agent-explainer.mp4"><img src="docs/assets/readme/explainer-preview.gif" alt="From the explainer film: the lead hands out a film in three acts, and a flock of helper parrots works the act folders in parallel" width="100%"></a>
+  <br><sub><b><a href="docs/assets/readme/design-agent-explainer.mp4">Watch the 2-minute film</a></b>: a Slack request moving through the sandbox, skills, Paper, the helpers, HyperFrames, the checks and the sound.</sub>
+</p>
 
 Three layers are specific to design work. **The lead and its helpers** plan the job and hand out the
 pieces. **The context** is skills, a design wiki, the brand pack and memory, loaded only when a job
@@ -96,11 +79,6 @@ your own infrastructure) and a frontier model. The model makes the creative call
 measures, runs the gates, delivers files and holds the credentials.
 
 ## Architecture
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/architecture-dark.png">
-  <img src="docs/assets/readme/architecture-light.png" alt="Architecture on Managed Deep Agents: Slack, sandboxes and schedules; the lead and its helpers, the context folders and the designer's computer; the Deep Agents harness and the model; host tools and MCP servers outside, where the keys stay" width="100%">
-</picture>
 
 One assembly (`src/design_agent/assembly.py`) builds the model, tools, middleware and helpers.
 Runtime profiles plug it into each place it runs: Managed Deep Agents, the CLI, the self-hosted API,
@@ -132,11 +110,6 @@ Slack and schedules.
   - Prompt caching keeps the lead's prefix warm for an hour.
 
 ### The designer's computer
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/computer-dark.png">
-  <img src="docs/assets/readme/computer-light.png" alt="The designer's computer: a workspace with job, skills, wiki, video kit and memory folders; HTML layers and image scripts; a video engine of HyperFrames, Chrome and FFmpeg; charts and diagrams; host tools and MCP servers outside with the keys" width="100%">
-</picture>
 
 - **One recipe for every sandbox.** [`sandbox/setup.sh`](sandbox/) pins Chrome Headless Shell,
   FFmpeg, HyperFrames, sharp, ECharts, D2 and open fonts by version and sha256. It ends with a probe

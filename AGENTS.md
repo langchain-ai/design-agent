@@ -72,8 +72,8 @@ Code and tests are the source of truth; `SPEC.md` records the product intent beh
   the brand folder. Large results go to files with compact summaries.
 - Do not copy private company data, internal people, channels, accounts, licensed fonts,
   third-party footage or internal implementation notes into this repository. LangChain's brand
-  appears only in the README and `docs/assets/readme/` (the project's own presentation, exported
-  from its Paper designs); the agent's sample brand, skills, examples and tests stay brand-neutral.
+  appears only in the README and `docs/assets/readme/` (the project's own presentation: figures
+  exported from its Paper designs and its explainer film); the agent's sample brand, skills, examples and tests stay brand-neutral.
 
 ## Change discipline
 
