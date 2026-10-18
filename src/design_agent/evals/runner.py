@@ -75,13 +75,19 @@ def _repeated(trace: Trace) -> int:
     return repeats
 
 
-async def run_task(task: Task, project_root: Path, model: str, out_root: Path) -> TaskResult:
+async def run_task(
+    task: Task, project_root: Path, model: str, out_root: Path, *, set_brand: str | None = None
+) -> TaskResult:
+    """Run one task. Its brand is its own (beside tasks.json), else the set's (from the project
+    root), never the operator's: the prompts name the sample brand's product and copy."""
     missing = [name for name in task.needs if not os.environ.get(name)]
     if missing:
         return TaskResult(task.id, model, "skipped", note=f"needs {', '.join(missing)}")
     env = {**task.env, "DESIGN_AGENT_MODEL": model}
     if task.brand:
         env["DESIGN_AGENT_BRAND_PATH"] = str(project_root / EVAL_ROOT / task.brand)
+    elif set_brand:
+        env["DESIGN_AGENT_BRAND_PATH"] = str(project_root / set_brand)
     with _environ(env):
         settings = Settings()
     thread = f"eval-{task.id}-{int(time.time())}"

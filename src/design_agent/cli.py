@@ -80,6 +80,7 @@ async def _ask(
     from langchain_core.messages import AIMessage
 
     from design_agent.doctor import missing_model_key
+    from design_agent.harness.meter import Meter
     from design_agent.runtime.local import build_local_runtime, final_text
     from design_agent.runtime.persistence import open_persistence, workspace_of
     from design_agent.tools.mcp import load_mcp_tools, servers_for_runtime
@@ -102,6 +103,7 @@ async def _ask(
         )
     servers = [s for s in servers if s.name not in loaded.failed]
     loaded.tools = admit_paper_tools(loaded.tools, PaperPolicy.from_settings(settings))
+    meter = Meter()
     async with open_persistence(settings, workspace_of(settings, root)) as (checkpointer, store):
         runtime = build_local_runtime(
             settings,
@@ -145,6 +147,14 @@ async def _ask(
             await runtime.services.aclose()
             if runtime.binding.runner is not None:
                 runtime.binding.runner.stop_all()
+            spent = meter.summary(thread)
+            meter.close()
+            if spent.calls:
+                click.echo(
+                    f"cost: about ${spent.usd:.2f} at list prices ({spent.calls} model calls, "
+                    f"{spent.hit_ratio:.0%} of input read from cache)",
+                    err=True,
+                )
         folder = runtime.out_dir / thread
         if folder.is_dir():
             for path in sorted(folder.iterdir()):
@@ -367,7 +377,11 @@ def eval_run(
             for task in chosen:
                 click.echo(f"{model} · {task.id} …")
                 result = await run_task(
-                    task, root, model, out_root / model.replace(":", "_").replace("/", "_")
+                    task,
+                    root,
+                    model,
+                    out_root / model.replace(":", "_").replace("/", "_"),
+                    set_brand=tasks.brand,
                 )
                 click.echo(
                     f"  {result.status} in {result.seconds / 60:.1f} min, ~${result.usd:.2f} {result.note}"

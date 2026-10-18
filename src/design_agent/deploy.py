@@ -94,10 +94,13 @@ class Preflight:
 
 
 def env_split(values: Mapping[str, str | None]) -> tuple[dict[str, str], list[str]]:
-    """The `.env` entries a deployment ships, and the names it holds back."""
+    """The `.env` entries a deployment ships, and the names it holds back. Blank entries are
+    neither: they are unset, and shipping them would only list empty secrets."""
     shipped: dict[str, str] = {}
     held: list[str] = []
     for key, value in values.items():
+        if value is not None and not value.strip():
+            continue
         if value is None or key in NEVER_SHIPPED:
             held.append(key)
         elif key in ENV_KEYS or key.startswith(ENV_PREFIXES):

@@ -23,9 +23,13 @@ def test_env_ships_agent_keys_and_holds_everything_else() -> None:
             "LANGSMITH_API_KEY": "ls",
             "MY_OTHER_PROJECT_KEY": "x",
             "EMPTY": None,
+            "OPENAI_API_KEY": "",
+            "DESIGN_AGENT_HELPER_MODEL": "  ",
         }
     )
-    assert set(shipped) == {"ANTHROPIC_API_KEY", "DESIGN_AGENT_MODEL", "PAPER_MODE"}
+    assert set(shipped) == {"ANTHROPIC_API_KEY", "DESIGN_AGENT_MODEL", "PAPER_MODE"}, (
+        "blanks are unset"
+    )
     assert held == [
         "DATABASE_URL",
         "EMPTY",
@@ -86,6 +90,8 @@ def test_preflight_refuses_the_docker_base_and_a_missing_model_key(
 ) -> None:
     for key in ("ANTHROPIC_API_KEY", "DESIGN_AGENT_MODEL"):
         monkeypatch.delenv(key, raising=False)
+    # An operator's checkout may already declare its published snapshot.
+    monkeypatch.setattr(deploy, "declared_base", lambda _root: "docker_image")
     report = deploy.preflight(ROOT, Settings(_env_file=None))  # type: ignore[call-arg]
     assert any("sandbox publish" in p for p in report.problems)
     assert any("ANTHROPIC_API_KEY" in p for p in report.problems) or (ROOT / ".env").is_file()

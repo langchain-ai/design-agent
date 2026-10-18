@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import shutil
 from pathlib import Path
 from types import SimpleNamespace
@@ -53,9 +54,14 @@ class FakeClient:
 
 @pytest.fixture
 def project(tmp_path: Path) -> Path:
+    """A checkout on the Docker base, whatever this one declares (an operator's may name its
+    published snapshot)."""
     (tmp_path / "sandbox").mkdir()
-    for name in ("__init__.py", "setup.sh"):
-        shutil.copy(ROOT / "sandbox" / name, tmp_path / "sandbox" / name)
+    shutil.copy(ROOT / "sandbox" / "setup.sh", tmp_path / "sandbox" / "setup.sh")
+    declaration = (ROOT / "sandbox" / "__init__.py").read_text()
+    declaration = re.sub(r'^SNAPSHOT_NAME = "[^"]*"\n', "", declaration, flags=re.MULTILINE)
+    declaration = declaration.replace("snapshot_name=SNAPSHOT_NAME,", "docker_image=BASE_IMAGE,")
+    (tmp_path / "sandbox" / "__init__.py").write_text(declaration)
     return tmp_path
 
 

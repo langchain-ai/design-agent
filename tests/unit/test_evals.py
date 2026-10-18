@@ -11,6 +11,7 @@ import pytest
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 from PIL import Image
 
+from design_agent.config import Settings
 from design_agent.evals import graders, runner
 from design_agent.evals.tasks import Task, load_tasks
 from design_agent.evals.trace import Trace
@@ -179,3 +180,20 @@ async def test_the_runner_grades_a_scripted_run(
     report = runner.write_report([result], TASKS, tmp_path / "out")
     assert "| honest-delivery |" in (report / "README.md").read_text()
     assert runner.summarize([result])["anthropic:claude-opus-5-5"]["success_rate"] == 1.0
+
+
+async def test_tasks_without_a_brand_run_on_the_sets_brand_not_the_operators(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    seen: dict[str, Path] = {}
+
+    def stop(settings: Settings, _root: Path) -> None:
+        seen["brand"] = settings.brand_path
+        raise RuntimeError("stop before any model call")
+
+    monkeypatch.setattr(runner, "select_binding", stop)
+    with pytest.raises(RuntimeError):
+        await runner.run_task(
+            task("exact-copy"), ROOT, "anthropic:claude-opus-5-5", tmp_path, set_brand=TASKS.brand
+        )
+    assert seen["brand"] == ROOT / TASKS.brand
