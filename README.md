@@ -33,7 +33,7 @@ X, and three in four requests come from outside marketing.
 
 ## See it work
 
-https://github.com/user-attachments/assets/168c3a22-dab1-4a8f-a582-689a1f24e0db
+https://github.com/user-attachments/assets/0664d09d-2ab2-41fd-b2ba-f91c96121e20
 
 <p align="center"><sub>One Slack request for a launch film: the plan, the storyboard, helpers rendering in parallel, the checks and the final cut.</sub></p>
 
