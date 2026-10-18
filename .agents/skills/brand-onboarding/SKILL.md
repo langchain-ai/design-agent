@@ -10,22 +10,34 @@ language. Schema: `src/design_agent/brand/schema.py`; a complete example:
 `examples/brands/example-studio/`. Never invent a rule, colour, font or logo the sources do not show:
 leave it out and list it as a question for the person.
 
-1. Copy the example pack's layout into `workspace/brand/` (Git-ignored) and replace its content.
+1. `uv run design-agent brand init` copies the example pack into `workspace/brand/` (Git-ignored);
+   replace every file's content, logos included.
 2. **Sources, best first:** the brand's own guide (PDF), its design files (Paper: read tokens,
    palette and type nodes with `get_tokens`, `get_computed_styles`, `get_jsx`; never write to the
    brand file), the live website's CSS, then existing marketing files.
-3. `tokens.json`: palette with roles (ground, text, accent), font stacks for display, text and mono,
-   radii, stroke, spacing, and the copy rules the guide states. Check every text/ground pair you list
-   for WCAG contrast; mark accents that fail on light grounds as non-text.
+3. `tokens.json`: palette, font stacks for display, text and mono, radii, stroke, spacing, and the
+   copy rules the guide states. Check every text/ground pair you list for WCAG contrast; mark
+   accents that fail on light grounds as non-text. Say which colour plays which role in
+   `design.roles.light` and `design.roles.dark` (`ground`, `ink`, `accent`, `muted`, `quiet`,
+   `rule`, `series`, each a token): charts and diagrams use them, and otherwise guess from the
+   palette. Porting an existing tokens file: names must be `--brand-*`, hexes carry `#`, `version`
+   is `"1"`, unknown keys are refused, and every font stack ends in a generic family.
 4. `logos/`: SVG where the brand provides it; every variant the guide allows (mark, lockup,
    reversed). Do not redraw or trace a logo; ask for files.
-5. `fonts.toml`: for each family, an open font in `fonts/` or a licensed file the person supplies in
+5. `fonts.toml`: for each face, an open font in `fonts/` or a licensed file the person supplies in
    `private-fonts/` (Git-ignored; it reaches the sandbox as deployment files or a mount). Never
-   commit licensed fonts. If a licensed face is unavailable, name the closest open fallback and say
-   so in `graphic-language.md`.
+   commit licensed fonts. `family` is the name inside the file (the sandbox resolves fonts by it),
+   `weight` a CSS weight (`"400"`, or `"100 900"` for a variable face), `sha256` from
+   `shasum -a 256 <file>`. `uv run design-agent fonts verify` checks all three. Web formats
+   (`.woff2`, `.woff`) are fine: `tokens.css` declares them with `@font-face`. If a licensed face
+   is unavailable, name the closest open fallback and say so in `graphic-language.md`.
 6. `voice.md` and `graphic-language.md`: short, concrete, sourced ("headlines in sentence case",
-   "one accent per frame"), no generic advice.
-7. `uv run design-agent brand validate`, then `uv run design-agent brand css` regenerates
-   `tokens.css`. Render a test card with `uv run design-agent demo` against the new brand
-   (`DESIGN_AGENT_BRAND_PATH=workspace/brand`) and look at it with the person.
-8. Hand the person the open questions; the pack is done when they have reviewed it.
+   "one accent per frame"), no generic advice. Anything else the guide has (type tables, icons,
+   pattern art, construction specs) can live in the pack too; link it from `graphic-language.md`,
+   which is what the agent reads first.
+7. `uv run design-agent brand validate`, `uv run design-agent fonts verify`, then
+   `uv run design-agent brand css` regenerates `tokens.css`. For a first look, ask for one card
+   (`uv run design-agent ask "A 1200x630 card announcing …"`) and review it with the person; `demo`
+   always renders the sample brand.
+8. Hand the person the open questions, including rules the guide contradicts itself on; the pack is
+   done when they have reviewed it.

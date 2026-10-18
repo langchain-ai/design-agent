@@ -143,14 +143,19 @@ class DockerSandboxRunner:
             raise SandboxUnavailableError(f"docker {args[0]} failed: {detail[:300]}")
         return result
 
-    def _cpu_limit(self) -> str:
-        """`--cpus`: the configured vCPUs, capped at the Docker host's, which refuses more."""
-        info = self._run(["info", "--format", "{{.NCPU}}"], timeout=30, check=False)
+    def _host_limits(self) -> tuple[str, str]:
+        """`--cpus` and `--memory`: the configured limits, capped at the Docker host's. The daemon
+        refuses more CPUs than it has, and a memory limit above the VM's only hides the OOM."""
+        info = self._run(["info", "--format", "{{.NCPU}} {{.MemTotal}}"], timeout=30, check=False)
         try:
-            host = int(info.stdout.strip())
+            cpus, memory = (int(part) for part in info.stdout.split())
         except ValueError:
-            host = 0
-        return str(min(self.limits.vcpus, host) if host > 0 else self.limits.vcpus)
+            cpus, memory = 0, 0
+        wanted = self.limits.mem_gib * 1024**3
+        return (
+            str(min(self.limits.vcpus, cpus) if cpus > 0 else self.limits.vcpus),
+            str(min(wanted, memory) if memory > 0 else wanted),
+        )
 
     def available(self) -> tuple[bool, str]:
         """Whether Docker answers and the image exists, with a reason when not."""
@@ -193,6 +198,7 @@ class DockerSandboxRunner:
         if state.returncode == 0:
             self._run(["start", container.name], timeout=60)
         else:
+            cpus, memory = self._host_limits()
             self._run(
                 [
                     "run",
@@ -217,9 +223,9 @@ class DockerSandboxRunner:
                     "--pids-limit",
                     str(self.limits.pids),
                     "--cpus",
-                    self._cpu_limit(),
+                    cpus,
                     "--memory",
-                    f"{self.limits.mem_gib}g",
+                    memory,
                     "--shm-size",
                     f"{self.limits.shm_gib}g",
                     "--mount",

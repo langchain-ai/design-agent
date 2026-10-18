@@ -165,6 +165,23 @@ def test_html2png_fails_when_a_required_font_is_missing(sandbox: Sandbox, out: P
     assert list(out.iterdir()) == []
 
 
+def test_html2png_counts_a_web_font_under_its_css_family(sandbox: Sandbox, out: Path) -> None:
+    """woff2 faces load only through @font-face, and CDP names them by the name inside the file
+    (here "Inter"), not the CSS family the page asked for."""
+    (out / "f").mkdir()
+    shutil.copy(ROOT / "fonts" / "Inter-Variable.ttf", out / "f" / "probe.ttf")
+    (out / "page.html").write_text(
+        '<style>@font-face{font-family:"Probe Face";src:url("f/probe.woff2") format("woff2")}'
+        'body{font-family:"Probe Face"}</style><body>Probe</body>'
+    )
+    proc = sandbox(
+        "woff2_compress out/f/probe.ttf >/dev/null && "
+        'node tools/html2png.mjs out/page.html --out out --name p --size 400x200 --require-font "Probe Face"'
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert last_json(proc)["fonts"] == {"Probe Face": True}
+
+
 def test_html2png_writes_jpeg_and_webp(sandbox: Sandbox, out: Path) -> None:
     proc = sandbox(
         "node tools/html2png.mjs fixtures/brand/clean.html --out out --name j --size 1080x1080 --format jpeg && "

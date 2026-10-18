@@ -45,11 +45,12 @@ uv run design-agent demo
 The demo needs no keys: a scripted run renders a launch card in three sizes and a 4-second teaser
 for the sample brand, through the real agent, sandbox and gates, into `workspace/out/demo/`.
 
-Then add a model and ask for something:
+Then add a model (put `ANTHROPIC_API_KEY=…` in `.env` yourself, so the key stays out of your shell
+history) and ask for something:
 
 ```bash
-uv run design-agent config set DESIGN_AGENT_MODEL=anthropic:claude-opus-5-5 ANTHROPIC_API_KEY=…
-uv run design-agent doctor
+uv run design-agent config set DESIGN_AGENT_MODEL=anthropic:claude-opus-5-5
+uv run design-agent test model
 uv run design-agent ask "A LinkedIn card announcing our design review service, 1200x627."
 ```
 

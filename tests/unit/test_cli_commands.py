@@ -24,8 +24,12 @@ def project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 def test_brand_init_copies_the_sample_once(project: Path) -> None:
+    (project / "workspace/brand").mkdir(parents=True)
+    (project / "workspace/brand/README.md").write_text("tracked")
     first = CliRunner().invoke(cli.main, ["brand", "init"])
     assert first.exit_code == 0 and (project / "workspace/brand/brand.toml").is_file()
+    assert (project / "workspace/brand/README.md").read_text() == "tracked"
+    assert not (project / "workspace/brand/LICENSE").exists()
     assert CliRunner().invoke(cli.main, ["brand", "init"]).exit_code == 1
 
 
@@ -34,6 +38,17 @@ def test_fonts_verify_checks_checksums_and_licenses(project: Path) -> None:
     (project / "fonts" / "Unlisted-Regular.ttf").write_bytes(b"x")
     result = CliRunner().invoke(cli.main, ["fonts", "verify"])
     assert result.exit_code == 1 and "Unlisted-Regular.ttf is not listed" in result.output
+
+
+def test_fonts_verify_catches_a_family_the_file_does_not_carry(project: Path) -> None:
+    pack = project / "examples/brands/example-studio"
+    for name in ("fonts.toml", "tokens.json"):
+        text = (pack / name).read_text()
+        assert '"Fraunces"' in text
+        (pack / name).write_text(text.replace('"Fraunces"', '"Fraunces Display"'))
+    result = CliRunner().invoke(cli.main, ["fonts", "verify"])
+    assert result.exit_code == 1
+    assert 'says family "Fraunces Display", the file says "Fraunces"' in result.output
 
 
 def test_sandbox_use_points_local_runs_at_a_snapshot(project: Path) -> None:

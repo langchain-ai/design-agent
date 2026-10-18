@@ -94,6 +94,20 @@ test("brand roles come from the brand pack's palette, with readable text", () =>
   assert.throws(() => brandTheme(tokens, { roles: { ground: "--brand-color-nope" } }), /unknown token/);
 });
 
+test("the pack's roles win over the measurement, and a spec's pin over both", () => {
+  const graphite = tokens.design.tokens["--brand-color-graphite"];
+  const paper = tokens.design.tokens["--brand-color-paper"];
+  const withRoles = structuredClone(tokens);
+  withRoles.design.roles = { light: { accent: "--brand-color-graphite", series: ["--brand-color-paper"] } };
+  const assigned = brandTheme(withRoles);
+  assert.equal(assigned.accent, graphite.toLowerCase());
+  assert.deepEqual(assigned.series, [paper.toLowerCase()]);
+  assert.equal(brandTheme(withRoles, { mode: "dark" }).accent, theme.accent, "a mode without roles is measured");
+  assert.equal(brandTheme(withRoles, { roles: { accent: "--brand-color-paper" } }).accent, paper.toLowerCase());
+  withRoles.design.roles.light.muted = "--brand-color-nope";
+  assert.throws(() => brandTheme(withRoles), /roles\.light\.muted: unknown token/);
+});
+
 test("numbers are formatted from the field's unit and precision", () => {
   assert.equal(formatValue(1200, { unit: "$", precision: 0 }), "$1,200");
   assert.equal(formatValue(72.04, { unit: "%", precision: 1 }), "72%");

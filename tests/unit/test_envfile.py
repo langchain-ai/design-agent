@@ -58,3 +58,8 @@ def test_generate_fills_secrets_once(project: Path) -> None:
     first = read_env(project)["PAPER_BRIDGE_TOKEN"]
     assert len(first) >= 32 and generate(project, ["PAPER_BRIDGE_TOKEN"]) == []
     assert read_env(project)["PAPER_BRIDGE_TOKEN"] == first
+
+
+def test_a_comment_after_an_empty_value_is_not_the_value(tmp_path: Path) -> None:
+    (tmp_path / ".env").write_text("A=            # what A is for\nB=#hex\nC=v # note\n")
+    assert read_env(tmp_path) == {"A": "", "B": "#hex", "C": "v"}

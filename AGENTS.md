@@ -6,22 +6,26 @@ decks, diagrams, charts and motion graphics from a chat thread, on its own compu
 as the video engine and Paper as the shared canvas. Keep company-specific brands, credentials, fonts,
 reference films and operational history out of the public repository.
 
-This repository starts spec-first. Until the implementation exists, `SPEC.md` and
-`IMPLEMENTATION_PROMPT.md` are the source of truth; afterwards, code and tests are.
+**Setting up or using Design Agent?** Follow
+[.agents/skills/design-agent-onboarding/SKILL.md](.agents/skills/design-agent-onboarding/SKILL.md)
+(and [brand-onboarding](.agents/skills/brand-onboarding/SKILL.md) for a brand). The rest of this
+file is for changing the agent.
 
-## Read first
+Code and tests are the source of truth; `SPEC.md` records the product intent behind them.
 
-1. [SPEC.md](SPEC.md): product behavior, architecture, extraction plan, slices and acceptance criteria.
-2. [docs/prep/extraction-map.md](docs/prep/extraction-map.md): every source component from the
-   internal agent, classified as keep, generalize, rewrite or exclude.
-3. [docs/prep/source-inventory.md](docs/prep/source-inventory.md): pinned source revisions and
-   package versions this build is based on.
-4. [docs/prep/partner-integrations.md](docs/prep/partner-integrations.md): HyperFrames and Paper
-   contracts and open partner questions.
-5. [docs/sources/official-links.md](docs/sources/official-links.md): primary documentation for
-   every external contract.
+## Read first (to change the agent)
 
-## Folder boundaries (target)
+1. [docs/architecture/](docs/architecture/README.md): how the assembly, harness, surfaces and
+   sandbox fit together.
+2. [SPEC.md](SPEC.md): product behavior, slices and acceptance criteria.
+3. [docs/sources/official-links.md](docs/sources/official-links.md): primary documentation for
+   every external contract; [docs/upstream.md](docs/upstream.md): seams we work around.
+4. Pre-release only (removed before the repository goes public):
+   [docs/prep/extraction-map.md](docs/prep/extraction-map.md),
+   [docs/prep/source-inventory.md](docs/prep/source-inventory.md) and
+   [docs/prep/partner-integrations.md](docs/prep/partner-integrations.md).
+
+## Folder boundaries
 
 - `.agents/skills/`: workflows for coding agents (onboarding, brand setup, vendor sync, release).
   `.claude/skills` links here. Never synced to the runtime sandbox.
@@ -83,7 +87,7 @@ session handoffs or audit transcripts to the repository. Preserve unrelated loca
 Do not commit, push, deploy, create remote repositories, connect accounts, publish packages, or
 contact partners unless the user asks.
 
-## Verification (target)
+## Verification
 
 ```bash
 uv sync --all-extras --dev

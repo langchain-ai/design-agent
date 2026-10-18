@@ -18,7 +18,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from design_agent.config import Settings
+from design_agent.config import SAMPLE_BRAND, Settings
 from design_agent.runtime.local import build_local_runtime, final_text
 from design_agent.runtime.sandbox import SandboxSelectionError, select_binding
 from design_agent.testing.demo_script import (
@@ -65,7 +65,9 @@ def _verify_outputs(folder: Path) -> tuple[list[Path], list[str]]:
 
 
 async def run_demo(project_root: Path, settings: Settings | None = None) -> DemoResult:
-    settings = settings or Settings()
+    # The scripted model writes the sample brand's tokens, fonts and logo, so the demo proves the
+    # computer on that brand whatever pack is installed; `ask` is the first look at your own.
+    settings = (settings or Settings()).model_copy(update={"brand_path": SAMPLE_BRAND})
     started = time.monotonic()
     binding = select_binding(settings, project_root)
     thread_id = f"demo-{uuid.uuid4().hex[:8]}"

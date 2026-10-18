@@ -228,7 +228,19 @@ export async function unresolvedFonts(page, families) {
       const { fonts } = await cdp.send("CSS.getPlatformFontsForNode", { nodeId });
       await page.evaluate((attr) => document.querySelectorAll(`[${attr}]`).forEach((el) => el.remove()), PROBE_ATTR);
       const used = fonts.map((font) => font.familyName);
-      if (!checked || !used.some((name) => name.toLowerCase() === family.toLowerCase())) {
+      // A system font reports its family; a web font (an @font-face rule, as woff2 faces must be)
+      // reports the name inside its file ("Brand Sans 250"), so it counts when a face registered
+      // under the requested family loaded and a web font painted the probe.
+      const webFace = await page.evaluate(
+        (name) =>
+          [...document.fonts].some(
+            (face) => face.status === "loaded" && face.family.replace(/^["']|["']$/g, "").toLowerCase() === name.toLowerCase(),
+          ),
+        family,
+      );
+      const painted =
+        used.some((name) => name.toLowerCase() === family.toLowerCase()) || (webFace && fonts.some((font) => font.isCustomFont));
+      if (!checked || !painted) {
         missing.push({ family, renderedWith: used.join(", ") || "nothing" });
       }
     }

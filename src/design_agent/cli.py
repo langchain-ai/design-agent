@@ -572,10 +572,18 @@ def brand_init(force: bool) -> None:
     if (target / "brand.toml").exists() and not force:
         click.echo("workspace/brand/ already holds a pack; --force replaces it.", err=True)
         sys.exit(1)
-    shutil.copytree(root / "examples" / "brands" / "example-studio", target, dirs_exist_ok=True)
+    # The folder's README is tracked, and the sample's LICENSE covers only the sample's files.
+    shutil.copytree(
+        root / "examples" / "brands" / "example-studio",
+        target,
+        dirs_exist_ok=True,
+        ignore=lambda folder, _names: (
+            {"README.md", "LICENSE"} if Path(folder).name == "example-studio" else set()
+        ),
+    )
     click.echo(
-        "Copied the sample brand to workspace/brand/. Replace its content with yours; the "
-        "brand-onboarding skill walks through it, and `brand validate` checks it."
+        "Copied the sample brand to workspace/brand/. Replace its content with yours (its logos "
+        "too); the brand-onboarding skill walks through it, and `brand validate` checks it."
     )
 
 
@@ -586,7 +594,10 @@ def fonts() -> None:
 
 @fonts.command("verify")
 def fonts_verify() -> None:
-    """Every brand font file is present with its recorded checksum, and every open font is licensed."""
+    """Every brand font file is present with its recorded checksum and the family fonts.toml names,
+    and every open font is licensed."""
+    from PIL import ImageFont
+
     from design_agent.brand.schema import BrandPackError, load_brand_pack
 
     root = _root()
@@ -594,6 +605,17 @@ def fonts_verify() -> None:
     try:
         pack = load_brand_pack(Settings().resolved_brand_path(root), project_root=root)
         for font in pack.fonts.fonts:
+            # The sandbox resolves fonts by this name (fontconfig's family[0]), so a family that
+            # differs from the file's own passes the checksum and fails at render time.
+            try:
+                inside = ImageFont.truetype(str(pack.font_path(font, root)), 12).getname()[0]
+            except OSError:
+                inside = None
+            if inside is not None and inside != font.family:
+                problems.append(
+                    f'{font.file}: fonts.toml says family "{font.family}", the file says "{inside}"'
+                )
+                continue
             click.echo(f"ok  {font.family:20} {font.file}")
     except BrandPackError as error:
         problems.append(str(error))

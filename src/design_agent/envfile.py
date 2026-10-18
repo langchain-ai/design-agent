@@ -15,7 +15,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
-_LINE = re.compile(r"^\s*(?:export\s+)?([A-Z][A-Z0-9_]*)\s*=\s*(.*)$")
+_LINE = re.compile(r"^\s*(?:export\s+)?([A-Z][A-Z0-9_]*)\s*=(.*)$")
 _SECRET = re.compile(r"(KEY|TOKEN|SECRET|PASSWORD)$|^DATABASE_URL$|_TOKENS$")
 #: Keys `generate` may fill with a random value, and how.
 GENERATED = {
@@ -58,6 +58,9 @@ def known_keys(root: Path) -> dict[str, EnvKey]:
 
 
 def _unquote(raw: str) -> str:
+    # As python-dotenv reads it: a `#` after whitespace starts a comment, even with no value before.
+    if raw[:1].isspace() and raw.lstrip().startswith("#"):
+        return ""
     raw = raw.strip()
     if len(raw) >= 2 and raw[0] == raw[-1] and raw[0] in "\"'":
         return raw[1:-1].replace('\\"', '"').replace("\\\\", "\\")

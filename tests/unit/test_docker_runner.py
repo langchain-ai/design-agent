@@ -16,11 +16,11 @@ from design_agent.runtime.sandbox.docker import (
 
 
 class RecordingRunner(DockerSandboxRunner):
-    def __init__(self, host_cpus: int = 16, **kwargs: Any) -> None:
+    def __init__(self, host_cpus: int = 16, host_mem_gib: int = 64, **kwargs: Any) -> None:
         super().__init__(image="design-agent-sandbox:test", **kwargs)
         self.calls: list[list[str]] = []
         self.running: set[str] = set()
-        self.host_cpus = host_cpus
+        self.host = f"{host_cpus} {host_mem_gib * 1024**3}\n"
 
     def _run(
         self,
@@ -40,7 +40,7 @@ class RecordingRunner(DockerSandboxRunner):
                 b"",
             )
         if args[0] == "info":
-            return subprocess.CompletedProcess(args, 0, f"{self.host_cpus}\n".encode(), b"")
+            return subprocess.CompletedProcess(args, 0, self.host.encode(), b"")
         if args[0] == "run":
             self.running.add(args[args.index("--name") + 1])
         if args[0] == "exec" and args[-2:-1] == ["cat"]:
@@ -62,12 +62,17 @@ def test_container_runs_isolated() -> None:
     )
 
 
-@pytest.mark.parametrize(("host_cpus", "expected"), [(16, "8"), (4, "4")])
-def test_the_cpu_limit_never_exceeds_the_docker_host(host_cpus: int, expected: str) -> None:
-    runner = RecordingRunner(host_cpus=host_cpus)
+@pytest.mark.parametrize(
+    ("host_cpus", "host_mem_gib", "cpus", "mem_gib"), [(16, 64, "8", 16), (4, 8, "4", 8)]
+)
+def test_limits_never_exceed_the_docker_host(
+    host_cpus: int, host_mem_gib: int, cpus: str, mem_gib: int
+) -> None:
+    runner = RecordingRunner(host_cpus=host_cpus, host_mem_gib=host_mem_gib)
     runner.container_for("t")
     run = next(c for c in runner.calls if c[0] == "run")
-    assert run[run.index("--cpus") + 1] == expected
+    assert run[run.index("--cpus") + 1] == cpus
+    assert run[run.index("--memory") + 1] == str(mem_gib * 1024**3)
 
 
 def test_a_failed_docker_call_reports_the_daemon_reason(monkeypatch: pytest.MonkeyPatch) -> None:

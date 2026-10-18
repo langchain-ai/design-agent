@@ -71,6 +71,15 @@ def test_tokens_must_use_palette_colors(pack_copy: Path) -> None:
         load_brand_pack(pack_copy, project_root=ROOT)
 
 
+def test_colour_roles_name_tokens_that_hold_palette_colours(pack_copy: Path) -> None:
+    roles = {"light": {"accent": "--brand-color-signal", "series": ["--brand-color-graphite"]}}
+    _mutate(pack_copy, lambda d: d["design"].update(roles=roles))
+    assert load_brand_pack(pack_copy, project_root=ROOT).tokens.design.roles["light"].accent
+    _mutate(pack_copy, lambda d: d["design"]["roles"]["light"].update(muted="--brand-font-display"))
+    with pytest.raises(BrandPackError, match=r"roles\.light\.muted"):
+        load_brand_pack(pack_copy, project_root=ROOT)
+
+
 def test_font_checksum_mismatch_fails(pack_copy: Path) -> None:
     fonts = (
         (pack_copy / "fonts.toml")

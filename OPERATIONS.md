@@ -46,7 +46,7 @@ truth. Set `DESIGN_AGENT_JOB_BUDGET_USD` to make the agent ask before going past
 | Symptom | Likely cause and fix |
 | --- | --- |
 | `demo` says it needs a sandbox | Docker is not running or the image is missing: `uv run design-agent sandbox build` |
-| A render fails with a missing font | the brand's family is not in `fonts/` or `private-fonts/`, or `fonts.toml` names it wrong: `brand validate` |
+| A render fails with a missing font | the file is not in `fonts/` or `private-fonts/`, or `fonts.toml` names a family the file does not carry: `fonts verify` |
 | "The connection to the model stalled" | a call passed `DESIGN_AGENT_MODEL_TIMEOUT_SECONDS`; reply `continue` |
 | "The model stayed unavailable" | the provider failed through every retry; check the provider's status, reply `continue` |
 | Background news arrives a minute or two late on MDA | expected: MDA schedules land on the next minute |

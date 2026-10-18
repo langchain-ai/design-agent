@@ -11,8 +11,9 @@
 //   series   chromatic palette colours in brand order, minus the accent and anything that would read
 //            as it, minus anything too close to the ground to see
 //   ramp     one hue family from light to dark, for sequential encodings
-// A spec can pin any role to a token (`"colors": {"ground": "--brand-color-paper"}`); the token must
-// resolve to a palette colour.
+// The pack can assign roles per mode (`design.roles.light|dark` in tokens.json), and a spec can pin any
+// role to a token (`"colors": {"ground": "--brand-color-paper"}`); a spec's pin wins over the pack's,
+// and both win over the measurement. Every token must resolve to a palette colour.
 
 import { readFileSync } from "node:fs";
 
@@ -107,13 +108,19 @@ export function brandTheme(tokensFile, { mode = "light", roles = {} } = {}) {
   const palette = new Set([...core, ...extended]);
   const tokens = design.tokens || {};
 
-  const pinned = {};
-  for (const [role, token] of Object.entries(roles)) {
-    if (!(token in tokens)) throw new BrandError(`colors.${role}: unknown token ${token}`);
+  const resolve = (where, token) => {
+    if (!(token in tokens)) throw new BrandError(`${where}: unknown token ${token}`);
     const hex = normalizeHex(tokens[token]);
-    if (!hex || !palette.has(hex)) throw new BrandError(`colors.${role}: ${token} is not a palette colour`);
-    pinned[role] = hex;
+    if (!hex || !palette.has(hex)) throw new BrandError(`${where}: ${token} is not a palette colour`);
+    return hex;
+  };
+  const packRoles = design.roles?.[mode] || {};
+  const pinned = {};
+  for (const role of ["ground", "ink", "accent", "muted", "quiet", "rule"]) {
+    if (packRoles[role]) pinned[role] = resolve(`roles.${mode}.${role}`, packRoles[role]);
   }
+  const packSeries = (packRoles.series || []).map((token, i) => resolve(`roles.${mode}.series[${i}]`, token));
+  for (const [role, token] of Object.entries(roles)) pinned[role] = resolve(`colors.${role}`, token);
 
   const byLum = [...core].sort((a, b) => luminance(a) - luminance(b));
   const ground = pinned.ground ?? (mode === "light" ? byLum[byLum.length - 1] : byLum[0]);
@@ -141,10 +148,13 @@ export function brandTheme(tokensFile, { mode = "light", roles = {} } = {}) {
       hueGap(c, accent) > 0.35 &&
       contrast(c, ground) >= 1.4,
   );
-  // Distinct hues first (in brand order), then the remaining tints in brand order.
-  const series = [];
-  for (const c of candidates) if (series.every((s) => hueGap(c, s) > 0.5)) series.push(c);
-  for (const c of candidates) if (!series.includes(c)) series.push(c);
+  // The pack's series as written; otherwise distinct hues first (in brand order), then the
+  // remaining tints in brand order.
+  const series = [...packSeries];
+  if (!series.length) {
+    for (const c of candidates) if (series.every((s) => hueGap(c, s) > 0.5)) series.push(c);
+    for (const c of candidates) if (!series.includes(c)) series.push(c);
+  }
   if (pinned.series) series.unshift(pinned.series);
 
   const anchor = series[0] ?? accent;

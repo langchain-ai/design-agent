@@ -12,7 +12,7 @@ import json
 import re
 import tomllib
 from collections.abc import Mapping
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
@@ -91,6 +91,32 @@ class DiagramConstruction(_Strict):
     max_arrowhead_markers: int = Field(default=1, ge=0, alias="maxArrowheadMarkers")
 
 
+class ColorRoles(_Strict):
+    """The colours a brand assigns to each role in one mode, as tokens. Renderers prefer these over
+    what they would measure from the palette; a role left out is still measured."""
+
+    note: str = Field(default="", alias="_note")
+    ground: CssToken | None = None
+    ink: CssToken | None = None
+    accent: CssToken | None = None
+    muted: CssToken | None = None
+    """Secondary text."""
+    quiet: CssToken | None = None
+    """De-emphasised marks: the bars that are not the point."""
+    rule: CssToken | None = None
+    """Grid lines and dividers."""
+    series: tuple[CssToken, ...] = ()
+    """Categorical colours, in the order a chart uses them."""
+
+    def named(self) -> list[tuple[str, CssToken]]:
+        single = [
+            (role, token)
+            for role in ("ground", "ink", "accent", "muted", "quiet", "rule")
+            if (token := getattr(self, role)) is not None
+        ]
+        return single + [(f"series[{i}]", token) for i, token in enumerate(self.series)]
+
+
 class DesignTokens(_Strict):
     allowed_colors: tuple[HexColor, ...] = Field(min_length=2, alias="allowedColors")
     extended_palette: NotedColors = Field(default_factory=NotedColors, alias="extendedPalette")
@@ -114,6 +140,8 @@ class DesignTokens(_Strict):
     )
     tokens: Mapping[CssToken, str] = Field(min_length=1)
     """CSS custom properties written to tokens.css. Colors must come from the palette."""
+    roles: Mapping[Literal["light", "dark"], ColorRoles] = Field(default_factory=dict)
+    """Optional colour roles per mode (charts and diagrams); see `ColorRoles`."""
     rules: tuple[str, ...] = ()
 
     @model_validator(mode="after")
@@ -131,6 +159,13 @@ class DesignTokens(_Strict):
         for token in self.diagram_construction.stroke_tokens:
             if token not in self.tokens:
                 raise ValueError(f"diagram stroke token {token} is not defined in tokens")
+        for mode, roles in self.roles.items():
+            for role, token in roles.named():
+                value = self.tokens.get(token, "").strip()
+                if not HEX.match(value) or normalize_hex(value) not in palette:
+                    raise ValueError(
+                        f"roles.{mode}.{role}: {token} must be a token holding a palette colour"
+                    )
         return self
 
     def palette(self) -> frozenset[str]:
@@ -320,14 +355,30 @@ def load_brand_pack(
     return BrandPack(root=root, brand=brand, tokens=tokens, fonts=fonts)
 
 
+#: Formats Chrome reads only through @font-face, never as installed system fonts.
+WEB_FONT_FORMATS = {".woff2": "woff2", ".woff": "woff"}
+
+
 def render_tokens_css(pack: BrandPack) -> str:
-    """tokens.css: every token plus the three font-stack variables, sorted, under `:root`."""
+    """tokens.css: an @font-face rule for each web-format brand font (staged in /workspace/fonts/),
+    then every token plus the three font-stack variables, sorted, under `:root`."""
     design = pack.tokens.design
     values = dict(design.tokens)
     for role in ("display", "text", "mono"):
         values.setdefault(f"--brand-font-{role}", design.font_stacks.css(role))
     body = "\n".join(f"  {name}: {values[name]};" for name in sorted(values))
+    faces = [
+        "@font-face {\n"
+        f"  font-family: {json.dumps(font.family)};\n"
+        f"  font-weight: {font.weight};\n"
+        f"  font-style: {font.style};\n"
+        f'  src: url("/workspace/fonts/{PurePosixPath(font.file).name}") format("{kind}");\n'
+        "}\n"
+        for font in pack.fonts.fonts
+        if (kind := WEB_FONT_FORMATS.get(PurePosixPath(font.file).suffix.lower()))
+    ]
     return (
         f"/* Generated from {pack.brand.files.tokens} by `design-agent brand css`. Do not edit. */\n"
-        f":root {{\n{body}\n}}\n"
+        + "".join(faces)
+        + f":root {{\n{body}\n}}\n"
     )
