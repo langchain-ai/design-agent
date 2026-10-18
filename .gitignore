@@ -4,6 +4,8 @@
 !.env.example
 config/*.toml
 !config/*.example.toml
+!config/prices.toml
+!config/vendored-skills.toml
 
 # Brand, fonts and references supplied by the operator
 private-fonts/
@@ -14,6 +16,7 @@ workspace/references/*
 workspace/projects/*
 !workspace/projects/.gitkeep
 workspace/out/
+workspace/state/
 
 # Build and tool output
 .mda/
@@ -27,3 +30,7 @@ dist/
 build/
 node_modules/
 .DS_Store
+.host-sandbox/
+.coverage
+coverage.xml
+channels/slack-icon.png

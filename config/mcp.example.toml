@@ -1,0 +1,19 @@
+# MCP servers the agent may use, on every runtime (src/design_agent/tools/mcp.py). Copy to
+# config/mcp.toml (Git-ignored) and uncomment.
+# Names are lowercase letters and digits; tools are named `{server}_{tool}`.
+# Header values come from the host environment by name and never enter the sandbox.
+#
+# [servers.docs]
+# url = "https://docs.example.com/mcp"
+# transport = "http"
+# headers_env = { Authorization = "DOCS_MCP_AUTHORIZATION" }
+# include_tools = ["search"]
+# timeout = 30
+# always_shown = false
+#
+# A local app's own stdio server (local and self-hosted only; MDA leaves it out):
+# [servers.notes]
+# transport = "stdio"
+# command = ["notes-app", "mcp"]
+#
+# Paper is configured with PAPER_* in .env (docs/partners/paper.md), not here.

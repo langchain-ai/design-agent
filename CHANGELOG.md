@@ -1,0 +1,75 @@
+# Changelog
+
+## Unreleased
+
+### Added
+
+- One shared Deep Agents assembly for Managed Deep Agents, the CLI and the self-hosted path, with
+  an exact-id model capability registry (Claude Opus 5.5 by default, direct providers, optional
+  LangSmith Gateway).
+- The designer's computer: a pinned, checksum-verified sandbox recipe (Chrome Headless Shell,
+  ffmpeg, HyperFrames 0.8.169, sharp, ECharts, D2, open fonts) shared by MDA's bake, the published
+  snapshot, the local Docker runner and CI, with a build-time probe.
+- A per-thread Docker sandbox runner (no network, dropped capabilities, unprivileged agent user,
+  read-only staged brand and gates) and LangSmith Sandboxes from a published snapshot.
+- Workspace staging with a generated manifest, sha256 checklist and brand-font verification.
+- A validated brand-pack schema, token CSS generation and an original CC0 sample brand
+  (Example Studio) with OFL fonts.
+- Delivery through `upload_files` on every runtime with an exactly-once `DELIVERY.json` ledger.
+- Host media tools (OpenAI images with a measured alpha report, ElevenLabs voice, effects and
+  music, local or Groq transcription) and an SSRF-hardened `fetch_asset`; keys stay on the host.
+- HyperFrames skills vendored unmodified at the v0.8.169 release commit with a per-file
+  `skills-lock.json`; third-party assets without recorded licenses are left out.
+- An offline demo through the real graph with a scripted model, and `doctor`.
+- A 4-second HyperFrames teaser in the offline demo, gated by `video-gate` and `hyperframes check`
+  and measured by `artifact-contract`; render smoke for HyperFrames (lint, check, snapshot, render)
+  and D2.
+- Media runtime skills: stills, image-ops, gif-edit, visual-verify, data-viz (ECharts and D2 on
+  brand tokens), thumbnails, image-generation, sound (mixer, mastering to -14 LUFS, synthesized
+  cues), storyboard and film-breakdown, with their scripts and tests.
+- The orchestration harness behind public interfaces: background helpers with heartbeats and
+  durable transcripts (`resume_task` after a restart), coalesced wake-ups and check-ins, render
+  watchers with a HyperFrames progress parser, the launch-film pipeline with a step memo and an
+  approval question, parallel looks with a person's pick merged and recorded, and the learning
+  loop (with an optional cheaper review model).
+- Managed Deep Agents wake-ups on one-time runtime schedules, a restart sentinel kept ahead while
+  the process lives, quiet check-ins that post one status line, and a 15-minute housekeeping
+  schedule that ends before any model call.
+- Model-call guards in one order: image clamp, a failure boundary that ends a stalled turn with a
+  line, a step budget that wraps up before the graph limit, typed retries, history repair, the
+  usage meter; tool-error boundaries for `task`, `upload_files` and MCP calls.
+- Context discipline: vendored skills listed by one-line summaries (system prompt ~4.3k tokens on
+  the first call, measured by a test), the date written into history once per turn, per-role
+  prompt-cache lifetimes, fan-out stagger, optional server-side tool-result clearing for helpers,
+  and an optional soft job budget.
+- MCP servers from `config/mcp.toml` on every runtime (`{server}_{tool}` names), loaded per server
+  with isolation, disclosed through provider tool search or a bounded selector.
+- `design-agent deploy`: a preflight, a minimal staged project with a filtered `.env`, and
+  `mda deploy` after a yes; `deploy --build-only` compiles it. `sandbox publish` builds the
+  computer as a LangSmith snapshot and declares it.
+- The self-hosted runtime: a FastAPI surface with per-caller thread ownership, attachments,
+  background updates and downloads; Postgres (or SQLite) persistence; durable check-ins; startup
+  sweep, idle sandbox reaping and housekeeping; a Docker Compose stack.
+- `design-agent ask` keeps threads across invocations, takes `--file` attachments and stays open
+  for background work; `config show|set|generate` manages `.env` without printing secrets.
+- The eval set (19 design tasks and 7 behavior scenarios on the sample brand) with deterministic
+  graders, a model-matrix runner and reports; opt-in live tests.
+- Coding-agent skills for onboarding, brand onboarding, vendor sync and the release check; docs for
+  models, MDA deployment, self-hosting, customization, operations, evals, HyperFrames and upstream
+  asks.
+- Slack presentation on both paths: live progress cards in one streamed message per turn (with a
+  `chat.update` fallback), a footer with agents running, time and estimated cost, steering of
+  running helpers (`steer_task`) and of the lead's busy turn, and generic trace tags.
+- The self-hosted Slack app (`design-agent slack`, Bolt, Socket Mode or signed HTTP) with dedupe,
+  host-side attachment fetch, uploads to the thread and an example manifest.
+- Paper: Local (stdio or the desktop endpoint) and Bridged modes, a host-enforced policy shared with
+  the bundled bearer-authenticated bridge (`design-agent paper-bridge`), exports saved to the
+  project with a receipt in `run.json`, the `paper-design` skill and partner docs.
+- A parity contract: MDA, local and self-hosted runtimes assemble the same agent.
+- Taste and doctrine skills: content-brief, brand-design (with an artifact-contract example),
+  design-wiki (public doctrine, platform specs, review rubric), motion-direction (directing, craft,
+  techniques, sound, review, motion presets), launch-film (phases, orchestration, eight briefs, aligned
+  with the pipeline) and reference-study; the router points at them.
+- CLI: `dev`, `brand init`, `fonts verify`, `sandbox use`, `test model|sandbox|paper|slack|db`, and
+  a key preflight on `ask`.
+

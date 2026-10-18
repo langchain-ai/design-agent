@@ -32,7 +32,7 @@ All MDA pages share the prefix `https://docs.langchain.com/langsmith/python/mana
   builds are cut from feature branches, never pin them) · <https://pypi.org/project/deepagents/>
   (0.7.28)
 - SDK source is private to LangChain staff (`langchain-ai/managed-deepagents-sdk`; its
-  `examples/content-studio` is the MIT-licensed lineage of the internal agent). Builders with access
+  examples directory holds the MIT-licensed lineage of the internal agent). Builders with access
   may read it for current behavior, but the public repository depends only on the published package
   and public docs.
 
@@ -40,6 +40,13 @@ Known doc drift as of 2026-10-17 (trust the installed package): the SDK README s
 `scope: "agent"` sandboxes (rejected at runtime); the migrate page shows `define_memory(scope="agent")`
 (raises in 0.9.3; use `define_memory(agent=MemoryLayer())`); the PyPI README says Python 3.9+ (3.11+
 is required). Declaring a sandbox clears `permissions`; schedules require `identity.py`.
+
+Verified against the installed 0.9.3 package while building (its README ships in
+`managed_deepagents-0.9.3.dist-info/METADATA`): `mda build` reads declarations statically, so
+`sandbox/__init__.py` and `schedules/*.py` hold literals or top-level constants; a static agent
+declares MCP servers in `tools/mcp.py` as a module-level `mcp` (passing `mcp=` to
+`define_deep_agent` is refused); connector tools are named `{server}_{tool}`; schedule delivery is
+an `after_agent` hook installed ahead of authored middleware.
 
 Confirm each URL resolves during Slice 0; the docs site renames pages. Record the verified set and
 the package versions in `docs/prep/source-inventory.md`.
@@ -52,8 +59,9 @@ the package versions in `docs/prep/source-inventory.md`.
   <https://github.com/heygen-com/hyperframes/releases> · adopters list `ADOPTERS.md`
 - Agent skills: `npx skills add heygen-com/hyperframes` (standalone) or the HyperFrames plugin;
   update with `npx hyperframes skills update`.
-- CLI (from the internal integration; verify against the current CLI reference): `npx hyperframes
-  init | lint | validate | inspect | snapshot | preview | render --output <file>`.
+- CLI at the pinned 0.8.169 (verified with `--help` in the sandbox): `hyperframes init | lint |
+  check | snapshot | preview | render --quality draft|looks|delivery --output <file>`; `validate`,
+  `inspect` and `layout` are deprecated aliases of `check`.
 - Studio (desktop preview app): <https://hyperframes.dev/studio/download>
 
 ## Paper — shared design canvas

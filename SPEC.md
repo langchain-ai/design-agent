@@ -854,7 +854,7 @@ never a `.devN` pin in a release).
 ### 18.4 Ban-list scan
 
 A test fails on any match of: LangChain brand tokens and logo file names, internal people's names,
-Slack id patterns outside test fixtures that use clearly synthetic ids, `@langchain.dev`, LangSmith
+Slack id patterns outside test fixtures that use clearly synthetic ids, company email addresses, LangSmith
 workspace/deployment ids and URLs, internal snapshot names, internal agent names, the internal codename
 outside `NOTICE.md`, licensed font file names outside docs, and third-party media extensions under
 `workspace/references/` or `examples/`. The list lives in `tests/unit/test_public_hygiene.py` and is
@@ -1090,6 +1090,6 @@ pull request (not in the repository).
 | 4 | Skills Context Hub limits (file count, size) for ~700 vendored files | MDA team | vendoring scope |
 | 5 | HyperFrames skills license, pin strategy, provider override, render progress, OSS key, telemetry, GSAP guidance (`partner-integrations.md` §3) | HeyGen | Slices 2, 10 |
 | 6 | Paper hosted MCP, export to remote agents, tool-name stability, plan limits, Linux Desktop (`partner-integrations.md` §3) | Paper | Slice 6 scope |
-| 7 | Repository name final (`design-agent` vs `content-studio`), org, and whether to publish to PyPI | LangChain marketing / OSS | Slice 10 |
+| 7 | Repository name final (`design-agent` vs the internal codename), org, and whether to publish to PyPI | LangChain marketing / OSS | Slice 10 |
 | 8 | Legal review: fonts, sample brand, vendored skills, D2 binary in image, partner trademarks and logos in README | Legal | Slice 10 |
 | 9 | Release timing relative to the launch blog and webinar | Marketing | none (repo must not block the blog) |
