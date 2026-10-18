@@ -1,6 +1,6 @@
 <div align="center">
   <h1>Design Agent</h1>
-  <p>On-brand stills, decks, diagrams, charts and motion graphics from a chat thread.<br>Built on <a href="https://github.com/langchain-ai/deepagents">Deep Agents</a>. Deploy with <a href="https://docs.langchain.com/langsmith/python/managed-deep-agents-overview">Managed Deep Agents</a> or self-host with Docker.<br>Renders with <a href="https://hyperframes.heygen.com">HyperFrames</a>. Designs with <a href="https://paper.design">Paper</a>.</p>
+  <p>Built on <a href="https://github.com/langchain-ai/deepagents">Deep Agents</a>. Deploy with <a href="https://docs.langchain.com/langsmith/python/managed-deep-agents-overview">Managed Deep Agents</a> or self-host with Docker.<br>Renders with <a href="https://hyperframes.heygen.com">HyperFrames</a>. Designs with <a href="https://paper.design">Paper</a>.</p>
   <p>
     <a href="#quick-start">Quick start</a> ·
     <a href="#deployment">Deployment</a> ·
@@ -9,12 +9,23 @@
   </p>
 </div>
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/hero-dark.png">
+  <img src="docs/assets/readme/hero-light.png" alt="Design Agent: a chat request for a launch kit, and the delivered cards, chart and flywheel" width="100%">
+</picture>
+
+<p align="center"><sub>Every image in this README was made by Design Agent, on its sample brand.</sub></p>
+
 An open-source design agent for your team. Ask in Slack or the terminal for an ad set, a LinkedIn
 card, a deck, a diagram, a chart, a thumbnail set, a storyboard or a short film; it makes the
 concept, layout and copy calls, renders on its own computer, checks its work, and delivers the
 files to the thread.
 
-## What it does
+## What it makes
+
+<a href="docs/assets/readme/gallery.png">
+  <img src="docs/assets/readme/gallery.png" alt="A grid of outputs: a LinkedIn card and a story in four sizes, a one-pager, a bar chart, an event card, a flywheel, a stat card and a motion storyboard" width="100%">
+</a>
 
 - **Stills and sets:** HTML layouts rendered in a real browser, every size recomposed rather than
   scaled; PDFs and decks; image edits; GIFs.
@@ -27,8 +38,21 @@ files to the thread.
 - **Paper:** layouts and storyboards go on the Paper canvas as editable layers when Paper is
   connected.
 
+<p align="center">
+  <img src="docs/assets/readme/teaser.gif" alt="The demo's 4-second teaser: the launch card's headline rises in and its rule draws" width="560"><br>
+  <sub>The 4-second teaser <code>design-agent demo</code> renders with no keys.</sub>
+</p>
+
+## How it works
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/how-it-works-dark.png">
+  <img src="docs/assets/readme/how-it-works-light.png" alt="A request from Slack, the terminal or the API reaches the lead agent, which plans, writes and looks; helpers work in parallel; everything is built in a sandbox with Chrome, ffmpeg, HyperFrames and D2, with no network and no keys; gates check brand, layout and every render; finished files go back to the thread" width="100%">
+</picture>
+
 The model makes the creative calls. Code renders, measures, runs the gates, delivers files and
-keeps credentials on the host: the sandbox never sees a key.
+keeps credentials on the host: the sandbox never sees a key. More in
+[Architecture](docs/architecture/README.md).
 
 ## Quick start
 
