@@ -57,7 +57,11 @@ from design_agent.runtime.profiles import RuntimeProfile
 from design_agent.runtime.sandbox.docker import current_thread_id
 from design_agent.subagents import build_subagents
 from design_agent.surfaces.slack.phrasebook import services
-from design_agent.tools.delivery import DeliveryLedgerMiddleware, build_upload_tool
+from design_agent.tools.delivery import (
+    DeliveryLedgerMiddleware,
+    UploadFallbackMiddleware,
+    build_upload_tool,
+)
 from design_agent.tools.fetch import build_fetch_tool
 from design_agent.tools.mcp import McpServer
 from design_agent.tools.media import build_media_tools
@@ -181,6 +185,20 @@ def build_agent_components(
         ),
         WorkspaceStagerMiddleware(manifest, runtime.staging_for),
         DeliveryLedgerMiddleware(runtime.backend_for, thread_id_for=runtime.thread_id_for),
+        *(
+            [
+                UploadFallbackMiddleware(
+                    build_upload_tool(
+                        adapter=runtime.fallback_delivery,
+                        backend_for=runtime.backend_for,
+                        thread_id_for=runtime.thread_id_for,
+                    ),
+                    thread_id_for=runtime.thread_id_for,
+                )
+            ]
+            if runtime.delivery is None and runtime.fallback_delivery is not None
+            else []
+        ),
         TodoListMiddleware(),
         TodayMiddleware(zone_for=zone_for or fixed_zone(settings.timezone)),
         RunTagsMiddleware(surface=runtime.surface),

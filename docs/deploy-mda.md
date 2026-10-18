@@ -69,6 +69,23 @@ In Slack, mention the agent with a quick ask ("a square card announcing …"), t
 storyboarded teaser. You should see live progress in the thread, the files attached at the end,
 and, for the teaser, a check-in while it renders. `uv run mda logs` tails the deployment.
 
+Without Slack, call the deployment's Agent Server (the URL `deploy` prints) with your LangSmith key:
+
+```python
+from langgraph_sdk import get_client
+
+client = get_client(url="https://<deployment>.langgraph.app", api_key="<LANGSMITH_API_KEY>")
+thread = await client.threads.create()
+await client.runs.wait(
+    thread["thread_id"],
+    "design-agent",
+    input={"messages": [{"role": "user", "content": "A 1200x630 card announcing …"}]},
+)
+```
+
+Runs without a channel (the API, Studio) have no Slack to attach files to, so `upload_files`
+attaches them to the run's trace in LangSmith; open them from the trace or Studio.
+
 ## How it behaves on MDA
 
 In Slack the agent streams its steps into one message per turn, ends replies with a short footer

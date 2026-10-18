@@ -61,6 +61,10 @@ def test_mda_local_and_self_hosted_assemble_the_same_agent(tmp_path: Path) -> No
         settings=settings, runtime=mda_profile(ROOT), model=model, role_models=roles
     )
 
-    assert shape(local) == shape(mda)
+    mda_shape = shape(mda)
+    # MDA's Slack channel brings `upload_files`; the fallback covers runs without a channel.
+    assert "UploadFallbackMiddleware" in mda_shape["middleware"]
+    mda_shape["middleware"].remove("UploadFallbackMiddleware")
+    assert shape(local) == mda_shape
     assert "upload_files" in {t.name for t in local.tools}, "local and self-hosted bring delivery"
     assert "upload_files" not in {t.name for t in mda.tools}, "MDA's Slack channel brings its own"

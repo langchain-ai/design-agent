@@ -45,6 +45,8 @@ class RuntimeProfile:
     thread_id_for: Callable[[Any], str] = thread_id_from_config
     delivery: DeliveryAdapter | None = None
     """None means the platform brings `upload_files` (MDA's Slack channel)."""
+    fallback_delivery: DeliveryAdapter | None = None
+    """Where files go on runs the platform's `upload_files` is missing from (MDA without Slack)."""
     services: BackgroundServices | None = None
     """The process's wake-up plumbing; None turns background work off (a one-shot run)."""
     quiet_status: Callable[[str], str] | None = None
@@ -61,6 +63,7 @@ def mda_profile(project_root: Path, settings: Settings | None = None) -> Runtime
     from design_agent.middleware.quiet import running_status
     from design_agent.runtime.waker.mda import MdaScheduleWaker
     from design_agent.surfaces.slack import MdaSlackResolver, SlackSurface
+    from design_agent.tools.delivery import TraceAttachmentAdapter
 
     settings = settings or Settings()
 
@@ -87,6 +90,7 @@ def mda_profile(project_root: Path, settings: Settings | None = None) -> Runtime
         staging_for=staging_for,
         services=services,
         quiet_status=running_status,
+        fallback_delivery=TraceAttachmentAdapter(),
         slack=SlackSurface(
             MdaSlackResolver(), mention_required=not settings.slack_trigger_on_all_messages
         ),
