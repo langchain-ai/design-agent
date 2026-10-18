@@ -8,14 +8,19 @@ from typing import Any
 
 import pytest
 
-from design_agent.runtime.sandbox.docker import DockerSandboxBackend, DockerSandboxRunner
+from design_agent.runtime.sandbox.docker import (
+    DockerSandboxBackend,
+    DockerSandboxRunner,
+    SandboxUnavailableError,
+)
 
 
 class RecordingRunner(DockerSandboxRunner):
-    def __init__(self, **kwargs: Any) -> None:
+    def __init__(self, host_cpus: int = 16, **kwargs: Any) -> None:
         super().__init__(image="design-agent-sandbox:test", **kwargs)
         self.calls: list[list[str]] = []
         self.running: set[str] = set()
+        self.host_cpus = host_cpus
 
     def _run(
         self,
@@ -34,6 +39,8 @@ class RecordingRunner(DockerSandboxRunner):
                 b"true" if name in self.running else b"",
                 b"",
             )
+        if args[0] == "info":
+            return subprocess.CompletedProcess(args, 0, f"{self.host_cpus}\n".encode(), b"")
         if args[0] == "run":
             self.running.add(args[args.index("--name") + 1])
         if args[0] == "exec" and args[-2:-1] == ["cat"]:
@@ -53,6 +60,27 @@ def test_container_runs_isolated() -> None:
     assert flag("--mount").startswith("type=volume,") and flag("--mount").endswith(
         "target=/workspace"
     )
+
+
+@pytest.mark.parametrize(("host_cpus", "expected"), [(16, "8"), (4, "4")])
+def test_the_cpu_limit_never_exceeds_the_docker_host(host_cpus: int, expected: str) -> None:
+    runner = RecordingRunner(host_cpus=host_cpus)
+    runner.container_for("t")
+    run = next(c for c in runner.calls if c[0] == "run")
+    assert run[run.index("--cpus") + 1] == expected
+
+
+def test_a_failed_docker_call_reports_the_daemon_reason(monkeypatch: pytest.MonkeyPatch) -> None:
+    stderr = (
+        b"docker: Error response from daemon: range of CPUs is from 0.01 to 4.00.\n"
+        b"Run 'docker run --help' for more information\n"
+    )
+    monkeypatch.setattr("shutil.which", lambda _name: "/usr/bin/docker")
+    monkeypatch.setattr(
+        "subprocess.run", lambda args, **_kw: subprocess.CompletedProcess(args, 125, b"", stderr)
+    )
+    with pytest.raises(SandboxUnavailableError, match="range of CPUs"):
+        DockerSandboxRunner(image="x")._run(["run"])
 
 
 def test_threads_get_their_own_container_and_volume() -> None:

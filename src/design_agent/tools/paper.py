@@ -429,7 +429,7 @@ def paper_server(
     settings: Settings,
     *,
     runtime: RuntimeName,
-    cli: Callable[[], str | None] = paper_cli,
+    cli: Callable[[], str | None] | None = None,
 ) -> McpServer | None:
     """The MCP server for the configured mode on this runtime; None when Paper is off.
 
@@ -446,7 +446,7 @@ def paper_server(
                 "on Managed Deep Agents use PAPER_MODE=bridged"
             )
         if url is None or url == "stdio":
-            command = cli()
+            command = (cli or paper_cli)()
             if command is None:
                 raise PaperConfigError(
                     "Paper Desktop's `paper` CLI was not found in ~/.paper/bin or on PATH; open Paper "

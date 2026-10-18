@@ -16,6 +16,8 @@ checked against `skills-lock.json` in CI.
    `setup.sh`).
 3. `uv run design-agent skills sync-vendor`; review `git diff skills/ skills-lock.json`. Check the
    exclusion list still catches third-party media, unlicensed fonts and bundled libraries.
+   Upstream skills carry their own `.gitignore`s: `git add -f` any locked file they hide
+   (`test_git_tracks_every_locked_file` names them).
 4. New or renamed vendored skills: add a one-line summary to `config/vendored-skills.toml`, and the
    folder to `extend-exclude` in `pyproject.toml` (tests fail until both match the lock).
 5. Rebuild and prove: `uv run design-agent sandbox build`, `sandbox test`,

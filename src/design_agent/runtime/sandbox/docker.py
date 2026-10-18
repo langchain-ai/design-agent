@@ -133,9 +133,24 @@ class DockerSandboxRunner:
             check=False,
         )
         if check and result.returncode != 0:
-            detail = result.stderr.decode(errors="replace").strip().splitlines()[-1:] or [""]
-            raise SandboxUnavailableError(f"docker {args[0]} failed: {detail[0][:300]}")
+            # The CLI ends with "Run 'docker run --help' …"; the daemon's reason is above it.
+            lines = [
+                line
+                for line in result.stderr.decode(errors="replace").strip().splitlines()
+                if line.strip() and not line.startswith("Run '")
+            ]
+            detail = lines[-1] if lines else ""
+            raise SandboxUnavailableError(f"docker {args[0]} failed: {detail[:300]}")
         return result
+
+    def _cpu_limit(self) -> str:
+        """`--cpus`: the configured vCPUs, capped at the Docker host's, which refuses more."""
+        info = self._run(["info", "--format", "{{.NCPU}}"], timeout=30, check=False)
+        try:
+            host = int(info.stdout.strip())
+        except ValueError:
+            host = 0
+        return str(min(self.limits.vcpus, host) if host > 0 else self.limits.vcpus)
 
     def available(self) -> tuple[bool, str]:
         """Whether Docker answers and the image exists, with a reason when not."""
@@ -202,7 +217,7 @@ class DockerSandboxRunner:
                     "--pids-limit",
                     str(self.limits.pids),
                     "--cpus",
-                    str(self.limits.vcpus),
+                    self._cpu_limit(),
                     "--memory",
                     f"{self.limits.mem_gib}g",
                     "--shm-size",
