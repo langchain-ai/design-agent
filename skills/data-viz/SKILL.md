@@ -70,6 +70,9 @@ Start from an example: [bar with one annotated bar](examples/bar-annotated.json)
 - **Fewest words.** `title` and `caption` only when the ask supplies them or the figure misreads
   without them; a caption is a source line, nothing more. The explanation goes in your reply.
 - **One accent per frame**: the highlighted bar, line, point or stage. Everything else is quiet.
+- **A data model shows its rules.** When the ask says a relationship is required or optional ("at
+  least one user", "can relate to"), put it on the edge (`label`: `1..*`, `0..*`) rather than in a
+  footnote: that rule is usually the reason for the diagram.
 - **Look at the PNG** (`node /workspace/tools/review-thumb.mjs <png>`, then `look`) before you deliver.
   Gates prove the numbers and the structure, not the taste: crowded labels, a lopsided layout or a
   weak concept are still yours to catch. A blog or doc figure is read about 720 px wide; check that

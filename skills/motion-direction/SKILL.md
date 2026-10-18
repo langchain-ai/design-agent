@@ -36,7 +36,9 @@ below serves that.
 - **The concept gate** (`brand-design`): a real thing shown, a specific idea, or bold type. Decorative
   nodes, dots and glows are never the idea.
 - **The hook is complete inside the first second**: something on frame 0 already moving, the
-  statement readable with the sound off. Frame 0 is also the poster.
+  statement readable with the sound off. Frame 0 is also the poster. `artifact-contract`'s
+  `--allow-blank-ends` is for a fade from or to a flat ground the person asked for, never to get a
+  blank opening past the gate.
 - **The turn** is the one concrete thing the film pivots on, as an image: a before and after, many
   becoming one, the impossible made possible.
 - **Proof on screen**: the real product surface, the real number with its source. A claim with no

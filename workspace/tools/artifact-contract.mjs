@@ -12,7 +12,7 @@
 // names, at exactly W x H. Stills (PNG, JPEG, WebP) are read from their header bytes, no image
 // library needed. A video expectation adds @<seconds>: ffprobe must report that duration within one
 // frame, and the first and last frames must not be blank (frame 0 is the poster and the thumbnail);
-// --allow-blank-ends accepts a deliberate fade from or to a flat ground.
+// --allow-blank-ends accepts a fade from or to a flat ground that the person asked for.
 // In --phase final, a contract whose output names a `path` is measured the same way.
 //
 // Relative paths resolve against --root (default: the folder holding tools/, i.e. /workspace) and
