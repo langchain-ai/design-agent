@@ -8,12 +8,24 @@ tool search writes tool names into history, in `tool_search_tool_result` blocks 
 removing any tool would poison every thread that ever searched. A retry cannot help.
 
 `ToolHistoryMiddleware` sends a valid view of the checkpoint; the checkpoint itself is never
-rewritten. On every call it drops references the request cannot satisfy (`sanitize_history`). If
-the provider still rejects the history, one deeper repair (`repair_history`) removes every
-server-tool block pair and tool reference and folds each answered call to a missing tool, with an
+rewritten. On every call it drops references the request cannot satisfy and any server tool call
+the provider will never answer (`sanitize_history`). If the provider still rejects the history,
+one deeper repair (`repair_history`) removes every server-tool block pair and tool reference
+before the latest assistant turn, and folds each answered call to a missing tool there, with an
 excerpt of its result, into a text note; the call is retried once, and the repair stays on for
 that thread. Only the repair folds calls: a tool can be missing for one run (an MCP server that
 did not load), and folding then would cut that server's earlier results down to an excerpt.
+
+The latest assistant turn is every message after the last human one; Anthropic reads its replies
+and tool results as one assistant message, and two rules apply to it:
+- A tool search made beside client tool calls ends its reply unanswered; the provider runs it at
+  the start of the next reply, but only while the turn is open. A human message after the tool
+  results (a steer, a budget note) closes the turn, and the search then 400s as a
+  `server_tool_use` without its result. So every call drops a server call that can no longer be
+  answered: any unanswered one except at the end of the open turn's last reply.
+- Its thinking must be sent as the model wrote it ("thinking blocks in the latest assistant
+  message cannot be modified"), so the repair leaves that turn as written. Dropping the turn
+  instead would make the model redo calls it already made.
 
 A provider 400 is read in-process to tell a history fault (`messages.N`, a tool reference,
 `input[N]`) from a code fault (a bad tool schema). `StaleHistoryError` carries fixed text, so the
@@ -32,7 +44,7 @@ import anthropic
 import openai
 from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResponse
 from langchain_core.exceptions import ContextOverflowError, ModelInvalidRequestError
-from langchain_core.messages import AIMessage, AnyMessage, BaseMessage, ToolMessage
+from langchain_core.messages import AIMessage, AnyMessage, BaseMessage, SystemMessage, ToolMessage
 from langgraph.config import get_config
 
 from design_agent.middleware.model_retry import exception_chain
@@ -53,6 +65,7 @@ _SERVER_BLOCK_TYPES = frozenset(
         "mcp_tool_result",
     }
 )
+_SERVER_CALL_TYPES = frozenset({"server_tool_use", "mcp_tool_use"})
 _THINKING_TYPES = frozenset({"thinking", "redacted_thinking"})
 _EXCERPT_CHARS = 400
 _NO_REFERENCES_TEXT = "No matching tools are available."
@@ -97,14 +110,15 @@ def available_tool_names(tools: Iterable[Any]) -> frozenset[str]:
 def sanitize_history(
     messages: Sequence[BaseMessage], available: frozenset[str]
 ) -> tuple[list[BaseMessage], HistoryReport]:
-    """Drop tool references the request cannot satisfy. Everything else is sent as checkpointed."""
+    """Drop tool references the request cannot satisfy and server calls nothing will answer."""
     return _Rewrite(messages, available, repair=False).run()
 
 
 def repair_history(
     messages: Sequence[BaseMessage], available: frozenset[str]
 ) -> tuple[list[BaseMessage], HistoryReport]:
-    """Remove every server-tool pair and tool reference; fold answered calls to missing tools."""
+    """Before the latest turn, drop server-tool pairs and references and fold calls to missing
+    tools; the latest turn gets only what `sanitize_history` does."""
     return _Rewrite(messages, available, repair=True).run()
 
 
@@ -117,13 +131,38 @@ class _Rewrite:
         self.messages = list(messages)
         self.available = available
         self.repair = repair
+        self.deep = False  # whether the message being rewritten gets the repair
         self.report = HistoryReport()
+        # The latest assistant turn starts right after the last human message.
+        self.turn = next(
+            (i + 1 for i in reversed(range(len(self.messages))) if _human(self.messages[i])), 0
+        )
+        last_reply = max(
+            (i for i, m in enumerate(self.messages) if isinstance(m, AIMessage)), default=-1
+        )
+        blocks = [
+            (i, block)
+            for i, message in enumerate(self.messages)
+            if isinstance(message.content, list)
+            for block in message.content
+            if isinstance(block, dict)
+        ]
+        results = {b.get("tool_use_id") for _, b in blocks if b.get("type") in _SERVER_BLOCK_TYPES}
+        # A server call with no result will never get one, unless it ends the open turn's last
+        # reply: the provider runs that one at the start of the next reply.
+        self.unanswered = {
+            b.get("id")
+            for i, b in blocks
+            if b.get("type") in _SERVER_CALL_TYPES
+            and b.get("id") not in results
+            and not (i == last_reply and i >= self.turn)
+        }
         answered = {m.tool_call_id: m for m in self.messages if isinstance(m, ToolMessage)}
-        # Only the repair folds, and only answered calls: a call still awaiting its result is the
-        # tail of an in-flight turn, and folding it would strand the result about to be appended.
+        # Only the repair folds, and only answered calls before the latest turn: a call awaiting
+        # its result is the tail of an in-flight turn, and folding it would strand that result.
         self.folded: dict[str, ToolMessage] = {}
         if repair:
-            for message in self.messages:
+            for message in self.messages[: self.turn]:
                 if not isinstance(message, AIMessage):
                     continue
                 for call in message.tool_calls:
@@ -137,9 +176,11 @@ class _Rewrite:
 
     def run(self) -> tuple[list[BaseMessage], HistoryReport]:
         out: list[BaseMessage] = []
-        for message in self.messages:
+        for index, message in enumerate(self.messages):
             if isinstance(message, ToolMessage) and message.tool_call_id in self.folded:
                 continue  # its content rides in the note that replaced the call
+            self.deep = self.repair and index < self.turn
+            written = message
             if isinstance(message, AIMessage) and self.folded:
                 message = self._fold_calls(message)
             if isinstance(message.content, list):
@@ -147,8 +188,14 @@ class _Rewrite:
                 blocks = rewrite(message.content)
                 if blocks is not message.content:
                     message = message.model_copy(update={"content": blocks})
-            if isinstance(message, AIMessage) and self._emptied(message):
-                continue  # a turn the repair left without content is omitted, never sent blank
+            # A reply this pass left without content is omitted, never sent blank; one in the
+            # latest turn is kept, since that turn's thinking must reach the provider as written.
+            if (
+                index < self.turn
+                and isinstance(message, AIMessage)
+                and self._emptied(message, written)
+            ):
+                continue
             out.append(message)
         return (out if self.report.changed else self.messages), self.report
 
@@ -177,9 +224,9 @@ class _Rewrite:
         kept = [call for call in message.tool_calls if call.get("id") not in folded_ids]
         return message.model_copy(update={"content": blocks, "tool_calls": kept})
 
-    def _emptied(self, message: AIMessage) -> bool:
+    def _emptied(self, message: AIMessage, written: BaseMessage) -> bool:
         return (
-            self.repair
+            (self.deep or message is not written)
             and not message.tool_calls
             and isinstance(message.content, list)
             and all(
@@ -205,7 +252,8 @@ class _Rewrite:
 
     def _block(self, block: dict[str, Any]) -> dict[str, Any] | None:
         block_type = block.get("type")
-        if self.repair and block_type in _SERVER_BLOCK_TYPES:
+        unanswered = block_type in _SERVER_CALL_TYPES and block.get("id") in self.unanswered
+        if unanswered or (self.deep and block_type in _SERVER_BLOCK_TYPES):
             self.report.dropped_server_blocks += 1
             return None
         if block_type == "tool_reference":
@@ -225,9 +273,9 @@ class _Rewrite:
         return block
 
     def _drops(self, ref: Any) -> bool:
-        """Record and drop a reference the request cannot satisfy (every reference, in repair)."""
+        """Record and drop a reference the request cannot satisfy (every one the repair reaches)."""
         name = ref.get("tool_name") if isinstance(ref, dict) else None
-        if not isinstance(name, str) or (name in self.available and not self.repair):
+        if not isinstance(name, str) or (name in self.available and not self.deep):
             return False
         self.report.dropped_references.append(name)
         return True
@@ -242,6 +290,11 @@ class _Rewrite:
         if excerpt:
             note += f" It returned: {excerpt}"
         return {"type": "text", "text": note + "]"}
+
+
+def _human(message: BaseMessage) -> bool:
+    """A message the provider sends as user content of its own, not as a tool result."""
+    return not isinstance(message, AIMessage | ToolMessage | SystemMessage)
 
 
 def _text_of(content: Any) -> str:

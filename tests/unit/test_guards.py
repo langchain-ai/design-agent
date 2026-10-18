@@ -112,7 +112,7 @@ def test_history_drops_references_to_missing_tools_and_repair_folds_their_calls(
         content="", tool_calls=[{"name": "gone_tool", "args": {}, "id": "c1", "type": "tool_call"}]
     )
     result = ToolMessage("the old result", tool_call_id="c1", name="gone_tool")
-    history = [HumanMessage("hi"), search, call, result]
+    history = [HumanMessage("hi"), search, call, result, HumanMessage("next")]
     sent, report = sanitize_history(history, frozenset({"kept_tool"}))
     assert report.dropped_references == ["gone_tool"]
     refs = sent[1].content[0]["content"]["tool_references"]  # type: ignore[index]

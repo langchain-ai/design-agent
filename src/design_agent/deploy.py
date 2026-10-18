@@ -206,6 +206,7 @@ def deploy_main(
     yes: bool = False,
     build_only: bool = False,
     allow_docker_base: bool = False,
+    name: str = "design-agent",
     confirm: Callable[[str], bool] | None = None,
     run: Callable[[list[str], dict[str, str]], int] | None = None,
 ) -> int:
@@ -235,12 +236,12 @@ def deploy_main(
     local = dotenv_values(env_file) if env_file.is_file() else {}
     env = {
         **os.environ,
-        **{k: v for k in DEPLOY_CREDENTIALS if (v := local.get(k) or os.environ.get(k))},
+        **{k: v for k in DEPLOY_CREDENTIALS if (v := os.environ.get(k) or local.get(k))},
     }
     if build_only:
         return runner([mda, "build", str(staged)], env)
     ask = confirm or (lambda question: input(f"{question} [y/N] ").strip().lower() in {"y", "yes"})
-    if not yes and not ask("Deploy this to your LangSmith workspace now?"):
+    if not yes and not ask(f"Deploy this to your LangSmith workspace now as {name!r}?"):
         print("Not deployed.")
         return 1
     if not env.get("LANGSMITH_API_KEY"):
@@ -248,4 +249,4 @@ def deploy_main(
             "problem: LANGSMITH_API_KEY is not set (in .env or the environment). Nothing was deployed."
         )
         return 1
-    return runner([mda, "deploy", str(staged), "--name", "design-agent"], env)
+    return runner([mda, "deploy", str(staged), "--name", name], env)

@@ -10,8 +10,9 @@ ANTHROPIC_API_KEY=…
 
 `provider:model` is LangChain's `init_chat_model` form. Anthropic and OpenAI are installed by
 default; Google, Groq and Mistral are extras (`uv sync --extra google`). The LangSmith Gateway is an
-optional preset (`langsmith:anthropic/claude-opus-5-5` with `LANGSMITH_GATEWAY_API_KEY`), never
-required. For an OpenAI-compatible endpoint, set `DESIGN_AGENT_MODEL_BASE_URL` and
+optional preset (`langsmith:anthropic/claude-opus-5-5` with `LANGSMITH_GATEWAY_API_KEY`, else
+`LANGSMITH_API_KEY`), never required. Anthropic and OpenAI models go through the gateway's native
+routes and keep every feature in the table below; other providers use its shared route. For an OpenAI-compatible endpoint, set `DESIGN_AGENT_MODEL_BASE_URL` and
 `DESIGN_AGENT_MODEL_API_KEY_ENV` (the name of the variable that holds its key).
 
 ## Roles
@@ -39,7 +40,7 @@ runs on the portable path (all features that do not depend on the provider).
 | `anthropic:claude-haiku-5-5` | provider tool search | no effort parameter; good for `look` and the selector |
 | `openai:gpt-6.1-sol`, `gpt-6-sol`, `gpt-5.6-sol` | provider tool search | Responses API; reasoning effort |
 | `google_genai:gemini-3.6-flash` | bounded selector | no provider-side tool search |
-| anything else, a gateway or a base URL | bounded selector | no provider-feature claims |
+| anything else, the gateway's shared route, or a base URL | bounded selector | no provider-feature claims |
 
 Adding a model: add an entry with the facts from the provider's current documentation, a test in
 `tests/unit/test_config_and_registry.py`, and run the eval set (`docs/evals.md`) before relying on it.

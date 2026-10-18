@@ -217,12 +217,24 @@ def brand_show() -> None:
     is_flag=True,
     help="Deploy on the Docker image base (1 GiB filesystem: development only).",
 )
-def deploy(yes: bool, build_only: bool, allow_docker_base: bool) -> None:
+@click.option(
+    "--name",
+    default="design-agent",
+    show_default=True,
+    help="Deployment name; a second name is a separate deployment (for example a test one).",
+)
+def deploy(yes: bool, build_only: bool, allow_docker_base: bool, name: str) -> None:
     """Preflight, stage only what ships, then `mda deploy` to your LangSmith workspace."""
     from design_agent.deploy import deploy_main
 
     sys.exit(
-        deploy_main(_root(), yes=yes, build_only=build_only, allow_docker_base=allow_docker_base)
+        deploy_main(
+            _root(),
+            yes=yes,
+            build_only=build_only,
+            allow_docker_base=allow_docker_base,
+            name=name,
+        )
     )
 
 

@@ -134,6 +134,9 @@ CAPABILITY_REGISTRY: dict[str, ModelCapabilities] = {
     ),
 }
 
+#: Providers the LangSmith Gateway serves on their own API (`models.factory.GATEWAY_NATIVE_ROUTES`).
+GATEWAY_NATIVE_PROVIDERS = frozenset({"anthropic", "openai"})
+
 UNKNOWN_MODEL = ModelCapabilities(
     provider="",
     vision=False,
@@ -142,10 +145,13 @@ UNKNOWN_MODEL = ModelCapabilities(
 
 
 def capabilities_for(spec: ModelSpec, *, base_url: str | None = None) -> ModelCapabilities:
-    """Exact lookup. A gateway or custom endpoint never inherits provider-native features."""
+    """Exact lookup. A custom endpoint, or a gateway route that is not the provider's own API,
+    never inherits provider-native features."""
     if spec.via_gateway:
         upstream = CAPABILITY_REGISTRY.get(str(spec.upstream), UNKNOWN_MODEL)
-        return _portable(upstream, "LangSmith Gateway: standard endpoint, portable selector.")
+        if spec.upstream.provider in GATEWAY_NATIVE_PROVIDERS:
+            return upstream
+        return _portable(upstream, "LangSmith Gateway shared route: portable selector.")
     found = CAPABILITY_REGISTRY.get(str(spec), UNKNOWN_MODEL)
     if base_url is not None and found.disclosure is ToolDisclosure.PROVIDER_NATIVE:
         return _portable(found, "custom base URL: provider-native search is not assumed.")

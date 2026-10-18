@@ -5,9 +5,11 @@ from __future__ import annotations
 import pytest
 
 from design_agent.config import ModelSpec, Settings
-from design_agent.models.factory import build_chat_model, resolve_model
+from design_agent.models.cache import CachedChatAnthropic
+from design_agent.models.factory import GATEWAY_NATIVE_ROUTES, build_chat_model, resolve_model
 from design_agent.models.registry import (
     CAPABILITY_REGISTRY,
+    GATEWAY_NATIVE_PROVIDERS,
     HIGH_EFFORT_MIN_OUTPUT_TOKENS,
     UNKNOWN_MODEL,
     ModelConfigurationError,
@@ -35,9 +37,42 @@ def test_lookup_is_exact_never_substring() -> None:
     assert capabilities_for(ModelSpec.parse("anthropic:claude-opus")) is UNKNOWN_MODEL
 
 
-def test_gateway_and_custom_base_url_never_claim_native_search() -> None:
-    gateway = capabilities_for(ModelSpec.parse("langsmith:anthropic/claude-opus-5-5"))
-    assert gateway.disclosure is ToolDisclosure.PORTABLE_SELECTOR
+def test_the_gateway_keeps_native_features_only_on_a_providers_own_route() -> None:
+    native = capabilities_for(ModelSpec.parse("langsmith:anthropic/claude-opus-5-5"))
+    assert native == CAPABILITY_REGISTRY["anthropic:claude-opus-5-5"]
+    shared = capabilities_for(ModelSpec.parse("langsmith:google_genai/gemini-3-pro"))
+    assert shared.disclosure is ToolDisclosure.PORTABLE_SELECTOR
+    assert set(GATEWAY_NATIVE_ROUTES) == GATEWAY_NATIVE_PROVIDERS
+
+
+def test_a_gateway_anthropic_model_is_the_native_class_on_the_gateway_route() -> None:
+    s = settings(
+        model="langsmith:anthropic/claude-opus-5-5",
+        langsmith_gateway_api_key="lsv2_gateway",
+        anthropic_api_key="sk-ant-never-sent",
+    )
+    model = build_chat_model(s, "lead")
+    assert isinstance(model, CachedChatAnthropic)
+    assert model.model == "claude-opus-5-5"
+    assert model.anthropic_api_url == "https://gateway.smith.langchain.com/anthropic"
+    assert model.anthropic_api_key.get_secret_value() == "lsv2_gateway"
+    assert (model.effort, model.thinking, model.cache_ttl) == ("high", {"type": "adaptive"}, "1h")
+
+
+def test_the_gateway_falls_back_to_the_langsmith_key_and_never_to_a_provider_key() -> None:
+    s = settings(model="langsmith:anthropic/claude-opus-5-5", langsmith_api_key="lsv2_workspace")
+    assert build_chat_model(s, "lead").anthropic_api_key.get_secret_value() == "lsv2_workspace"  # type: ignore[attr-defined]
+    keyless = settings(model="langsmith:anthropic/claude-opus-5-5", anthropic_api_key="sk-ant-x")
+    assert build_chat_model(keyless, "lead").anthropic_api_key.get_secret_value() == ""  # type: ignore[attr-defined]
+
+
+def test_a_gateway_openai_model_uses_the_openai_route() -> None:
+    s = settings(model="langsmith:openai/gpt-6-sol", langsmith_gateway_api_key="lsv2_gateway")
+    model = build_chat_model(s, "lead")
+    assert model.openai_api_base == "https://gateway.smith.langchain.com/openai/v1"  # type: ignore[attr-defined]
+
+
+def test_custom_base_url_never_claims_native_search() -> None:
     proxied = capabilities_for(
         ModelSpec.parse("openai:gpt-6-sol"), base_url="https://proxy.example"
     )

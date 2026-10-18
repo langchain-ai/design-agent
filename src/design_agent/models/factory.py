@@ -1,14 +1,16 @@
 """Build chat models for each role from settings and the capability registry.
 
-Direct providers by default; `langsmith:provider/model` opts into the LangSmith Gateway. The SDK's
-own retries are off: `TransientModelRetryMiddleware` owns recovery, bounded and logged in one
-place. Every call has a stall ceiling.
+Direct providers by default; `langsmith:provider/model` opts into the LangSmith Gateway. Anthropic
+and OpenAI models go through the gateway's native routes, so they keep their own API (prompt
+caching, context editing, tool search, effort); other providers use its shared OpenAI-style route.
+The SDK's own retries are off: `TransientModelRetryMiddleware` owns recovery, bounded and logged in
+one place. Every call has a stall ceiling.
 """
 
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Literal
 
@@ -27,6 +29,10 @@ from design_agent.models.registry import (
 Role = Literal["lead", "helper", "look", "tool_selector", "learning"]
 VISION_ROLES: frozenset[Role] = frozenset({"lead", "helper", "look"})
 SDK_MAX_RETRIES = 0
+#: The gateway origin is pinned, never read from settings, so no setting can send its key elsewhere.
+GATEWAY_ORIGIN = "https://gateway.smith.langchain.com"
+#: Providers the gateway serves on their own API, which keeps their native features.
+GATEWAY_NATIVE_ROUTES = {"anthropic": "/anthropic", "openai": "/openai/v1"}
 
 
 @dataclass(frozen=True)
@@ -97,10 +103,16 @@ def build_chat_model(
     kwargs.update(overrides)
 
     if spec.via_gateway:
+        upstream = spec.upstream
+        # Never "" -> provider key: a missing gateway key must fail at the gateway, not leak.
+        kwargs.setdefault("api_key", _gateway_key(settings))
+        if upstream.provider in GATEWAY_NATIVE_ROUTES:
+            kwargs.setdefault("base_url", GATEWAY_ORIGIN + GATEWAY_NATIVE_ROUTES[upstream.provider])
+            native = replace(resolved, spec=upstream)
+            build = _anthropic if upstream.provider == "anthropic" else _openai
+            return build(settings, native, kwargs)
         from langchain.chat_models import init_chat_model
 
-        if settings.langsmith_gateway_api_key is not None and "api_key" not in kwargs:
-            kwargs["api_key"] = settings.langsmith_gateway_api_key.get_secret_value()
         gateway: BaseChatModel = init_chat_model(str(spec), **kwargs)
         return gateway
     if spec.provider == "anthropic":
@@ -162,6 +174,14 @@ def _openai(settings: Settings, resolved: ResolvedModel, kwargs: dict[str, Any])
     if resolved.max_output_tokens is not None:
         kwargs.setdefault("max_completion_tokens", resolved.max_output_tokens)
     return ChatOpenAI(model=resolved.spec.model, **kwargs)
+
+
+def _gateway_key(settings: Settings) -> str:
+    """The gateway credential: its own key, else the LangSmith key; "" when there is neither."""
+    for key in (settings.langsmith_gateway_api_key, settings.langsmith_api_key):
+        if key is not None and key.get_secret_value():
+            return key.get_secret_value()
+    return ""
 
 
 def _named_key(env_name: str | None, project_root: Path | None) -> str | None:
