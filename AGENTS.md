@@ -28,19 +28,16 @@ For anything else, start from the map of every document, [docs/README.md](docs/R
 print a key, and ask before deploying, connecting accounts or spending money. The rest of this file
 is the contract for changing the agent itself.
 
-Code and tests are the source of truth; `SPEC.md` records the product intent behind them.
+Code and tests are the source of truth; [docs/spec.md](docs/spec.md) records the product intent
+behind them.
 
 ## Read first (to change the agent)
 
 1. [docs/architecture/](docs/architecture/README.md): how the assembly, harness, surfaces and
    sandbox fit together.
-2. [SPEC.md](SPEC.md): product behavior, slices and acceptance criteria.
+2. [docs/spec.md](docs/spec.md): product behavior, slices and acceptance criteria.
 3. [docs/sources/official-links.md](docs/sources/official-links.md): primary documentation for
    every external contract; [docs/upstream.md](docs/upstream.md): seams we work around.
-4. Pre-release only (removed before the repository goes public):
-   [docs/prep/extraction-map.md](docs/prep/extraction-map.md),
-   [docs/prep/source-inventory.md](docs/prep/source-inventory.md) and
-   [docs/prep/partner-integrations.md](docs/prep/partner-integrations.md).
 
 ## Folder boundaries
 

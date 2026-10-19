@@ -45,7 +45,7 @@ def _rule(category: str, pattern: str, *allowed: str) -> Rule:
 
 #: Mentions of a licensed font, a third-party asset or a component library are allowed in the
 #: binding spec documents, which explain why they are excluded. Their files never are.
-SPEC_DOCS = ("SPEC.md", "AGENTS.md", "docs/*.md", "docs/**/*.md")
+SPEC_DOCS = ("AGENTS.md", "docs/*.md", "docs/**/*.md")
 
 RULES: tuple[Rule, ...] = (
     _rule("internal codename", r"(?i)content[\s_-]?studio", "NOTICE.md"),

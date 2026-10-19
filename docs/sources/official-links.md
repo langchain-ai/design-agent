@@ -48,8 +48,7 @@ declares MCP servers in `tools/mcp.py` as a module-level `mcp` (passing `mcp=` t
 `define_deep_agent` is refused); connector tools are named `{server}_{tool}`; schedule delivery is
 an `after_agent` hook installed ahead of authored middleware.
 
-Confirm each URL resolves during Slice 0; the docs site renames pages. Record the verified set and
-the package versions in `docs/prep/source-inventory.md`.
+Confirm each URL still resolves when you move a pin forward; the docs site renames pages.
 
 ## HyperFrames (HeyGen) — video engine
 

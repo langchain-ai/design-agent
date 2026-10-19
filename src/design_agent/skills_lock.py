@@ -48,7 +48,7 @@ VENDORED_SKILLS = (
 )
 
 #: Upstream files not vendored, with the reason. Third-party assets whose license is not
-#: recorded beside them stay out until the partner confirms terms (docs/prep partner questions).
+#: recorded beside them stay out until the partner confirms terms.
 EXCLUDED: tuple[tuple[str, str], ...] = (
     ("*/gsap*.js", "vendored GSAP: the sandbox installs GSAP; compositions copy it from there"),
     (

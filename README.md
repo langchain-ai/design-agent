@@ -1,6 +1,6 @@
 <div align="center">
   <p>
-    <a href="https://www.langchain.com/">
+    <a href="https://www.langchain.com/?utm_source=github&utm_medium=readme&utm_campaign=design-agent">
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset="https://github.com/langchain-ai/design-agent/raw/main/docs/assets/readme/logos/langchain-company-dark.svg">
         <img src="https://github.com/langchain-ai/design-agent/raw/main/docs/assets/readme/logos/langchain-company-light.svg" alt="LangChain" width="152">
@@ -15,11 +15,11 @@
     <a href="LICENSE"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/license-Apache%202.0-7FC8FF.svg?variant=outline&logo=lu:Scale&mode=dark"><img src="https://shieldcn.dev/badge/license-Apache%202.0-006DDD.svg?variant=outline&logo=lu:Scale&mode=light" alt="License: Apache 2.0"></picture></a>
     <a href="https://www.python.org"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/python-3.11%2B-7FC8FF.svg?variant=outline&logo=python&mode=dark"><img src="https://shieldcn.dev/badge/python-3.11%2B-006DDD.svg?variant=outline&logo=python&mode=light" alt="Python 3.11+"></picture></a>
     <a href="https://github.com/langchain-ai/deepagents"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/built%20on-Deep%20Agents-7FC8FF.svg?variant=outline&logo=lu:Layers&mode=dark"><img src="https://shieldcn.dev/badge/built%20on-Deep%20Agents-006DDD.svg?variant=outline&logo=lu:Layers&mode=light" alt="Built on Deep Agents"></picture></a>
-    <a href="https://docs.langchain.com/langsmith/python/managed-deep-agents-overview"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/deploy-Managed%20Deep%20Agents-7FC8FF.svg?variant=outline&logo=lu:Rocket&mode=dark"><img src="https://shieldcn.dev/badge/deploy-Managed%20Deep%20Agents-006DDD.svg?variant=outline&logo=lu:Rocket&mode=light" alt="Deploy with Managed Deep Agents"></picture></a>
+    <a href="https://docs.langchain.com/langsmith/python/managed-deep-agents-overview?utm_source=github&utm_medium=readme&utm_campaign=design-agent"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/deploy-Managed%20Deep%20Agents-7FC8FF.svg?variant=outline&logo=lu:Rocket&mode=dark"><img src="https://shieldcn.dev/badge/deploy-Managed%20Deep%20Agents-006DDD.svg?variant=outline&logo=lu:Rocket&mode=light" alt="Deploy with Managed Deep Agents"></picture></a>
   </p>
   <p>
-    <b><a href="#see-it-work">▶ Watch the 2-minute film</a></b> ·
-    <b><a href="#get-started">Get started in 5 minutes</a></b> ·
+    <b><a href="#deploy-it">Put it in your team's Slack →</a></b> ·
+    <a href="#get-started">Try the demo, no keys needed</a> ·
     <a href="docs/README.md">Docs</a>
   </p>
 </div>
@@ -53,7 +53,8 @@ https://github.com/user-attachments/assets/0664d09d-2ab2-41fd-b2ba-f91c96121e20
   [HyperFrames](https://hyperframes.heygen.com), D2 and your fonts, plus a shared
   [Paper](https://paper.design) canvas for storyboards and layouts. Keys stay outside it.
 - **Slack that holds up on long jobs:** a lead that plans and gives an ETA, takes notes mid-job,
-  hands long work to helpers running in parallel, and asks before anything goes public.
+  hands long work to helpers (subagents) running in parallel, and asks before anything goes
+  public.
 - **Everything to run it:** one-command deploy to Managed Deep Agents or self-hosting with Docker,
   evals built from real requests, and every run traced in LangSmith.
 
@@ -116,21 +117,26 @@ Everything on this page uses LangChain's brand, because that's the one we run. L
 
 ## Deploy it
 
+Open the repo in Claude Code, Codex or Cursor and say "Deploy it to our Slack." The
+[deploy skill](.agents/skills/design-agent-deploy/SKILL.md) publishes the sandbox, shows you exactly
+what will ship and deploys after your yes. It's how we run ours at LangChain.
+
 | | Managed Deep Agents (recommended) | Self-hosted |
 | --- | --- | --- |
 | Start | `uv run design-agent sandbox publish`, then `uv run design-agent deploy` | `docker compose -f deploy/self-host/compose.yaml up -d --build` |
-| Who runs it | LangSmith | you: the API, Postgres and a Docker host |
-| Slack | a managed app you authorize | your own Slack app |
+| Who runs it | LangSmith: the agent, a sandbox per thread, the Slack app and the schedules, with secrets and tracing | you: the API, Postgres, a Docker host for the sandboxes and your own Slack app |
 | Guide | [Deploy with MDA](docs/deploy-mda.md) | [Self-hosting](docs/self-hosting.md) |
 
-`deploy` shows exactly what it will ship and asks first. `deploy --name design-agent-test` gives you
-a separate copy to try changes on.
+Try it before your team depends on it: the demo needs no keys, and `deploy --name design-agent-test`
+gives you a separate copy to try changes on. It's Apache 2.0, so you can move to self-hosting at any
+time.
 
 ## Questions
 
 **What does it cost?** The code is free (Apache 2.0). You pay your model provider: at LangChain the
 median request costs about 50 cents in model spend, and long films and decks cost more. Managed Deep
-Agents [hosting is paid](https://www.langchain.com/pricing).
+Agents [hosting is paid](https://www.langchain.com/pricing?utm_source=github&utm_medium=readme&utm_campaign=design-agent); it runs the agent, the sandboxes,
+the Slack app and the schedules that you'd otherwise build and operate yourself.
 
 **Will it use my brand?** Yes. Add your brand pack and every file follows it. The
 [brand-onboarding skill](.agents/skills/brand-onboarding/SKILL.md) builds the pack with you from
@@ -156,7 +162,7 @@ the work only they can do, and their judgment lives on in its skills and checks.
 The model makes the creative calls. Code does everything that has to be exactly right: rendering,
 measuring, checking, delivering files and holding your keys. It's built on the
 [Deep Agents](https://github.com/langchain-ai/deepagents) harness and runs on
-[Managed Deep Agents](https://docs.langchain.com/langsmith/python/managed-deep-agents-overview) or
+[Managed Deep Agents](https://docs.langchain.com/langsmith/python/managed-deep-agents-overview?utm_source=github&utm_medium=readme&utm_campaign=design-agent) or
 your own infrastructure.
 
 Read the [architecture](docs/architecture/README.md), or start changing it:
@@ -164,21 +170,21 @@ Read the [architecture](docs/architecture/README.md), or start changing it:
 [Evals](docs/evals.md) · [Operations](OPERATIONS.md) · [Contributing](CONTRIBUTING.md).
 
 **Build your own.** Fork it, add your brand tokens, fonts and skills, and deploy it to your team's
-Slack. [Get started](#get-started).
+Slack. [Get started](#get-started). If it's useful, a star helps other teams find it.
 
 ## Built with
 
 <p>
   <a href="https://github.com/langchain-ai/deepagents"><picture><source media="(prefers-color-scheme: dark)" srcset="https://github.com/langchain-ai/design-agent/raw/main/docs/assets/readme/logos/deep-agents-dark.svg"><img src="https://github.com/langchain-ai/design-agent/raw/main/docs/assets/readme/logos/deep-agents-light.svg" alt="Deep Agents" height="28"></picture></a>
   &nbsp;&nbsp;
-  <a href="https://docs.langchain.com/langsmith/python/managed-deep-agents-overview"><picture><source media="(prefers-color-scheme: dark)" srcset="https://github.com/langchain-ai/design-agent/raw/main/docs/assets/readme/logos/langsmith-deployment-dark.svg"><img src="https://github.com/langchain-ai/design-agent/raw/main/docs/assets/readme/logos/langsmith-deployment-light.svg" alt="LangSmith Deployment" height="28"></picture></a>
+  <a href="https://docs.langchain.com/langsmith/python/managed-deep-agents-overview?utm_source=github&utm_medium=readme&utm_campaign=design-agent"><picture><source media="(prefers-color-scheme: dark)" srcset="https://github.com/langchain-ai/design-agent/raw/main/docs/assets/readme/logos/langsmith-deployment-dark.svg"><img src="https://github.com/langchain-ai/design-agent/raw/main/docs/assets/readme/logos/langsmith-deployment-light.svg" alt="LangSmith Deployment" height="28"></picture></a>
   &nbsp;&nbsp;
   <a href="https://hyperframes.heygen.com"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/heygen-com/hyperframes/main/docs/logo/dark.svg"><img src="https://raw.githubusercontent.com/heygen-com/hyperframes/main/docs/logo/light.svg" alt="HyperFrames" height="28"></picture></a>
   &nbsp;&nbsp;
   <a href="https://paper.design"><img src="https://avatars.githubusercontent.com/u/178361271?s=56" alt="Paper" height="28" align="absmiddle"> <b>Paper</b></a>
 </p>
 
-Also: [LangSmith](https://smith.langchain.com) ·
+Also: [LangSmith](https://smith.langchain.com/?utm_source=github&utm_medium=readme&utm_campaign=design-agent) ·
 [Chrome Headless Shell](https://developer.chrome.com/blog/chrome-headless-shell) ·
 [FFmpeg](https://ffmpeg.org) · [D2](https://d2lang.com) · [Apache ECharts](https://echarts.apache.org) ·
 [sharp](https://sharp.pixelplumbing.com). Logos belong to their owners. HyperFrames and Paper are

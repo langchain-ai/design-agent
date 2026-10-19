@@ -42,8 +42,7 @@ taste encoded as skills. The internal reference deployment taught every rule in 
   open-source Paid Media Agent. Follow the Paid Media Agent's repository shape, documentation voice,
   onboarding, deployment paths, CI and release discipline unless this spec says otherwise.
 - Partners: HeyGen (HyperFrames, the video engine) and Paper (the shared canvas). Both integrations
-  are first-class, attributed, pinned and tested. See `docs/prep/partner-integrations.md` (internal)
-  and, after release, `docs/partners/`.
+  are first-class, attributed, pinned and tested. See [docs/partners/](partners/).
 
 ## 3. Users and core journeys
 
@@ -588,7 +587,7 @@ owner; the CLI writes to `workspace/out/` and prints paths.
 
 ## 10. HyperFrames integration
 
-See `docs/prep/partner-integrations.md` §1 (moves to `docs/partners/hyperframes.md`). Summary:
+See [HyperFrames](partners/hyperframes.md). Summary:
 
 - HyperFrames is the only video engine in v0.1; the CLI is pinned; the upstream agent skills are
   vendored unmodified at a pinned commit with per-file checksums, LICENSE and NOTICE.
@@ -693,7 +692,7 @@ edit the brand.
 
 ## 13. Paper integration
 
-See `docs/prep/partner-integrations.md` §2 (moves to `docs/partners/paper.md`). Summary:
+See [Paper](partners/paper.md). Summary:
 
 - Modes: Local (stdio `paper mcp` or `http://127.0.0.1:29979/mcp`; default for CLI and Studio),
   Bridged (the bundled bearer-authenticated bridge in front of a user's Paper Desktop, reachable over
@@ -799,9 +798,8 @@ LangSmith-free path, following the Paid Media Agent.
 ## 17. Extraction and scrub process (from the internal reference)
 
 1. Start a fresh repository; never import the internal git history.
-2. Port through an allowlist copier (`scripts/import_from_reference.py`, internal-only, deleted before
-   release) that copies only paths listed in `docs/prep/extraction-map.md`, rewrites names, and writes
-   an import log with source paths and checksums (kept out of the public tree).
+2. Port through an allowlist copier (internal-only, deleted before release) that copies only
+   allowlisted paths, rewrites names, and writes an import log with source paths and checksums (kept out of the public tree).
 3. Re-vendor HyperFrames skills from upstream; do not copy the internal vendored copies.
 4. Run the ban-list scan (§18.4), gitleaks over the full history, and a license inventory (every
    third-party file has a license and a NOTICE line, or it is removed).
@@ -826,7 +824,7 @@ examples/{brands/example-studio/,prompts/,README.md}
 fonts/ (OFL) · private-fonts/ (ignored) · config/*.example.* · docs/ · tests/
 .agents/skills/{design-agent-onboarding,brand-onboarding,vendor-sync,release-check}/
 .github/{workflows/{ci,compatibility,release}.yml,ISSUE_TEMPLATE/,PULL_REQUEST_TEMPLATE.md,dependabot.yml}
-README.md · AGENTS.md · CLAUDE.md · OPERATIONS.md · SPEC.md · CONTRIBUTING.md · SECURITY.md
+README.md · AGENTS.md · CLAUDE.md · OPERATIONS.md · CONTRIBUTING.md · SECURITY.md
 CODE_OF_CONDUCT.md · LICENSE (Apache-2.0) · NOTICE.md · CHANGELOG.md · Makefile · pyproject.toml
 uv.lock · Dockerfile · docker-compose.yml · .env.example · skills-lock.json · .gitleaks.toml
 .pre-commit-config.yaml
@@ -1025,7 +1023,7 @@ pull request (not in the repository).
    `runtime.schedules`, `runtime.channel`, `connections.get`, `define_mcp` naming, memory layers),
    HyperFrames CLI flags at the pinned version, Paper transports. Bake the recipe once with MDA and
    measure size and time; decide `docker_image` bake versus published snapshot. Record results in
-   `docs/prep/source-inventory.md`. Acceptance: a written compatibility table; a baked sandbox that
+   `docs/sources/official-links.md`. Acceptance: a written compatibility table; a baked sandbox that
    passes the probe.
 1. **Skeleton and computer.** Repository scaffold, settings, capability registry, assembly with one
    agent and no helpers, sandbox recipe and Docker runner, workspace stager, brand schema and sample

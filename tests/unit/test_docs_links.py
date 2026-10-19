@@ -8,8 +8,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)|(?:src|href)=\"([^\"]+)\"")
-#: Pre-release build notes may point at files that do not exist yet; they are deleted at release.
-SKIPPED = ("docs/prep/", "IMPLEMENTATION_PROMPT.md", "SPEC.md")
 
 
 def documents() -> list[Path]:
@@ -32,7 +30,7 @@ def documents() -> list[Path]:
         for p in sorted((ROOT / "skills").rglob("*.md"))
         if p.relative_to(ROOT / "skills").parts[0] not in vendored
     ]
-    return [p for p in found if p.is_file() and not str(p.relative_to(ROOT)).startswith(SKIPPED)]
+    return [p for p in found if p.is_file()]
 
 
 def test_relative_links_resolve() -> None:

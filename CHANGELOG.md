@@ -4,6 +4,7 @@
 
 ### Changed
 
+- The product spec moved to `docs/spec.md`.
 - `langsmith:anthropic/*` and `langsmith:openai/*` models use the LangSmith Gateway's native
   routes, so prompt caching, context editing, tool search and effort work through the gateway.
 - Tool history drops server tool calls nothing will answer and leaves the latest assistant turn

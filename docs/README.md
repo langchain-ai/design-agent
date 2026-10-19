@@ -34,6 +34,7 @@ which one fits.
 
 | Guide | Covers |
 | --- | --- |
+| [Product spec](spec.md) | what it's for, how it should behave, and the acceptance criteria |
 | [Architecture](architecture/README.md) | the assembly, the lead and helpers, context, the sandbox, checks, keys |
 | [Orchestration](architecture/orchestration.md) | background helpers, wake-ups, restarts, pipelines |
 | [Context and failures](architecture/context-and-failures.md) | what the model sees, caching, cost, failure boundaries |

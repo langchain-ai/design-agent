@@ -60,8 +60,6 @@ def test_staging_ships_only_what_the_deployment_needs(tmp_path: Path) -> None:
     for left_out in (
         "tests",
         "docs",
-        "SPEC.md",
-        "IMPLEMENTATION_PROMPT.md",
         "workspace/out",
         "workspace/state",
         ".venv",
