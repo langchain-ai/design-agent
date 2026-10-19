@@ -11,7 +11,7 @@
 | `brand validate\|css\|show\|init` | check the active pack, regenerate `tokens.css`, show it, start one from the sample |
 | `fonts verify` | brand font files present with their checksums; open fonts listed in `fonts/LICENSES.md` |
 | `sandbox build\|test\|publish\|use SNAPSHOT` | build the local image, run its probe, publish the LangSmith snapshot for MDA, point local runs at a snapshot |
-| `skills verify\|sync-vendor` | vendored HyperFrames skills against `skills-lock.json`; re-vendor from upstream |
+| `skills verify\|sync-vendor` | vendored HyperFrames, LangSmith and Deep Agents skills against `skills-lock.json`; re-vendor from upstream (`--upstream` for one, `--check-only` to compare pins) |
 | `manifest` | what the workspace stager puts in each sandbox |
 | `deploy [--build-only] [--yes] [--name NAME]` | preflight, stage what ships, `mda deploy` after a yes; `--name` makes a separate deployment ([MDA](deploy-mda.md)) |
 | `dev` | the staged project in `mda dev` (LangSmith Studio) |

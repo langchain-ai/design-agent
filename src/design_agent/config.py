@@ -160,6 +160,9 @@ class Settings(BaseSettings):
     """LangSmith UI host for the footer's trace link (for example https://smith.langchain.com).
     Unset, the footer has no link: a trace URL names the workspace, project and run."""
     enable_learning: bool = True
+    enable_traces: bool = True
+    """`list_traces` and `read_trace`: the agent reads every thread's traces in its own LangSmith
+    project with the host's credentials. Turn off where people must not see each other's requests."""
     enable_tool_clearing: bool = False
     """Server-side clearing of old tool results in helpers' requests (Anthropic only)."""
     timezone: str = "UTC"

@@ -79,6 +79,7 @@ keep the keys, and drop their results in as files:
 - voice, music and sound effects;
 - transcription;
 - an asset fetcher with SSRF protection;
+- reading this deployment's own LangSmith traces (`list_traces`, `read_trace`);
 - Paper, scoped by a policy;
 - your MCP servers;
 - delivery: to Slack, to `workspace/out/` locally, or attached to the LangSmith trace for API

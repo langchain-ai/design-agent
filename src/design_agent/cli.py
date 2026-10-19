@@ -459,7 +459,7 @@ def sandbox_test() -> None:
 
 @main.group()
 def skills() -> None:
-    """Vendored HyperFrames skills."""
+    """Vendored upstream skills (HyperFrames, LangSmith, Deep Agents)."""
 
 
 @skills.command("verify")
@@ -476,42 +476,52 @@ def skills_verify() -> None:
 
 
 @skills.command("sync-vendor")
-@click.option("--commit", default=None, help="Upstream commit (default: the pinned one).")
-@click.option("--release", default=None, help="Release tag the commit belongs to.")
 @click.option(
-    "--check-only", is_flag=True, help="Report the newest upstream release; change nothing."
+    "--upstream",
+    "only",
+    default=None,
+    help="Re-vendor one upstream (hyperframes, langsmith-skills, langchain-skills); default all.",
 )
-def skills_sync_vendor(commit: str | None, release: str | None, check_only: bool) -> None:
+@click.option("--commit", default=None, help="That upstream's commit (default: the pinned one).")
+@click.option("--release", default=None, help="Release tag the commit belongs to.")
+@click.option("--check-only", is_flag=True, help="Report each upstream's newest version only.")
+def skills_sync_vendor(
+    only: str | None, commit: str | None, release: str | None, check_only: bool
+) -> None:
     """Re-vendor upstream skills unmodified and rewrite the lock; review the diff before merging."""
     from design_agent import skills_lock
 
     if check_only:
-        latest = subprocess.run(  # noqa: S603 - fixed argv
-            [
-                shutil.which("gh") or "gh",
-                "api",
-                f"repos/{skills_lock.UPSTREAM_REPO}/releases/latest",
-                "--jq",
-                ".tag_name",
-            ],
-            capture_output=True,
-            text=True,
-            check=False,
-        ).stdout.strip()
-        click.echo(
-            f"pinned {skills_lock.UPSTREAM_RELEASE} ({skills_lock.UPSTREAM_COMMIT[:12]}); latest {latest or 'unknown'}"
-        )
+        for key, pin in skills_lock.UPSTREAMS.items():
+            if only is not None and key != only:
+                continue
+            # Tagged upstreams compare releases; branch-pinned ones compare the default branch.
+            query = ("releases/latest", ".tag_name") if pin.release else ("commits/HEAD", ".sha")
+            latest = subprocess.run(  # noqa: S603 - fixed argv
+                [
+                    shutil.which("gh") or "gh",
+                    "api",
+                    f"repos/{pin.repo}/{query[0]}",
+                    "--jq",
+                    query[1],
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            ).stdout.strip()
+            pinned = f"{pin.release} ({pin.commit[:12]})" if pin.release else pin.commit[:12]
+            newest = latest if pin.release else latest[:12]
+            click.echo(f"{key}: pinned {pinned}; latest {newest or 'unknown'}")
         return
-    lock = skills_lock.sync(
-        _root(),
-        commit=commit or skills_lock.UPSTREAM_COMMIT,
-        release=release or skills_lock.UPSTREAM_RELEASE,
-    )
-    files = sum(len(s["files"]) for s in lock["skills"].values())
-    excluded = sum(len(s["excluded"]) for s in lock["skills"].values())
-    click.echo(
-        f"vendored {len(lock['skills'])} skills, {files} files ({excluded} excluded) at {lock['upstream']['commit'][:12]}"
-    )
+    try:
+        lock = skills_lock.sync(_root(), only=only, commit=commit, release=release)
+    except ValueError as error:
+        raise click.UsageError(str(error)) from None
+    folders = list(skills_lock.vendored_folders(lock))
+    files = sum(len(entry["files"]) for _, entry in folders)
+    excluded = sum(len(entry["excluded"]) for _, entry in folders)
+    pins = ", ".join(f"{key} {up['commit'][:12]}" for key, up in lock["upstreams"].items())
+    click.echo(f"vendored {len(folders)} skills, {files} files ({excluded} excluded): {pins}")
 
 
 @main.command("manifest")

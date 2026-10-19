@@ -21,8 +21,22 @@ matching `SKILL.md` and follow it:
 | check whether a change made it better or worse | [design-agent-evals](.agents/skills/design-agent-evals/SKILL.md) |
 | fix something that fails | [design-agent-troubleshoot](.agents/skills/design-agent-troubleshoot/SKILL.md) |
 | update their fork to the latest version | [design-agent-update](.agents/skills/design-agent-update/SKILL.md) |
-| move HyperFrames forward (maintainers) | [vendor-sync](.agents/skills/vendor-sync/SKILL.md) |
+| move vendored skills forward (maintainers) | [vendor-sync](.agents/skills/vendor-sync/SKILL.md) |
 | cut a release (maintainers) | [release-check](.agents/skills/release-check/SKILL.md) |
+
+The harness under the agent has its own skills, vendored unmodified from LangChain's public packs:
+
+| To work on… | Skill |
+| --- | --- |
+| the agent loop, middleware, skills format and configuration | [deep-agents-core](.agents/skills/deep-agents-core/SKILL.md) |
+| backends, stores and persistence | [deep-agents-memory](.agents/skills/deep-agents-memory/SKILL.md) |
+| subagents, planning and human approval | [deep-agents-orchestration](.agents/skills/deep-agents-orchestration/SKILL.md) |
+| the Managed Deep Agents project and deploy | [managed-deep-agents](.agents/skills/managed-deep-agents/SKILL.md) |
+| reading traces of a run that went wrong | [langsmith-trace](.agents/skills/langsmith-trace/SKILL.md) |
+| turning traces into evaluation datasets | [langsmith-dataset](.agents/skills/langsmith-dataset/SKILL.md) |
+| LangSmith evaluators and experiments | [langsmith-evaluator](.agents/skills/langsmith-evaluator/SKILL.md) |
+
+They are written for any project, so where they disagree with this file, this file wins.
 
 For anything else, start from the map of every document, [docs/README.md](docs/README.md). Never
 print a key, and ask before deploying, connecting accounts or spending money. The rest of this file
@@ -41,16 +55,18 @@ behind them.
 
 ## Folder boundaries
 
-- `.agents/skills/`: workflows for coding agents (onboarding, brand setup, vendor sync, release).
-  `.claude/skills` links here. Never synced to the runtime sandbox.
+- `.agents/skills/`: workflows for coding agents (onboarding, brand setup, vendor sync, release),
+  plus LangChain's Deep Agents and LangSmith skills, vendored. `langsmith-trace` links to its runtime
+  copy in `skills/`. `.claude/skills` links here. Never synced to the runtime sandbox.
 - `skills/<name>/`: runtime skills, ours and vendored, exactly one level deep (MDA discovers only
   `skills/<name>/SKILL.md`, does not follow symlinks inside `skills/`, and evals do not see a
   symlinked skills root). MDA mounts them read-only at `/skills/` from Context Hub, outside the
   sandbox filesystem; the workspace stager copies their scripts and assets into
   `/workspace/skills/<name>/` so they can run.
-- Vendored HyperFrames skills keep their upstream names under `skills/` and are listed in
-  `skills-lock.json` (upstream repo, commit, per-file sha256, license). Never patch vendored files;
-  override in a sibling skill of ours or upstream the change. CI fails on drift.
+- Vendored skills keep their upstream names (HyperFrames and `langsmith-trace` under `skills/`,
+  LangChain's coding-agent skills under `.agents/skills/`) and are listed in `skills-lock.json`
+  (each upstream's repo, commit and license, per-file sha256). Never patch vendored files; override
+  in a sibling skill or summary of ours, or upstream the change. CI fails on drift.
 - `workspace/brand/`: the active brand (tokens, logos, voice, graphic language). The sample brand
   ships in `examples/brands/`; the user's own brand is Git-ignored.
 - `workspace/references/`: the user's reference films and teardowns. Git-ignored. Never commit

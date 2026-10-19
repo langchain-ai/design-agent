@@ -24,8 +24,11 @@ All MDA pages share the prefix `https://docs.langchain.com/langsmith/python/mana
 | Develop and ship | `local-development`, `tutorial`, `deploy`, `cli`, `evals` |
 
 - Public landing repository and changelog: <https://github.com/langchain-ai/managed-deepagents>
-- Coding-agent skill for MDA projects:
-  <https://github.com/langchain-ai/langchain-skills/blob/main/config/skills/managed-deep-agents/SKILL.md>
+- Coding-agent skills for Deep Agents and MDA projects, vendored into `.agents/skills/` at the
+  commit in `skills-lock.json`: <https://github.com/langchain-ai/langchain-skills>
+- LangSmith skills (tracing, datasets, evaluators), vendored the same way:
+  <https://github.com/langchain-ai/langsmith-skills> · trace queries use the Python SDK's
+  `Client.list_runs` (<https://docs.smith.langchain.com/reference/python/client>)
 - LangSmith sandboxes: <https://docs.langchain.com/langsmith/sandboxes> · regions:
   <https://docs.langchain.com/langsmith/regions-faq> · pricing: <https://www.langchain.com/pricing>
 - PyPI: <https://pypi.org/project/managed-deepagents/> (0.9.3 stable on 2026-10-17; `0.10.0.devN`

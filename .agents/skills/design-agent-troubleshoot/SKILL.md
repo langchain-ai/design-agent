@@ -29,7 +29,9 @@ Report missing settings by name and never paste a key, token or `.env` line.
    when self-hosted. Logs carry exception classes, never provider messages or keys.
 5. **Traces:** every run is traced in LangSmith (an MDA deployment's project is
    `<deployment>-production`). Follow a bad file back to the skills read, tools called and checks
-   run. API runs attach delivered files to the trace.
+   run, with the [langsmith-trace](../langsmith-trace/SKILL.md) skill. API runs attach delivered
+   files to the trace. The deployed agent can read its own traces too (`list_traces`,
+   `read_trace`): ask it in the thread what went wrong.
 6. **A real bug:** reproduce it with a failing test before changing code, then follow `AGENTS.md`.
 
 More: [Operations](../../../OPERATIONS.md).

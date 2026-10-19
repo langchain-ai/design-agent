@@ -19,6 +19,7 @@ Working in a clone? Read AGENTS.md first: it maps each job (setup, brand, deploy
 - [Evals](https://github.com/langchain-ai/design-agent/blob/main/.agents/skills/design-agent-evals/SKILL.md): measure a change before and after
 - [Troubleshoot](https://github.com/langchain-ai/design-agent/blob/main/.agents/skills/design-agent-troubleshoot/SKILL.md): doctor, connection tests, logs, traces
 - [Update](https://github.com/langchain-ai/design-agent/blob/main/.agents/skills/design-agent-update/SKILL.md): bring a fork up to date
+- LangChain's own skills, vendored: [Deep Agents](https://github.com/langchain-ai/design-agent/blob/main/.agents/skills/deep-agents-core/SKILL.md), [Managed Deep Agents](https://github.com/langchain-ai/design-agent/blob/main/.agents/skills/managed-deep-agents/SKILL.md), [LangSmith traces](https://github.com/langchain-ai/design-agent/blob/main/skills/langsmith-trace/SKILL.md), [datasets](https://github.com/langchain-ai/design-agent/blob/main/.agents/skills/langsmith-dataset/SKILL.md) and [evaluators](https://github.com/langchain-ai/design-agent/blob/main/.agents/skills/langsmith-evaluator/SKILL.md)
 
 ## Reference
 

@@ -11,7 +11,9 @@ LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)|(?:src|href)=\"([^\"]+)\"")
 
 
 def documents() -> list[Path]:
-    vendored = set(json.loads((ROOT / "skills-lock.json").read_text())["skills"])
+    lock = json.loads((ROOT / "skills-lock.json").read_text())
+    vendored = set(lock["skills"])
+    vendored_agent_skills = {ROOT / ".agents" / "skills" / name for name in lock["agent_skills"]}
     found = [
         ROOT / name
         for name in (
@@ -24,7 +26,12 @@ def documents() -> list[Path]:
             "AGENTS.md",
         )
     ]
-    found += sorted((ROOT / "docs").rglob("*.md")) + sorted((ROOT / ".agents").rglob("*.md"))
+    found += sorted((ROOT / "docs").rglob("*.md"))
+    found += [
+        p
+        for p in sorted((ROOT / ".agents").rglob("*.md"))
+        if not vendored_agent_skills.intersection(p.parents)
+    ]
     found += [
         p
         for p in sorted((ROOT / "skills").rglob("*.md"))

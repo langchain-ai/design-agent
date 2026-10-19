@@ -17,6 +17,14 @@
 
 ### Added
 
+- The deployed agent reads its own LangSmith traces: `list_traces` (by time, thread, trigger or
+  failure, without housekeeping noise) and `read_trace` (a run tree written to the workspace, with
+  errors and slowest steps). Read-only, scoped to the run's own project, off with
+  `DESIGN_AGENT_ENABLE_TRACES=0`.
+- LangChain's skills vendored unmodified from their public packs: `langsmith-trace` for the
+  runtime, and Deep Agents, Managed Deep Agents, LangSmith trace, dataset and evaluator skills for
+  coding agents. `skills-lock.json` now pins several upstreams; `skills sync-vendor --upstream`
+  re-vendors one.
 - Skills for coding agents to deploy, customize, evaluate, troubleshoot and update Design Agent,
   routed from `AGENTS.md`, with a test that every skill is routed and names only real commands; a
   map of every document (`docs/README.md`) and `llms.txt`.

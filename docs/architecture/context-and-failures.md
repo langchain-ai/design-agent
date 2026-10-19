@@ -13,12 +13,12 @@ fails if either number passes its ceiling):
 
 | First lead call | Characters | Approx. tokens | Ceiling |
 | --- | --- | --- | --- |
-| System prompt, skill list included (35 skills) | 15,211 | ~4,300 | 8,000 (SPEC §5.4) |
-| Tool schemas (37 tools, no MCP) | 39,120 | ~11,200 | 12,000 |
+| System prompt, skill list included (36 skills) | 15,413 | ~4,400 | 8,000 (SPEC §5.4) |
+| Tool schemas (39 tools, no MCP) | 40,288 | ~11,500 | 12,000 |
 
 The skill list was 15,551 characters before vendored skills got one-line summaries. Upstream
-HyperFrames skills are vendored unmodified, with descriptions written for routing among
-themselves; `SkillListMiddleware` hands deepagents a copy of the thread's skill metadata in which
+HyperFrames and LangSmith skills are vendored unmodified, with descriptions written for other
+setups; `SkillListMiddleware` hands deepagents a copy of the thread's skill metadata in which
 each vendored skill's description is its line from `config/vendored-skills.toml`. Nothing is written
 to the thread, and `tests/unit/test_guards.py` keeps the summaries equal to
 `skills-lock.json`.

@@ -68,6 +68,7 @@ from design_agent.tools.media import build_media_tools
 from design_agent.tools.paper import SERVER as PAPER
 from design_agent.tools.paper import PaperPolicy
 from design_agent.tools.projects import build_project_tools
+from design_agent.tools.traces import build_trace_tools
 from design_agent.workspace.manifest import Manifest, build_manifest
 
 SKILLS_ROOT = "/skills/"
@@ -133,6 +134,7 @@ def build_agent_components(
         *build_media_tools(settings, runtime.backend_for),
         *build_project_tools(runtime.backend_for),
         build_fetch_tool(runtime.backend_for),
+        *build_trace_tools(settings, runtime.backend_for, runtime.thread_id_for),
         *mcp_tools,
     ]
     if runtime.delivery is not None:

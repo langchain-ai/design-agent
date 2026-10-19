@@ -1,8 +1,8 @@
-# One-line "when to use" for each vendored HyperFrames skill, shown in the model's skill list in
-# place of the upstream description (middleware/skill_list.py). The vendored files are never
-# edited; tests/unit/test_skill_list.py keeps these keys equal to skills-lock.json.
-# This deployment's sandbox has no network and no HeyGen account: the summaries only promise what
-# runs here.
+# One-line "when to use" for each vendored runtime skill (HyperFrames, LangSmith), shown in the
+# model's skill list in place of the upstream description (middleware/skill_list.py). The vendored
+# files are never edited; tests/unit/test_guards.py keeps these keys equal to skills-lock.json.
+# This deployment's sandbox has no network, no HeyGen account and no LangSmith key: the summaries
+# only promise what runs here.
 
 [summaries]
 embedded-captions = "Captions or subtitles on an existing talking-head video, from verbatim to cinematic."
@@ -16,6 +16,7 @@ hyperframes-core = "The composition contract: data-* timing, clips, tracks, sub-
 hyperframes-creative = "Creative direction for HyperFrames videos: palettes, typography, narration, beats, composition patterns."
 hyperframes-keyframes = "Camera moves, punch-ins, reframes, paths, masks and seek-safe keyframes in a composition."
 hyperframes-registry = "Ready-made blocks and effects (glitch, grain, charts, terminals, maps) before hand-building a named look."
+langsmith-trace = "How LangSmith traces are shaped (traces vs runs, filters); read this agent's with list_traces and read_trace."
 media-use = "Operating on media for a composition: cut, reframe, transform, captions, background removal, reuse."
 motion-graphics = "A short motion graphic where motion is the message: kinetic type, stat hits, logo stings, overlays."
 music-to-video = "A beat-synced video driven by a music track: lyric video, slideshow or kinetic promo."

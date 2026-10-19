@@ -1,4 +1,48 @@
 {
+  "agent_skills": {
+    "deep-agents-core": {
+      "excluded": {},
+      "files": {
+        "SKILL.md": "1bfd3542b3c4b1d861d50cf24bc27267f8e1e1c72570d07583b8e9b39bdeacb1"
+      },
+      "upstream": "langchain-skills"
+    },
+    "deep-agents-memory": {
+      "excluded": {},
+      "files": {
+        "SKILL.md": "3549b750ca9625dc73e0c4bee87133f57fab374ba0202daa74a2d28c91cb3bf4"
+      },
+      "upstream": "langchain-skills"
+    },
+    "deep-agents-orchestration": {
+      "excluded": {},
+      "files": {
+        "SKILL.md": "76f4c5c9ed0773a0008e753422b3e2f5849b7748c18a9ab84e8e2d4dbbd66ebf"
+      },
+      "upstream": "langchain-skills"
+    },
+    "langsmith-dataset": {
+      "excluded": {},
+      "files": {
+        "SKILL.md": "427d48a04caa4ee2e59fcd281f78feef4283061d7d8a899655b463c4487735f3"
+      },
+      "upstream": "langsmith-skills"
+    },
+    "langsmith-evaluator": {
+      "excluded": {},
+      "files": {
+        "SKILL.md": "e8b2b2b575b9882aaef280478ffe2b2a5bdf0d6793e9b506e947bc63d1f71e33"
+      },
+      "upstream": "langsmith-skills"
+    },
+    "managed-deep-agents": {
+      "excluded": {},
+      "files": {
+        "SKILL.md": "fe1020c6727002aaade34ec23ca0ebab9c9b455b59a3ac0b50485059c566c200"
+      },
+      "upstream": "langchain-skills"
+    }
+  },
   "skills": {
     "embedded-captions": {
       "excluded": {
@@ -149,7 +193,8 @@
         "themes/thunder.json": "10dba3a01217fa1d33aed00dc7b256d5e91c960dd02da1a969597883d2c2a90f",
         "themes/transit.json": "e904b3ef5627a47225a773ef6640450f063f0e0ad98ff18ba8f337e504fb6370",
         "themes/vhs.json": "a63c5f97bf7b7b55d281d5fbb8a05fb3376a66a140c70a1df652d9242b1890d0"
-      }
+      },
+      "upstream": "hyperframes"
     },
     "faceless-explainer": {
       "excluded": {},
@@ -183,7 +228,8 @@
         "scripts/transitions.mjs": "19232dbc866faad93e678a0fa7e9619e3fcdc72343f1dc5b8e55f0e6b480570f",
         "scripts/transitions.test.mjs": "b084fa8a6ad45e60af27fc9c146cc3a57a6bcd795251dc89ddcc6f29af0702e6",
         "sub-agents/frame-worker.md": "883dcf7947380d220dcf763d7aef92dfab0ef273b40aff899ea3ba2a082ee20d"
-      }
+      },
+      "upstream": "hyperframes"
     },
     "general-video": {
       "excluded": {},
@@ -194,7 +240,8 @@
         "scripts/lib/frame-packets-core.mjs": "fd9062f3c955f89e5520fec3f88d25f92f44e91cf42988e387ae993175999c87",
         "scripts/lib/main-module.mjs": "61811e09110856e1439c29875e4a4ad7701ae45d4045f9d1dcb6a7929698e4c0",
         "sub-agents/frame-worker.md": "447395b986126769a0d169c468f3f24b324781761130bc5155802656d1f22999"
-      }
+      },
+      "upstream": "hyperframes"
     },
     "hyperframes": {
       "excluded": {},
@@ -230,7 +277,8 @@
         "scripts/lib/main-module.test.mjs": "350b7432eb76a1384bfc5cc7bfa1262b5e04465cd6f72ced2b0eb57214fdff82",
         "scripts/plugin-cli.mjs": "1ec46cdb9d819ecc9367aba719fea9253089617ead8c5454e59ab18b206711fb",
         "scripts/plugin-cli.test.mjs": "abfdf2498b57509438077803bee3a626c6fc13e1014ae066e5281edbfc4ca23d"
-      }
+      },
+      "upstream": "hyperframes"
     },
     "hyperframes-animation": {
       "excluded": {},
@@ -357,7 +405,8 @@
         "transitions/css-radial.md": "5d8f20de439e3f2c8d45df11c8acbe31dc1b9342e2d54bbe66b451cf81ca0a1b",
         "transitions/css-scale.md": "3c0cb33d6c844a7265379225f3241d8964afcc908ee757a1ebfb1700a5320ea7",
         "transitions/overview.md": "ec878d479d16addcd88c770b39fc88fa5219086478aee39e9f96a1096a58b084"
-      }
+      },
+      "upstream": "hyperframes"
     },
     "hyperframes-audio": {
       "excluded": {},
@@ -370,7 +419,8 @@
         "scripts/carve.mjs": "7ddef413955ca81b66eba4630e3296220613150d428795f636577f2d8626c160",
         "scripts/carve.test.mjs": "6f72d9e0a349d9deaee62f1835b9c5639dc71389643f5d37accc0844958b43f6",
         "scripts/lib/main-module.mjs": "61811e09110856e1439c29875e4a4ad7701ae45d4045f9d1dcb6a7929698e4c0"
-      }
+      },
+      "upstream": "hyperframes"
     },
     "hyperframes-cli": {
       "excluded": {},
@@ -386,7 +436,8 @@
         "references/lint-validate-inspect.md": "e42ae93086cc6b152fb58883ccabfeaab9629eb4eadb09668cddab40703b4a9f",
         "references/preview-render.md": "a60d74da477b56623211055239e6f6e8a5fed4b851a0dab0c06020ca0cf30fa5",
         "references/upgrade-info-misc.md": "a46662ad866669d1cf70bfa6404e9a01f68d2db4eb667fe6dc8a8442f6a069d8"
-      }
+      },
+      "upstream": "hyperframes"
     },
     "hyperframes-core": {
       "excluded": {},
@@ -402,7 +453,8 @@
         "references/tailwind.md": "bce2e8ae118f91df3a9790e99273f50942f12d1c345a149d6762c9411e3dfd2c",
         "references/tracks-and-clips.md": "c0fbb3242406e0a1f2de507427330fb998d411587b8790eec17128ee6b4f8204",
         "references/variables-and-media.md": "d905b18425dfbbcf232aa9557708425bdf4b52c13f999093e04c9f7f1428d6a1"
-      }
+      },
+      "upstream": "hyperframes"
     },
     "hyperframes-creative": {
       "excluded": {},
@@ -486,7 +538,8 @@
         "scripts/package-loader.mjs": "f96e0e6058b8c79b9d89de9aa078d2b25a1755d569c1008c8c3ab9e17b519ccf",
         "scripts/package-loader.test.mjs": "504125ede3efaf687dba15de699c0100bf1fd47855fc83c98aec5c6fb9a4168f",
         "templates/design-picker.html": "c417139fef8e21b34d56a85cedda8b9597c9574e0727ce603a4743c4ee592c1a"
-      }
+      },
+      "upstream": "hyperframes"
     },
     "hyperframes-keyframes": {
       "excluded": {},
@@ -494,7 +547,8 @@
         "SKILL.md": "d6484e8367ed522f2a89af9ec30ae3cd86ae243b5a23c5ab00a7a682e3d1a791",
         "agents/openai.yaml": "1fbce5f9defa4c5f2d9e8cd7fad67566e21aba09e93a25e5836ebca62bd68f4b",
         "references/keyframe-patterns.md": "727cbc8db92968e9a8c9e77434e6aa45ad4e938df577c86ba75d118aa7e6e88d"
-      }
+      },
+      "upstream": "hyperframes"
     },
     "hyperframes-registry": {
       "excluded": {},
@@ -511,7 +565,15 @@
         "references/templates.md": "98e1ef62d3c1264b28139d85a1c9b5a8b7438209914aebef6d9890e3f4275805",
         "references/wiring-blocks.md": "397f9ad5a9244d173b97bb5a5dfe76ea3cbccfb8dde16cba8b3dabc6044b011a",
         "references/wiring-components.md": "6c8341c29fdae6de4f9fd1560a668d11cf34731b81fe5a06c9aeb4a000047b2a"
-      }
+      },
+      "upstream": "hyperframes"
+    },
+    "langsmith-trace": {
+      "excluded": {},
+      "files": {
+        "SKILL.md": "6f16ba0969d0327ad4a097d97f30aa0b1daac6141a57ca8d9fd1dd6caa1d5b9e"
+      },
+      "upstream": "langsmith-skills"
     },
     "media-use": {
       "excluded": {
@@ -629,7 +691,8 @@
         "scripts/transcribe.test.mjs": "39a456ac37a0eca282417b09d7e556c0f2ac11ab3726bc361ff077e75a963ae1",
         "scripts/transcript-cut.mjs": "17e148571738ad8cf30b0ccb3f28d0837df5072114b9dfb63bc8d9f5d25e5a5d",
         "scripts/transcript-cut.test.mjs": "af546cd7d473eb5f4258148a8dd8ec637a67a242cd50948abe1e0dcd6f64c527"
-      }
+      },
+      "upstream": "hyperframes"
     },
     "motion-graphics": {
       "excluded": {},
@@ -657,7 +720,8 @@
         "references/motion-vocabulary.md": "afad1da63f33291e3585fcf65fe3708775cb607aab3e22c695dc20481bd60b4a",
         "references/shot-plan-ir.md": "ff52b844703121fef7bcac79fd4523fc9bcf6537a18390b7a3031f64270137d3",
         "samples/asset-fusion/_ref-circle-highlight.html": "1c6d33b1fc191735fe035a9a104be58236f9cb1fde33a0445ae08808204118b5"
-      }
+      },
+      "upstream": "hyperframes"
     },
     "music-to-video": {
       "excluded": {
@@ -832,7 +896,8 @@
         "scripts/stage-assets.mjs": "50a4f20cf71a638cdeeb6625d5a6d75b203c20109ad703e12df538f03ec8730b",
         "scripts/validate-plan.mjs": "c0883b116ea0030a94cecac826e1bf464f92622166813032f75163cb261d0b6f",
         "sub-agents/frame-worker.md": "649e9bad3cc30f564a06068bb600fc13b51a33c55e479aa43871e2cdaf561dee"
-      }
+      },
+      "upstream": "hyperframes"
     },
     "pr-to-video": {
       "excluded": {},
@@ -872,7 +937,8 @@
         "scripts/transitions.mjs": "b444da858e805c5251789a6b8ccd5ab461c935e2984e5efb5e3b6a0a84072a54",
         "scripts/workflow-guardrails.test.mjs": "09766905d3ab01c4de65d4610ff321814753a9ef6b26d89e8bf5be7c11a22b49",
         "sub-agents/frame-worker.md": "d24b67ee6ee797014d94a944fc24b6e1e58b260d5fe094e97e16aeab1e839222"
-      }
+      },
+      "upstream": "hyperframes"
     },
     "remotion-to-hyperframes": {
       "excluded": {},
@@ -954,22 +1020,40 @@
         "scripts/tests/fixtures/blocker.tsx": "e12bc7d06340b71cebbdbc8aae9f948a21f7487dbccafcdea6be9f1936f7e4c0",
         "scripts/tests/fixtures/clean.tsx": "912f5a176e8b4eee7acbdf9a9334e1edcb14f6859cab397846ed8a63f13d080d",
         "scripts/tests/smoke.sh": "9a51cadfe9b6fe645096fc2e05d80849c6985abd3a92bd27cb985b3cdd3ce7b0"
-      }
+      },
+      "upstream": "hyperframes"
     },
     "slideshow": {
       "excluded": {},
       "files": {
         "SKILL.md": "a17b9d27ec3a3256bda717cf4796b8b8bd1d6770fbd4dbf5cd2f7f59662ac11e",
         "references/standalone-harness.md": "9435c87a7a77fc08900cb73a935496996ca8c5cc8962ab7050ca0d8048b883e7"
-      }
+      },
+      "upstream": "hyperframes"
     }
   },
-  "upstream": {
-    "commit": "7735338b49ed6e11c227b0710da3bd35c3366b9c",
-    "license": "Apache-2.0",
-    "license_file": "licenses/hyperframes-LICENSE.txt",
-    "release": "v0.8.169",
-    "repo": "heygen-com/hyperframes"
+  "upstreams": {
+    "hyperframes": {
+      "commit": "7735338b49ed6e11c227b0710da3bd35c3366b9c",
+      "license": "Apache-2.0",
+      "license_file": "licenses/hyperframes-LICENSE.txt",
+      "release": "v0.8.169",
+      "repo": "heygen-com/hyperframes"
+    },
+    "langchain-skills": {
+      "commit": "16a992f09ab3ccfb642dd4f08d350d833d1990bf",
+      "license": "MIT",
+      "license_file": "licenses/langchain-skills-LICENSE.txt",
+      "release": null,
+      "repo": "langchain-ai/langchain-skills"
+    },
+    "langsmith-skills": {
+      "commit": "1fb52e836f2d9f8d95c9f0b27d796ab20dac34d1",
+      "license": "MIT",
+      "license_file": "licenses/langsmith-skills-LICENSE.txt",
+      "release": null,
+      "repo": "langchain-ai/langsmith-skills"
+    }
   },
-  "version": 1
+  "version": 2
 }

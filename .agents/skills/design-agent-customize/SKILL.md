@@ -34,7 +34,7 @@ Start with the graphic the team asks for every week.
 6. Add an eval task if it matters ([design-agent-evals](../design-agent-evals/SKILL.md)), then
    redeploy ([design-agent-deploy](../design-agent-deploy/SKILL.md)).
 
-Vendored HyperFrames skills (listed in `skills-lock.json`) are never edited: override them in a
+Vendored skills (HyperFrames and LangSmith, listed in `skills-lock.json`) are never edited: override them in a
 sibling skill of ours, or send the change upstream.
 
 ## Instructions, doctrine and checks

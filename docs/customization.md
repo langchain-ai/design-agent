@@ -36,6 +36,14 @@ have a quick helper propose observations (`learn_from_job`). Before a similar jo
 rates the ones that helped. Observations live in the deployment's store and are notes the agent
 weighs, never rules. Turn it off with `DESIGN_AGENT_ENABLE_LEARNING=0`.
 
+## Traces
+
+The agent reads its own LangSmith traces: `list_traces` finds runs by time, thread, trigger or
+failure, and `read_trace` writes one run tree to the workspace with its errors and slowest steps.
+Ask it in the thread ("why did the last render fail?") and it can look. It reads only the project
+its runs are traced to, but every thread in it: turn it off with `DESIGN_AGENT_ENABLE_TRACES=0`
+where people must not see each other's requests ([SECURITY.md](../SECURITY.md#trace-access)).
+
 ## MCP servers
 
 Copy `config/mcp.example.toml` to `config/mcp.toml` and declare servers there. Every runtime names
