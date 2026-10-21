@@ -236,3 +236,44 @@ def test_questions_in_markdown_and_inline_markup_in_copy_are_read_as_written() -
         [HumanMessage("x"), call, ToolMessage("ok", tool_call_id=call.tool_calls[0]["id"])]
     )
     assert graders.grade_copy(task("exact-copy"), trace)[0].passed
+
+
+def test_only_woken_turns_that_deliver_nothing_are_check_ins() -> None:
+    from langchain_core.messages import AIMessage, HumanMessage
+
+    notice = "[Runtime notice, not from the user] The wake-up you scheduled."
+    upload = {"name": "upload_files", "args": {"paths": ["/workspace/out/clip.mp4"]}, "id": "u1"}
+    done = "The clip is finished and attached."
+    history = [
+        HumanMessage("Render it and only tell me when it's done."),
+        AIMessage("Rendering; I'll stay quiet until it lands."),
+        HumanMessage(notice),
+        AIMessage("[quiet]"),
+        HumanMessage(notice),
+        AIMessage("", tool_calls=[upload]),
+        AIMessage(done),
+        HumanMessage("Go."),
+        AIMessage("It's already done and attached."),
+    ]
+    trace = Trace.from_messages(history, extra_replies=[done])
+    assert trace.replies.count(done) == 1 and trace.check_ins == ["[quiet]"]
+    assert graders.BEHAVIORS["quiet_check_in"](task("quiet-check-in"), trace).passed
+    chatty = [*history[:3], AIMessage("Still rendering, about 40% done."), *history[4:]]
+    assert not graders.BEHAVIORS["quiet_check_in"](
+        task("quiet-check-in"), Trace.from_messages(chatty)
+    ).passed
+
+
+def test_a_board_a_helper_drew_counts_once_it_is_delivered() -> None:
+    board = ("upload_files", {"paths": ["/workspace/projects/t/board/review-sheet.jpg"]}, "ok")
+    render = (
+        "execute",
+        {"command": "hyperframes render /workspace/projects/t --output out.mp4"},
+        "ok",
+    )
+    assert graders.BEHAVIORS["storyboard_first"](task("teaser-15"), trace_of(board, render)).passed
+
+
+def test_a_blocked_report_may_say_it_could_not() -> None:
+    said = trace_of(replies=["I couldn't make it at 400 px on one line, so here are two versions."])
+    assert graders.BEHAVIORS["reports_blocked"](task("blocked-artifact"), said).passed

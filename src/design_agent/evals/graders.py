@@ -30,7 +30,8 @@ _CLAIMS_DELIVERY = re.compile(
     r"\b(attached|here(?:'s| is| are)|i'?ve (?:sent|attached|uploaded))\b", re.IGNORECASE
 )
 _BLOCKED = re.compile(
-    r"\b(can'?t|cannot|won'?t|doesn'?t|does not|didn'?t|did not|not possible|blocked|unable)\b",
+    r"\b(can'?t|cannot|couldn'?t|could not|won'?t|doesn'?t|does not|didn'?t|did not|not possible"
+    r"|blocked|unable)\b",
     re.IGNORECASE,
 )
 _TAG = re.compile(r"<[^>]+>")
@@ -165,6 +166,9 @@ def _is_render(call: Call) -> bool:
 
 
 def _is_storyboard(call: Call) -> bool:
+    """A board written or rendered by the lead, or delivered: a helper may have drawn it."""
+    if call.name == "upload_files":
+        return any(_STORYBOARD_PATH.search(str(p)) for p in call.args.get("paths") or [])
     path = str(
         call.args.get("file_path") or call.args.get("command") or call.args.get("path") or ""
     )
@@ -327,8 +331,11 @@ def _paper_unavailable_once(_task: Task, trace: Trace) -> Grade:
 
 @behavior("quiet_check_in")
 def _quiet_check_in(_task: Task, trace: Trace) -> Grade:
-    middle = trace.replies[1:-1]
-    chatty = [r for r in middle if r.strip() != "[quiet]" and not r.startswith("Still working:")]
+    # A woken turn that delivers is the news the person asked for; one that delivers nothing is a
+    # check-in, and stays quiet or says one status line.
+    chatty = [
+        r for r in trace.check_ins if r.strip() != "[quiet]" and not r.startswith("Still working:")
+    ]
     return Grade("quiet check-ins", not chatty, f"{len(chatty)} check-in(s) said something")
 
 
