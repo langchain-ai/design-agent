@@ -1,10 +1,10 @@
-"""`design-agent deploy`: preflight, a minimal staged project, then `mda deploy` on it.
+"""`design-agent deploy`: a checked alternative to running `mda deploy` on the checkout.
 
-`mda deploy` archives the project directory as it is, Git-ignored files included, and forwards
-every key in its `.env` as a deployment secret. So the deploy never runs on the working tree: it
-stages exactly what the agent needs into `.mda/deploy-src/` (code, skills, the gates, the brand
-pack, licensed fonts, the sandbox recipe and declarations) with an `.env` holding only the keys the
-deployed agent uses, shows what will be shipped, and deploys that after a yes.
+`mda deploy` works on the project as it is, but it archives Git-ignored files (renders included)
+and forwards every key in `.env` as a deployment secret. This runs a preflight, stages exactly what
+the agent needs into `.mda/deploy-src/` (code, skills, the gates, the brand pack, licensed fonts,
+the sandbox recipe and declarations) with an `.env` holding only the keys the deployed agent uses,
+shows what will be shipped, and deploys that after a yes.
 
 Preflight problems stop the deploy; warnings are shown and the person decides.
 """
@@ -23,7 +23,7 @@ from dotenv import dotenv_values
 from design_agent.brand.schema import BrandPackError, load_brand_pack
 from design_agent.config import Settings
 from design_agent.runtime.sandbox.publish import declared_base
-from design_agent.skills_lock import verify
+from design_agent.skills_lock import is_text, verify
 from design_agent.tools.mcp import McpConfigError, declared_servers
 from design_agent.workspace.manifest import SKILL_BINARIES, build_manifest
 
@@ -44,6 +44,7 @@ SHIPPED = (
     "schedules",
     "tools",
     "skills",
+    "skill-binaries",
     "src",
     "config",
     "examples/brands",
@@ -127,6 +128,16 @@ def preflight(
         report.problems.append(f"brand pack: {error}")
     except ValueError as error:
         report.problems.append(f"workspace manifest: {error}")
+    # MDA syncs `skills/` to Context Hub, which refuses a file that is not UTF-8 text.
+    binary = [
+        path.relative_to(root).as_posix()
+        for path in sorted((root / "skills").rglob("*"))
+        if path.is_file() and not is_text(path)
+    ]
+    if binary:
+        report.problems.append(
+            f"Context Hub takes only UTF-8 text; move {', '.join(binary[:3])} to {SKILL_BINARIES}/"
+        )
     lock = verify(root)
     if not lock.ok:
         report.problems.append(
@@ -187,12 +198,7 @@ def _copy(source: Path, target: Path) -> None:
 
 
 def stage(root: Path, *, destination: Path | None = None) -> Path:
-    """Copy what ships into a fresh staging directory and write its filtered `.env`.
-
-    MDA syncs `skills/` to Context Hub, which takes only UTF-8 text, so a skill's binary files
-    (fonts, images) move to `skill-binaries/<skill>/` and ship as deployment files; the workspace
-    stager puts them back under `/workspace/skills/<skill>/`.
-    """
+    """Copy what ships into a fresh staging directory and write its filtered `.env`."""
     target = destination or root / STAGE
     shutil.rmtree(target, ignore_errors=True)
     target.mkdir(parents=True)
@@ -200,14 +206,6 @@ def stage(root: Path, *, destination: Path | None = None) -> Path:
         source = root / relative
         if source.exists():
             _copy(source, target / relative)
-    skills = target / "skills"
-    for path in sorted(p for p in skills.rglob("*") if p.is_file()) if skills.is_dir() else []:
-        try:
-            path.read_bytes().decode("utf-8")
-        except UnicodeDecodeError:
-            moved = target / SKILL_BINARIES / path.relative_to(skills)
-            moved.parent.mkdir(parents=True, exist_ok=True)
-            path.rename(moved)
     env_file = root / ".env"
     if env_file.is_file():
         shipped, _ = env_split(dotenv_values(env_file))

@@ -144,7 +144,7 @@ def build_manifest(project_root: Path, brand: BrandPack) -> Manifest:
             for path in _files(root, skill):
                 rel = path.relative_to(skill).as_posix()
                 assets.append(_asset(path, WORKSPACE / "skills" / skill.name / rel))
-    # A deployed project keeps skills' binary files here, out of Context Hub (`deploy.stage`).
+    # Skills' binary files live here, because Context Hub takes only UTF-8 text (skills_lock).
     binaries = root / SKILL_BINARIES
     if binaries.is_dir():
         for path in _files(root, binaries):

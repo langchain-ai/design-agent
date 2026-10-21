@@ -63,7 +63,8 @@ self-hosted. Logs carry exception classes, never provider messages or keys.
 - Python dependencies: `uv lock --upgrade`, then the checks in [CONTRIBUTING.md](CONTRIBUTING.md).
 - HyperFrames and its skills: the [vendor-sync skill](.agents/skills/vendor-sync/SKILL.md).
 - Managed Deep Agents: read the release notes for API changes (for example the 0.10 Slack
-  `trigger_mode`), then `deploy --build-only` and a test deployment.
+  `trigger_mode`), then `uv run mda build` and a test deployment
+  (`uv run mda deploy --name design-agent-test`).
 
 ## Backups
 

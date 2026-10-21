@@ -21,18 +21,23 @@ Setup comes first: `uv run design-agent doctor` should pass and the brand pack s
 1. **Publish the computer once.** `uv run design-agent sandbox build && uv run design-agent sandbox test`
    proves the recipe locally; `uv run design-agent sandbox publish --fs-gib 16` builds the snapshot
    in their workspace (sandbox time is billed). Publish again whenever `sandbox/setup.sh` changes.
-2. **Show what ships.** `uv run design-agent deploy --build-only` stages `.mda/deploy-src/` and
-   prints which secrets ship and which stay home. Walk the person through it.
-3. **Try a copy first.** `uv run design-agent deploy --name design-agent-test` is a separate
-   deployment; the team's agent is untouched.
-4. **Deploy** with `uv run design-agent deploy` after a yes. The first deploy provisions the Slack
-   app; the person authorizes it in their Slack workspace.
+2. **Check the keys.** `mda deploy` forwards every `.env` key except LangSmith's as a deployment
+   secret. List the key *names* in `.env` and confirm they are only what the deployed agent uses
+   (model, media, `DESIGN_AGENT_*`, `PAPER_*`); self-hosting keys (`SLACK_*`, `DATABASE_URL`,
+   `DESIGN_AGENT_API_TOKENS`) must not be there. Renders in `workspace/out/` ship too and count
+   toward MDA's 200 MB archive limit. `uv run design-agent deploy --build-only` shows exactly what
+   a minimal copy would ship.
+3. **Try a copy first.** `uv run mda deploy --name design-agent-test` is a separate deployment; the
+   team's agent is untouched.
+4. **Deploy** with `uv run mda deploy` after a yes. The first deploy provisions the Slack app; the
+   person authorizes it in their Slack workspace. `uv run design-agent deploy` is the checked
+   alternative: a preflight, a minimal staged copy and a filtered `.env`.
 5. **Verify with real requests:** a quick still, then a short storyboarded teaser. In Slack you
    should see live progress, a check-in while it renders, and files attached at the end. Without
    Slack, call the deployment's API ([docs/deploy-mda.md](../../../docs/deploy-mda.md) has the
    snippet); files attach to the run's LangSmith trace. `uv run mda logs` tails the deployment.
-6. **Updates:** change, `deploy --build-only`, then `deploy`. A redeploy stops running helpers; each
-   affected thread offers to resume from its saved transcript.
+6. **Updates:** change, deploy the test copy, then `uv run mda deploy`. A redeploy stops running
+   helpers; each affected thread offers to resume from its saved transcript.
 
 ## Self-hosted
 

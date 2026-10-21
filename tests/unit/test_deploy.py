@@ -132,7 +132,7 @@ def test_a_gateway_model_needs_the_gateway_key_shipped(
     assert not any("needs" in p for p in deploy.preflight(ROOT, settings).problems)
 
 
-def test_staging_moves_binary_skill_files_out_of_context_hub(tmp_path: Path) -> None:
+def test_binary_skill_files_ship_outside_context_hub(tmp_path: Path) -> None:
     from design_agent.brand.schema import load_brand_pack
     from design_agent.workspace.manifest import build_manifest
 

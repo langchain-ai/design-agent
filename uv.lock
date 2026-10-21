@@ -996,7 +996,7 @@ requires-dist = [
     { name = "langgraph-checkpoint-postgres", marker = "extra == 'self-host'", specifier = ">=3.2,<4" },
     { name = "langgraph-checkpoint-sqlite", specifier = ">=3.1.2,<4" },
     { name = "langsmith", specifier = ">=0.14.11,<0.15" },
-    { name = "managed-deepagents", specifier = ">=0.9.3,<0.10" },
+    { name = "managed-deepagents", specifier = ">=0.9.4,<0.10" },
     { name = "pillow", specifier = ">=12,<13" },
     { name = "psycopg", extras = ["binary", "pool"], marker = "extra == 'self-host'", specifier = ">=3.2,<4" },
     { name = "pydantic", specifier = ">=2.13,<3" },
@@ -2224,7 +2224,7 @@ wheels = [
 
 [[package]]
 name = "managed-deepagents"
-version = "0.9.3"
+version = "0.9.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "deepagents" },
@@ -2238,12 +2238,12 @@ dependencies = [
     { name = "typing-extensions" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e2/93/67da5ce808aa35164ec2fabfcd3e650b543e85f81ff3e65849dc1e11ccbd/managed_deepagents-0.9.3-py3-none-macosx_10_12_x86_64.whl", hash = "sha256:bb9b6b1112d2cb3baadfc356581b1d65aa2cdb349c15eaf9a811fbea3bc62877", size = 2621609, upload-time = "2026-10-17T06:22:37.638Z" },
-    { url = "https://files.pythonhosted.org/packages/cd/21/60042f821996e0839c2e9cd41a50ea314bcbdf01a37d5cf504c73db277cb/managed_deepagents-0.9.3-py3-none-macosx_11_0_arm64.whl", hash = "sha256:c53c9ec0649ae7251f8a6a3ac7e9f9d50b24e256d55802f5744fcbae081b7e58", size = 2413581, upload-time = "2026-10-17T06:22:39.424Z" },
-    { url = "https://files.pythonhosted.org/packages/c1/7f/82726b43575a767cb4a9f315297dbec890a7b119169454a78a4c8880432d/managed_deepagents-0.9.3-py3-none-manylinux2014_aarch64.whl", hash = "sha256:e0f18194b66ab67f2d1fd0c7b71bf84037851e15672ee18c7df87b3bbd6cf10f", size = 2696557, upload-time = "2026-10-17T06:22:40.903Z" },
-    { url = "https://files.pythonhosted.org/packages/da/56/5ba74b49c340d6bd363ee2d1577e2c3afd31d2c96f2280eb2cd53e55a694/managed_deepagents-0.9.3-py3-none-manylinux2014_x86_64.whl", hash = "sha256:6597665ea4db9e9f4d24bbd4c33f41b0896fcf5d39479be8b7758758b280e79a", size = 2950415, upload-time = "2026-10-17T06:22:42.438Z" },
-    { url = "https://files.pythonhosted.org/packages/c7/4a/d6104f5780437781b7efd43ae2c17dbf61e19d5b67d675d04b0065eca3db/managed_deepagents-0.9.3-py3-none-win_amd64.whl", hash = "sha256:48aa2a709a07445669fab09c1ae853e91c7dba7c638d1dc35d1d99fcba5f143c", size = 2398194, upload-time = "2026-10-17T06:22:44.039Z" },
-    { url = "https://files.pythonhosted.org/packages/e9/0a/5383685163fa24a9ac1ea516e38bb2075df1d81d411014a66c97a258f872/managed_deepagents-0.9.3-py3-none-win_arm64.whl", hash = "sha256:6f5878fa64ae8b087599214bf7d0bbcb5dcac5cd79516b6dae0687196d50bed5", size = 2282086, upload-time = "2026-10-17T06:22:45.525Z" },
+    { url = "https://files.pythonhosted.org/packages/18/ee/b1921c699ba76aab27a5e862de41472205a7c75cdc467450a2953c4fab3b/managed_deepagents-0.9.4-py3-none-macosx_10_12_x86_64.whl", hash = "sha256:640eb5d9823c1f2b046c0a8a7f6ebb6312345f6db14be3711f07098eb9e495e2", size = 2721066, upload-time = "2026-10-20T22:46:10.774Z" },
+    { url = "https://files.pythonhosted.org/packages/44/86/41f37ad4987a329b9bb14390e9cd24c483f7d47d5dec35f245991d0f386d/managed_deepagents-0.9.4-py3-none-macosx_11_0_arm64.whl", hash = "sha256:8fbc2d28ee2ccc7a8670f9b08b63f036cd0b750a374cb85d2daab19866cf645f", size = 2506431, upload-time = "2026-10-20T22:46:13.85Z" },
+    { url = "https://files.pythonhosted.org/packages/f1/4a/c79378a92f444fff74e154d99a957f3193659175ead837288045c67801b7/managed_deepagents-0.9.4-py3-none-manylinux2014_aarch64.whl", hash = "sha256:bc25a3133d5aafe525d6138d8d895abef595cfa6a2e928a066ca92a931bd24ae", size = 2797582, upload-time = "2026-10-20T22:46:15.667Z" },
+    { url = "https://files.pythonhosted.org/packages/7c/7e/555db4e461275143266ddc7696f4374fe4fb4ce30fe4f59fb226a5fc4bd2/managed_deepagents-0.9.4-py3-none-manylinux2014_x86_64.whl", hash = "sha256:8fea9a9d31c76f762f420e602c1c2663139fab8444334726c49eb63c7954d43d", size = 3062758, upload-time = "2026-10-20T22:46:17.624Z" },
+    { url = "https://files.pythonhosted.org/packages/91/d1/6e6b19cc4a179f00069de6deda3472fe6e659ad3dbff612afad1c4ea0a1f/managed_deepagents-0.9.4-py3-none-win_amd64.whl", hash = "sha256:74316c7b01b47b760dff5e9747a21560a6a84f8faf4541e4be6241d601ff6278", size = 2494384, upload-time = "2026-10-20T22:46:19.438Z" },
+    { url = "https://files.pythonhosted.org/packages/d3/26/c4aa8f8786035084ffade9f7669461d6ddec2720b8809f1171b632a7e83b/managed_deepagents-0.9.4-py3-none-win_arm64.whl", hash = "sha256:8aac4a0fbf1b07484d692d3b0e256831ca085ab68c1ed2c6a86294024a49e354", size = 2374103, upload-time = "2026-10-20T22:46:21.629Z" },
 ]
 
 [[package]]

@@ -4,6 +4,10 @@
 
 ### Changed
 
+- A plain `mda deploy` deploys the project: vendored skills' binary files (fonts) live in
+  `skill-binaries/`, so `skills/` syncs to Context Hub as it is, and the docs lead with
+  `uv run mda deploy`. `design-agent deploy` stays as the checked alternative. Requires
+  managed-deepagents 0.9.4.
 - The product spec moved to `docs/spec.md`.
 - `langsmith:anthropic/*` and `langsmith:openai/*` models use the LangSmith Gateway's native
   routes, so prompt caching, context editing, tool search and effort work through the gateway.

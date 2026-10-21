@@ -61,7 +61,7 @@ batch that did start a run can be recognised by the adapter.
 
 Adapters live outside the harness. Self-hosted, the waker enqueues a run in the API process with a
 Postgres timer table for check-ins (SPEC §7.4). On MDA it uses public one-time runtime schedules on
-the current thread (`runtime/waker/mda.py`), with these constraints from managed-deepagents 0.9.3:
+the current thread (`runtime/waker/mda.py`), with these constraints from managed-deepagents 0.9.4:
 
 - **Latency.** A schedule's `at` must be at least a minute ahead and is rounded up to the next
   whole minute, so a wake-up lands 60–120 s after the event, plus the scheduler's own lag. The

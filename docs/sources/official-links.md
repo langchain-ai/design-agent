@@ -31,7 +31,7 @@ All MDA pages share the prefix `https://docs.langchain.com/langsmith/python/mana
   `Client.list_runs` (<https://docs.smith.langchain.com/reference/python/client>)
 - LangSmith sandboxes: <https://docs.langchain.com/langsmith/sandboxes> · regions:
   <https://docs.langchain.com/langsmith/regions-faq> · pricing: <https://www.langchain.com/pricing>
-- PyPI: <https://pypi.org/project/managed-deepagents/> (0.9.3 stable on 2026-10-17; `0.10.0.devN`
+- PyPI: <https://pypi.org/project/managed-deepagents/> (0.9.4 stable on 2026-10-20; `0.10.0.devN`
   builds are cut from feature branches, never pin them) · <https://pypi.org/project/deepagents/>
   (0.7.28)
 - SDK source is private to LangChain staff (`langchain-ai/managed-deepagents-sdk`; its

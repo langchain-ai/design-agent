@@ -457,6 +457,14 @@
       "upstream": "hyperframes"
     },
     "hyperframes-creative": {
+      "binaries": {
+        "frame-presets/code-editorial/fonts/EBGaramond-400.woff2": "b63448e2680a0dbde70ebb2f3de78f6c515122835491f938e8a8595b46f29210",
+        "frame-presets/code-editorial/fonts/EBGaramond-700.woff2": "5d0f8a497a48fd2a3611d07acc844f65c9fbb35419eafa4e1295f5f0f95f86e4",
+        "frame-presets/code-editorial/fonts/Inter-400.woff2": "8909904ab6c872eb994093482a88a28eca2cd95912d7b6fecd72103b0dc07edc",
+        "frame-presets/code-editorial/fonts/Inter-700.woff2": "6f56409fd3d64bb85f7d070bce20749db2d66b6d63cec586cc22d1c761be2491",
+        "frame-presets/code-editorial/fonts/JetBrainsMono-400.woff2": "14425ba9c695763c1547f48a206b7aa60350a33ae23de09f0407877f3fcd89eb",
+        "frame-presets/code-editorial/fonts/JetBrainsMono-700.woff2": "d0d4e818808f2a0ba39b2b09d1989366f63494e295f003c7ef436697378507e8"
+      },
       "excluded": {},
       "files": {
         "SKILL.md": "9da7b7ac84c8d884b54125887ecca1a645a38337013082b96af2fdc0259c945a",
@@ -486,12 +494,6 @@
         "frame-presets/cobalt-grid/frame-showcase.html": "b135214cd2e310273a01e3f72b2828149f022803954a22a13cbf27aa1c2f518a",
         "frame-presets/code-editorial/FRAME.md": "b1c123526634e31a3e36cff9856e3b4322f2f778d2c7f573aa35a9ee1e90deb7",
         "frame-presets/code-editorial/caption-skin.html": "fe96654fb76433caf5b3c81e4b9c52c07c1d03b267411c12ed94f054ccb92028",
-        "frame-presets/code-editorial/fonts/EBGaramond-400.woff2": "b63448e2680a0dbde70ebb2f3de78f6c515122835491f938e8a8595b46f29210",
-        "frame-presets/code-editorial/fonts/EBGaramond-700.woff2": "5d0f8a497a48fd2a3611d07acc844f65c9fbb35419eafa4e1295f5f0f95f86e4",
-        "frame-presets/code-editorial/fonts/Inter-400.woff2": "8909904ab6c872eb994093482a88a28eca2cd95912d7b6fecd72103b0dc07edc",
-        "frame-presets/code-editorial/fonts/Inter-700.woff2": "6f56409fd3d64bb85f7d070bce20749db2d66b6d63cec586cc22d1c761be2491",
-        "frame-presets/code-editorial/fonts/JetBrainsMono-400.woff2": "14425ba9c695763c1547f48a206b7aa60350a33ae23de09f0407877f3fcd89eb",
-        "frame-presets/code-editorial/fonts/JetBrainsMono-700.woff2": "d0d4e818808f2a0ba39b2b09d1989366f63494e295f003c7ef436697378507e8",
         "frame-presets/code-editorial/fonts/OFL-eb-garamond.txt": "f03c8eda63076cd52317dcd40aa04db8472d4cb592dfaafa385129dfdafc7f9c",
         "frame-presets/code-editorial/fonts/OFL-inter.txt": "3b0a5fca3d17942cde889069889dedbbbd075e9b599968c82a95f4d944e9b345",
         "frame-presets/code-editorial/fonts/OFL-jetbrains-mono.txt": "403581b69dac5cff4079205e01c6b467e56af449ecbd7247693ddb1baafa005b",

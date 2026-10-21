@@ -518,7 +518,7 @@ def skills_sync_vendor(
     except ValueError as error:
         raise click.UsageError(str(error)) from None
     folders = list(skills_lock.vendored_folders(lock))
-    files = sum(len(entry["files"]) for _, entry in folders)
+    files = sum(len(skills_lock.locked_files(folder, entry)) for folder, entry in folders)
     excluded = sum(len(entry["excluded"]) for _, entry in folders)
     pins = ", ".join(f"{key} {up['commit'][:12]}" for key, up in lock["upstreams"].items())
     click.echo(f"vendored {len(folders)} skills, {files} files ({excluded} excluded): {pins}")

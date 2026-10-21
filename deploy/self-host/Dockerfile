@@ -14,6 +14,7 @@ RUN uv sync --frozen --no-dev --extra self-host --extra slack
 COPY instructions.md NOTICE.md ./
 COPY config ./config
 COPY skills ./skills
+COPY skill-binaries ./skill-binaries
 COPY workspace/tools ./workspace/tools
 COPY examples/brands ./examples/brands
 COPY fonts ./fonts

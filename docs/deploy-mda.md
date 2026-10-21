@@ -1,14 +1,24 @@
 # Deploy with Managed Deep Agents
 
-Managed Deep Agents (MDA) runs the agent, its sandbox computers, its Slack app and its schedules in
-your LangSmith workspace. One command deploys it.
+Managed Deep Agents (MDA) runs the agent, a sandbox computer for every thread, its Slack app and
+its schedules in your LangSmith workspace, with tracing built in. This repository is an MDA project,
+so `mda deploy` deploys it as it is:
+
+```bash
+git clone https://github.com/langchain-ai/design-agent.git && cd design-agent
+uv run design-agent config set LANGSMITH_API_KEY=lsv2_… ANTHROPIC_API_KEY=sk-ant-…
+uv run design-agent sandbox publish
+uv run mda deploy
+```
+
+`uv run` uses the `mda` CLI pinned in `uv.lock`, so the CLI matches the SDK the agent is built on.
 
 ## What you need
 
 - A LangSmith organization with MDA access and an API key with deployment permission
   (`LANGSMITH_API_KEY`; region via `LANGSMITH_ENDPOINT`). [Hosting is paid](https://www.langchain.com/pricing).
 - A model key for your configured model ([Models](models.md)).
-- Docker, to build and test the sandbox recipe locally first.
+- [uv](https://docs.astral.sh/uv/). Docker only if you want to test the sandbox recipe locally first.
 
 ## 1. Publish the computer once
 
@@ -18,50 +28,52 @@ the 1 GiB filesystem MDA gives a sandbox baked from a Docker image, so publish i
 room for renders:
 
 ```bash
-uv run design-agent sandbox build && uv run design-agent sandbox test    # local proof
 uv run design-agent sandbox publish --fs-gib 16
 ```
 
 `publish` builds the snapshot in your workspace (sandbox time is billed), runs the recipe's probe
 in it, and rewrites `sandbox/__init__.py` to declare it. Publish again whenever the recipe changes;
-the snapshot name follows the recipe's hash. Sizes and egress for MDA sandboxes are the constants in
-`sandbox/__init__.py` (MDA reads that file statically). Egress is default-deny: the agent's host
-tools fetch and generate, the sandbox only renders.
+the snapshot name follows the recipe's hash. To prove the recipe locally first:
+`uv run design-agent sandbox build && uv run design-agent sandbox test`. Sizes and egress for MDA
+sandboxes are the constants in `sandbox/__init__.py` (MDA reads that file statically). Egress is
+default-deny: the agent's host tools fetch and generate, the sandbox only renders.
 
-## 2. Check what ships
+## 2. Keys
 
-```bash
-uv run design-agent deploy --build-only
-```
-
-`mda deploy` would archive the whole project directory, Git-ignored files included, and send every
-key in `.env` as a deployment secret. So `design-agent deploy` never deploys the working tree: it
-runs a preflight (brand pack, workspace manifest, vendored skills, the sandbox declaration, the
-model key, MCP declarations), stages only what the agent needs into `.mda/deploy-src/` with an `.env`
-holding only the keys the agent reads, and compiles that. It prints which secrets ship and which
-stay home (Slack tokens for self-hosting, `DATABASE_URL`, your LangSmith key). Inspect
-`.mda/deploy-src/` before going further.
-
-What ships: code, `instructions.md`, `skills/`, `workspace/tools/`, `config/`, the sample brand and
-your `workspace/brand/`, open fonts and your `private-fonts/` (licensed fonts reach the sandbox as
-deployment files, never through Git), the sandbox recipe and the MDA declarations
-(`agent.py`, `identity.py`, `channels/`, `schedules/`, `sandbox/`, `tools/mcp.py`). MDA syncs
-`skills/` to Context Hub, which takes only UTF-8 text, so the few binary skill files (a vendored
-preset's fonts) move to `skill-binaries/` and reach `/workspace/skills/` through the stager.
-
-To try a change without touching the deployment people use, deploy under another name:
-`uv run design-agent deploy --name design-agent-test`.
+`mda deploy` forwards every key in `.env` as a deployment secret, except LangSmith's own
+(`LANGSMITH_API_KEY` signs the deploy and stays home). It never reads keys from your shell for
+the deployment. So keep `.env` to what the deployed agent uses: the model key, and optionally
+`OPENAI_API_KEY` (images), `ELEVENLABS_API_KEY` (voice and music), `DESIGN_AGENT_*` and `PAPER_*`
+settings. Self-hosting keys (`SLACK_*`, `DATABASE_URL`, `DESIGN_AGENT_API_TOKENS`) don't belong in
+the `.env` you deploy from.
 
 ## 3. Deploy
 
 ```bash
-uv run design-agent deploy
+uv run mda deploy
 ```
 
-It asks before deploying, then runs `mda deploy` on the staged project. On the first deploy MDA
-provisions the Slack app; authorize it in your Slack workspace when prompted. Channels require
-`identity.py` (LangSmith API-key authentication by default; see MDA's identity docs for per-person
-identities).
+MDA compiles the project, syncs `instructions.md` and `skills/` to Context Hub, uploads the source,
+bakes the sandbox recipe on your snapshot and waits until the deployment is live. On the first
+deploy it provisions the Slack app; authorize it in your Slack workspace when prompted. Channels
+require `identity.py` (LangSmith API-key authentication by default; see MDA's identity docs for
+per-person identities).
+
+What ships is the project directory without `.env` and virtualenvs: code, `instructions.md`,
+`skills/` (Context Hub takes only UTF-8 text, so skills' binary files live in `skill-binaries/` and
+reach the sandbox through the workspace stager), your Git-ignored `workspace/brand/` and
+`private-fonts/` (licensed fonts reach the sandbox as deployment files, never through Git), the
+sandbox recipe and the MDA declarations. Git-ignored renders in `workspace/out/` ship too and count
+toward MDA's 200 MB archive limit, so clear old ones before deploying.
+
+To try a change without touching the deployment people use, deploy a separate copy:
+`uv run mda deploy --name design-agent-test`.
+
+**A checked deploy.** `uv run design-agent deploy` adds a preflight (brand pack, workspace
+manifest, vendored skills, the sandbox declaration, the model key, MCP declarations), stages only
+what the agent needs into `.mda/deploy-src/` with an `.env` holding only the keys it reads, shows
+what will ship and runs `mda deploy` on that after a yes. `--build-only` stops after compiling, and
+`--name` deploys a copy. Use it when your checkout holds other keys or large renders.
 
 ## 4. Verify
 
@@ -69,7 +81,7 @@ In Slack, mention the agent with a quick ask ("a square card announcing …"), t
 storyboarded teaser. You should see live progress in the thread, the files attached at the end,
 and, for the teaser, a check-in while it renders. `uv run mda logs` tails the deployment.
 
-Without Slack, call the deployment's Agent Server (the URL `deploy` prints) with your LangSmith key:
+Without Slack, call the deployment's Agent Server (the URL `mda deploy` prints) with your LangSmith key:
 
 ```python
 from langgraph_sdk import get_client
@@ -106,7 +118,7 @@ follow-ups while a job runs ([surfaces](architecture/surfaces.md)).
 - **MCP servers** come from `config/mcp.toml` through `tools/mcp.py`. A server that needs
   credentials names an agent-owned workspace connection (`connection = "slug"`); header values are
   never compiled into the deployment.
-- **Studio.** `uv run mda dev .mda/deploy-src` runs the staged project locally in LangSmith Studio.
+- **Studio.** `uv run mda dev` runs the project locally in LangSmith Studio.
 
 ## Upstream asks
 
