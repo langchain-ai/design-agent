@@ -19,7 +19,7 @@ that code's MIT notice is preserved in [licenses/managed-deepagents-sdk-MIT.txt]
 | LangSmith agent skills (LangChain), vendored unmodified at commit 1fb52e836f2d | `skills/langsmith-trace`, `.agents/skills/langsmith-dataset`, `.agents/skills/langsmith-evaluator` | MIT, [licenses/langsmith-skills-LICENSE.txt](licenses/langsmith-skills-LICENSE.txt) |
 | Deep Agents agent skills (LangChain), vendored unmodified at commit 16a992f09ab3 | `.agents/skills/deep-agents-*`, `.agents/skills/managed-deep-agents` | MIT, [licenses/langchain-skills-LICENSE.txt](licenses/langchain-skills-LICENSE.txt) |
 | HyperFrames CLI | installed in the sandbox image, not redistributed here | Apache-2.0 |
-| Inter, IBM Plex Mono, Fira Code, Fraunces | `fonts/` | SIL Open Font License 1.1, [fonts/licenses/](fonts/licenses/) |
+| Geist, Fragment Mono, Inter, IBM Plex Mono, Fira Code, Fraunces | `fonts/` | SIL Open Font License 1.1, [fonts/licenses/](fonts/licenses/) |
 | Apache ECharts | installed in the sandbox image | Apache-2.0 |
 | sharp, puppeteer-core | installed in the sandbox image | Apache-2.0 |
 | GSAP | installed in the sandbox image, never vendored | GSAP Standard "no charge" license |

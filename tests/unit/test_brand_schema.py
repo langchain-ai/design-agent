@@ -24,7 +24,7 @@ def pack_copy(tmp_path: Path) -> Path:
 def test_sample_brand_is_valid_and_complete() -> None:
     pack = load_brand_pack(SAMPLE, project_root=ROOT)
     assert pack.brand.name == "Example Studio"
-    assert pack.required_families() == ("Fraunces", "IBM Plex Mono", "Inter")
+    assert pack.required_families() == ("Fragment Mono", "Geist")
     assert {f.slug for f in pack.brand.formats} >= {"linkedin-portrait", "square", "landscape"}
     assert pack.brand.license == "CC0-1.0"
 
@@ -37,7 +37,7 @@ def test_committed_tokens_css_is_current() -> None:
 def test_tokens_css_carries_every_token_and_font_stack() -> None:
     css = render_tokens_css(load_brand_pack(SAMPLE, project_root=ROOT))
     assert "--brand-color-signal: #ff5a36;" in css
-    assert '--brand-font-display: "Fraunces", "Georgia", serif;' in css
+    assert '--brand-font-display: "Geist", system-ui, sans-serif;' in css
     assert "--brand-font-mono:" in css
 
 
@@ -84,7 +84,7 @@ def test_font_checksum_mismatch_fails(pack_copy: Path) -> None:
     fonts = (
         (pack_copy / "fonts.toml")
         .read_text()
-        .replace("29160a80ff49ddcab2c97711247e08b1fab27a484a329ce8b813d820dc559031", "0" * 64)
+        .replace("73894e0448cae90a92b6c2f8732b7bb9acb7b94c418bff559dad4a18e1de9659", "0" * 64)
     )
     (pack_copy / "fonts.toml").write_text(fonts)
     with pytest.raises(BrandPackError, match="sha256 does not match"):

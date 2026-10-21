@@ -440,7 +440,7 @@ optional standalone snapshot publisher, the local Docker sandbox and CI:
 | `hyperframes` CLI | exact version | video engine |
 | `sharp`, `gsap` (installed, not vendored), `echarts` | exact versions, sha256 | stills, motion runtime, charts |
 | D2 | exact version, sha256 | diagrams |
-| Open fonts (Inter, IBM Plex Mono, Fira Code, plus a display serif/sans pair for the sample brand) | sha256 | defaults and sample brand |
+| Open fonts (Inter, IBM Plex Mono, Fira Code, plus Geist and Fragment Mono for the sample brand) | sha256 | defaults and sample brand |
 | fontconfig with `/workspace/fonts` registered | — | brand fonts at render time |
 | python3, ripgrep, jq, woff2 tools | distro | Deep Agents file tools, scripts |
 

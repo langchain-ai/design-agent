@@ -47,6 +47,9 @@ STAGE = (
     "cp -r /repo/examples/brands/example-studio/. /workspace/brand/\n"
     f"for s in {' '.join(SKILLS)}; do cp -r /repo/skills/$s /workspace/skills/; done\n"
     "cp -r /repo/workspace/tools/. /workspace/tools/\n"
+    # The sample brand's fonts are staged, not baked, as the workspace stager does at run time.
+    "mkdir -p /workspace/fonts && cp /repo/fonts/Geist-*.ttf /repo/fonts/FragmentMono-*.ttf /workspace/fonts/\n"
+    "fc-cache -f >/dev/null 2>&1 || true\n"
     "cd /workspace\n"
     "set +e\n"
 )
@@ -137,7 +140,7 @@ def test_echarts_bar_renders_svg_and_png_in_brand_colours_only(
     assert SIGNAL in colours, "the highlighted bar carries the accent"
     for text in ("Minutes to finish one ad set", "34 min", "One HTML page per size", "Apr"):
         assert text in svg
-    assert "Fraunces" in svg and "Inter" in svg
+    assert "Geist" in svg
     png = tmp_path / "projects/t/bar.png"
     with Image.open(png) as image:
         assert image.size == (3200, 1800)

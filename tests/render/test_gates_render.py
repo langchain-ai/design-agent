@@ -55,6 +55,8 @@ def sandbox_in(out: Path) -> Sandbox:
         mounts = [
             f"{ROOT / 'workspace' / 'tools'}:/workspace/tools:ro",
             f"{ROOT / 'examples' / 'brands' / 'example-studio'}:/workspace/brand:ro",
+            # The sample brand's fonts are staged, not baked, as the workspace stager does.
+            f"{ROOT / 'fonts'}:/workspace/fonts:ro",
             f"{ROOT / 'tests' / 'fixtures' / 'gates'}:/workspace/fixtures:ro",
             f"{out}:/workspace/out",
         ]
@@ -102,7 +104,7 @@ def three_sizes(
     sizes = " ".join(f"--size {w}x{h}" for w, h in SIZES)
     proc = sandbox_in(out)(
         f"node tools/html2png.mjs fixtures/brand/clean.html --out out --name clean {sizes} "
-        '--require-font "Fraunces" --require-font "Inter" --brand-fonts'
+        '--require-font "Geist" --require-font "Fragment Mono" --brand-fonts'
     )
     return out, proc
 
@@ -116,7 +118,7 @@ def test_html2png_renders_each_size_with_brand_fonts(
     assert proc.returncode == 0, proc.stderr
     report = last_json(proc)
     assert report["ok"] is True
-    assert report["fonts"] == {"Fraunces": True, "Inter": True, "IBM Plex Mono": True}
+    assert report["fonts"] == {"Geist": True, "Fragment Mono": True}
     assert [(o["path"], o["width"], o["height"]) for o in report["outputs"]] == [
         (f"/workspace/out/clean-{w}x{h}.png", w, h) for w, h in SIZES
     ]

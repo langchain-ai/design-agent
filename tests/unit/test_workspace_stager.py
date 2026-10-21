@@ -52,9 +52,19 @@ def test_manifest_stages_skills_tools_and_brand(checkout: Path) -> None:
 
 
 def test_baked_open_fonts_are_not_uploaded_again(checkout: Path) -> None:
-    assert not [
+    """The sample brand's faces are open but not baked, so they are staged; nothing baked is."""
+    from design_agent.workspace.manifest import BAKED_FONT_SHA256
+
+    fonts = [
         a for a in _manifest(checkout).assets if str(a.destination).startswith("/workspace/fonts/")
     ]
+    assert {a.destination.name for a in fonts} == {
+        "Geist-Variable.ttf",
+        "Geist-Italic-Variable.ttf",
+        "FragmentMono-Regular.ttf",
+        "FragmentMono-Italic.ttf",
+    }
+    assert not [a for a in fonts if a.sha256 in BAKED_FONT_SHA256]
 
 
 def test_a_non_baked_brand_font_is_staged(checkout: Path) -> None:
@@ -67,7 +77,7 @@ def test_a_non_baked_brand_font_is_staged(checkout: Path) -> None:
     fonts = checkout / "examples/brands/example-studio/fonts.toml"
     fonts.write_text(
         fonts.read_text()
-        + f'\n[[fonts]]\nfamily = "Inter"\nweight = "400"\nfile = "private-fonts/House-Regular.otf"\nsha256 = "{sha}"\nrequired = true\nlicense = "commercial"\n'
+        + f'\n[[fonts]]\nfamily = "Geist"\nweight = "400"\nfile = "private-fonts/House-Regular.otf"\nsha256 = "{sha}"\nrequired = true\nlicense = "commercial"\n'
     )
     staged = {str(a.destination) for a in _manifest(checkout).assets}
     assert "/workspace/fonts/House-Regular.otf" in staged
@@ -142,7 +152,7 @@ def test_cold_sandbox_uploads_once_and_runs_one_script(checkout: Path) -> None:
         "/tmp/design-agent-check-"
     )
     script = target.commands[0]
-    assert "fc-match" in script and "Fraunces" in script and "'IBM Plex Mono'" in script
+    assert "fc-match" in script and "Geist" in script and "'Fragment Mono'" in script
     assert MARKER in script
 
 

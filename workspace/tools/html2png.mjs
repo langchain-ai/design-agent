@@ -3,7 +3,7 @@
 //
 //   node /workspace/tools/html2png.mjs <page.html> --out <dir> [--name <stem>] --size 1080x1350
 //        [--size 1080x1080 ...] [--format png|jpeg|webp] [--quality 90] [--scale 1]
-//        [--require-font "Fraunces" ...] [--brand-fonts [--tokens <tokens.json>]] [--timeout 30000]
+//        [--require-font "Geist" ...] [--brand-fonts [--tokens <tokens.json>]] [--timeout 30000]
 //
 // Writes <dir>/<stem>-<W>x<H>.<ext> per size (stem defaults to the page's file name) and prints one
 // JSON line: {"ok", "outputs": [{path, width, height, bytes}], "fonts": {family: bool}, ...}.

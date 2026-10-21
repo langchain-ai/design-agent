@@ -90,7 +90,7 @@ test("brand roles come from the brand pack's palette, with readable text", () =>
   assert.ok(!theme.series.includes(theme.accent), "the accent is never a series colour");
   assert.ok(contrast(theme.ink, theme.ground) >= 7);
   assert.ok(contrast(theme.muted, theme.ground) >= 4.5);
-  assert.match(theme.fonts.display, /^'Fraunces'/);
+  assert.match(theme.fonts.display, /^'Geist'/);
   assert.throws(() => brandTheme(tokens, { roles: { ground: "--brand-color-nope" } }), /unknown token/);
 });
 

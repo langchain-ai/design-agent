@@ -8,6 +8,9 @@
   (fonts) live in `skill-binaries/`, so `skills/` syncs to Context Hub as it is. The `deploy` and
   `dev` wrappers are gone; `doctor` checks what would make `mda deploy` fail or ship the wrong
   thing. The README leads with the MDA quickstart. Requires managed-deepagents 0.9.4.
+- The sample brand sets everything in Geist (Light headlines with tight tracking) with Fragment Mono
+  for labels, both OFL, in place of Fraunces, Inter and IBM Plex Mono. They are staged into each
+  sandbox with the brand, so no sandbox rebuild or republish is needed.
 - The product spec moved to `docs/spec.md`.
 - `langsmith:anthropic/*` and `langsmith:openai/*` models use the LangSmith Gateway's native
   routes, so prompt caching, context editing, tool search and effort work through the gateway.
