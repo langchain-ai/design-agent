@@ -123,10 +123,11 @@ def publish(
 
 
 def _named(client: Any, name: str) -> Any | None:
-    """The workspace's snapshot called exactly `name`, or None."""
-    return next(
-        (snap for snap in client.list_snapshots(name_contains=name) if snap.name == name), None
-    )
+    """The workspace's snapshot called exactly `name`, a ready one first (names can repeat), or
+    None."""
+    matches = [snap for snap in client.list_snapshots(name_contains=name) if snap.name == name]
+    ready = [snap for snap in matches if getattr(snap, "status", "") == "ready"]
+    return (ready or matches or [None])[0]
 
 
 def declare_snapshot(project_root: Path, snapshot_name: str) -> None:

@@ -120,3 +120,13 @@ def test_a_rerun_picks_up_the_base_snapshot_it_started(project: Path) -> None:
     publish.publish(client, project, say=lambda _: None)
     assert not any(line.startswith("base ") for line in client.log)
     assert client.log[0].endswith("from snap-old")
+
+
+def test_a_ready_snapshot_wins_over_a_duplicate_still_building(project: Path) -> None:
+    sha = publish.recipe_sha(project)
+    name = f"design-agent-base-{sha[:12]}"
+    stuck = SimpleNamespace(name=name, id="snap-stuck", status="building")
+    ready = SimpleNamespace(name=name, id="snap-ready", status="ready")
+    client = FakeClient(existing=(stuck, ready))
+    publish.publish(client, project, say=lambda _: None)
+    assert client.log[0].endswith("from snap-ready")
