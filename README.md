@@ -40,22 +40,13 @@ https://github.com/user-attachments/assets/0664d09d-2ab2-41fd-b2ba-f91c96121e20
 <details>
 <summary>The prompts that made this film</summary>
 
-The agent made it in one Slack thread. The opening ask:
+The agent made it in one Slack thread, from this ask and a few rounds of notes:
 
-> I need you to create an explainer video on brand, in a sleek, modern, minimal way, about how your
-> media harness works and how you create videos and design in code end to end. It should be short;
-> it'll be used in the blog post about the media harness built on top of Deep Agents. A breakdown of
-> how you create a video end to end, in an engaging style.
-
-Then notes like these, each answered with a new cut:
-
-- "Keep the version we had before, I liked that more. Just show that it's Paper."
-- "For the plan, make it a little more dynamic. Maybe show steps and substeps like a to-do list."
-- "The sandbox should show a computer with all of the cool layers of tooling it has: Paper,
-  HyperFrames, skills, wiki, files and folders."
-- "Remove the taste part and add a section where it's critiquing itself and reviewing the entire
-  work, then making more edits itself."
-- "On the sandbox part you need some computer sounds and mouse clicks."
+> Make a short explainer of how you create videos in code, end to end, for our blog post on the
+> media harness we built on Deep Agents. Narrate it like a David Attenborough nature documentary,
+> starring the pixel parrot from our promo, with your subagents as its flock. Keep it technical
+> enough for an engineer, in real terms: skills, wiki, tools, apps. Storyboard it before you build,
+> and end on "Built on Managed Deep Agents".
 
 </details>
 
