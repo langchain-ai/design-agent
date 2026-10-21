@@ -4,7 +4,10 @@ Skills for the deployed agent keep their upstream names at `skills/<name>/` (MDA
 one level deep); skills for coding agents sit at `.agents/skills/<name>/`. Both are byte-identical
 to their upstream at its pinned commit. `skills-lock.json` records each upstream's repository,
 commit and license, every vendored file's sha256 under `skills` (runtime) or `agent_skills`
-(coding agents), and files deliberately left out with the reason. CI fails if a vendored file
+(coding agents), and files deliberately left out with the reason. MDA syncs `skills/` to Context
+Hub, which takes only UTF-8 text, so a runtime skill's binary files (fonts, images) are vendored to
+`skill-binaries/<name>/` instead and listed under `binaries`; the workspace stager puts them back
+beside the skill in the sandbox, and a plain `mda deploy` works. CI fails if a vendored file
 differs, an unlisted file appears, or an excluded file is present. Local routing and guidance live
 in our own sibling skills and summaries, never as edits.
 """
@@ -21,6 +24,8 @@ from collections.abc import Iterator
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
+
+from design_agent.workspace.manifest import SKILL_BINARIES
 
 
 @dataclass(frozen=True)
@@ -151,6 +156,26 @@ def vendored_folders(lock: dict[str, Any]) -> Iterator[tuple[str, dict[str, Any]
             yield f"{base}/{name}", entry
 
 
+def locked_files(folder: str, entry: dict[str, Any]) -> dict[str, str]:
+    """Every file of one vendored skill, as repository-relative path to sha256."""
+    name = folder.rsplit("/", 1)[-1]
+    return {
+        **{f"{folder}/{relative}": digest for relative, digest in entry["files"].items()},
+        **{
+            f"{SKILL_BINARIES}/{name}/{relative}": digest
+            for relative, digest in entry.get("binaries", {}).items()
+        },
+    }
+
+
+def is_text(path: Path) -> bool:
+    try:
+        path.read_bytes().decode("utf-8")
+    except UnicodeDecodeError:
+        return False
+    return True
+
+
 @dataclass(frozen=True)
 class VerifyResult:
     problems: tuple[str, ...]
@@ -171,24 +196,32 @@ def verify(root: Path) -> VerifyResult:
         if not (root / upstream["license_file"]).is_file():
             problems.append(f"missing upstream license {upstream['license_file']}")
     for relative_folder, entry in vendored_folders(lock):
-        folder = root / relative_folder
-        if not folder.is_dir():
+        if not (root / relative_folder).is_dir():
             problems.append(f"{relative_folder}: missing")
             continue
         commit = upstreams[entry["upstream"]]["commit"][:12]
-        expected: dict[str, str] = entry["files"]
-        present = {p.relative_to(folder).as_posix() for p in folder.rglob("*") if p.is_file()}
-        for relative in sorted(present - expected.keys()):
-            problems.append(f"{relative_folder}/{relative}: not in skills-lock.json")
-        for relative, digest in sorted(expected.items()):
-            path = folder / relative
-            if not path.is_file():
-                problems.append(f"{relative_folder}/{relative}: missing")
-            elif sha256(path) != digest:
-                problems.append(f"{relative_folder}/{relative}: differs from upstream {commit}")
+        expected = locked_files(relative_folder, entry)
+        name = relative_folder.rsplit("/", 1)[-1]
+        homes = [root / relative_folder]
+        if entry.get("binaries") or (root / SKILL_BINARIES / name).is_dir():
+            homes.append(root / SKILL_BINARIES / name)
+        present = {
+            p.relative_to(root).as_posix()
+            for home in homes
+            if home.is_dir()
+            for p in home.rglob("*")
+            if p.is_file()
+        }
+        for path in sorted(present - expected.keys()):
+            problems.append(f"{path}: not in skills-lock.json")
+        for path, digest in sorted(expected.items()):
+            if not (root / path).is_file():
+                problems.append(f"{path}: missing")
+            elif sha256(root / path) != digest:
+                problems.append(f"{path}: differs from upstream {commit}")
             count += 1
         for relative in entry.get("excluded", {}):
-            if (folder / relative).exists():
+            if (root / relative_folder / relative).exists():
                 problems.append(f"{relative_folder}/{relative}: excluded file is present")
     return VerifyResult(problems=tuple(problems), files=count)
 
@@ -209,21 +242,33 @@ def fetch_upstream(upstream: Upstream, destination: Path) -> Path:
     return destination
 
 
-def _vendor(source: Path, target: Path, name: str) -> dict[str, dict[str, str]]:
-    """Copy one upstream skill folder unmodified, minus excluded files; its lock entry."""
+def _vendor(
+    source: Path, target: Path, name: str, binaries: Path | None = None
+) -> dict[str, dict[str, str]]:
+    """Copy one upstream skill folder unmodified, minus excluded files; its lock entry. With
+    `binaries`, files that are not UTF-8 text go there instead of into the skill folder."""
     shutil.rmtree(target, ignore_errors=True)
+    if binaries is not None:
+        shutil.rmtree(binaries, ignore_errors=True)
     files: dict[str, str] = {}
+    moved: dict[str, str] = {}
     excluded: dict[str, str] = {}
     for path in sorted(p for p in source.rglob("*") if p.is_file()):
         relative = path.relative_to(source).as_posix()
         if reason := exclusion_reason(f"{name}/{relative}"):
             excluded[relative] = reason
             continue
-        destination = target / relative
+        home, listed = (
+            (binaries, moved) if binaries is not None and not is_text(path) else (target, files)
+        )
+        destination = home / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(path, destination)
-        files[relative] = sha256(destination)
-    return {"files": files, "excluded": excluded}
+        listed[relative] = sha256(destination)
+    entry = {"files": files, "excluded": excluded}
+    if moved:
+        entry["binaries"] = moved
+    return entry
 
 
 def sync(
@@ -272,7 +317,8 @@ def sync(
                         raise RuntimeError(
                             f"{pin.repo} {pin.commit[:12]} has no {pin.source}/{name}"
                         )
-                    entry = _vendor(source, root / ROOTS[section] / name, name)
+                    binaries = root / SKILL_BINARIES / name if section == "skills" else None
+                    entry = _vendor(source, root / ROOTS[section] / name, name, binaries)
                     lock[section][name] = {"upstream": key, **entry}
     (root / "skills-lock.json").write_text(json.dumps(lock, indent=2, sort_keys=True) + "\n")
     return lock

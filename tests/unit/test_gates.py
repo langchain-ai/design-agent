@@ -194,7 +194,7 @@ def test_brand_lint_suggests_sentence_case_for_shouted_copy() -> None:
 def test_brand_lint_mono_lead_comes_from_the_brand_stack() -> None:
     _, report = lint("brand/fail/mono-lead.html")
     (finding,) = [f for f in report["findings"] if f["rule"] == "font.mono-lead"]
-    assert '"IBM Plex Mono"' in finding["message"]
+    assert '"Fragment Mono"' in finding["message"]
     assert "var(--brand-font-mono)" in finding["message"]
 
 
@@ -223,7 +223,7 @@ def test_brand_lint_reads_every_fact_from_the_tokens(tmp_path: Path) -> None:
     tokens["design"]["bannedColors"]["colors"].remove("#000000")
     del tokens["design"]["replacementColors"]["#000000"]
     tokens["design"]["allowedColors"].append("#000000")
-    tokens["design"]["fontStacks"]["mono"] = ["Fira Code", "IBM Plex Mono", "monospace"]
+    tokens["design"]["fontStacks"]["mono"] = ["Fira Code", "Fragment Mono", "monospace"]
     tokens["copy"]["casingRules"]["headlines"] = "any"
     other = tmp_path / "tokens.json"
     other.write_text(json.dumps(tokens))

@@ -11,7 +11,7 @@ it, the brand pack styles it, and every size is its own layout rather than a sca
 ```bash
 node /workspace/tools/html2png.mjs projects/<slug>/still/comp.html --out projects/<slug>/renders \
   --name launch --size 1200x627 --size 1080x1080 --size 1080x1350 \
-  --require-font Fraunces --require-font Inter [--format png|jpeg|webp] [--quality 90] [--scale 2]
+  --require-font "<display family>" --require-font "<text family>" [--format png|jpeg|webp] [--quality 90] [--scale 2]
 node /workspace/tools/html2pdf.mjs --html projects/<slug>/doc/doc.html --out projects/<slug>/renders/doc.pdf \
   --size 8.5x11in --brand-fonts
 ```

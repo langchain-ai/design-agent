@@ -37,11 +37,11 @@ as "not passed".
 ```bash
 node /workspace/tools/html2png.mjs page.html --out out --name post \
   --size 1080x1350 --size 1080x1080 --size 1600x900 [--format png|jpeg|webp] [--quality 90] \
-  [--scale 1] [--require-font "Fraunces" ...] [--brand-fonts [--tokens <tokens.json>]]
+  [--scale 1] [--require-font "Geist" ...] [--brand-fonts [--tokens <tokens.json>]]
 ```
 
 Writes `out/post-<W>x<H>.<ext>` per size and prints one JSON line:
-`{"ok":true,"outputs":[{"path","width","height","bytes"}],"fonts":{"Fraunces":true}}`. Each size is a
+`{"ok":true,"outputs":[{"path","width","height","bytes"}],"fonts":{"Geist":true}}`. Each size is a
 fresh load at that viewport, so the layout recomposes (media queries, `vw`/`vh`); it is never a scaled
 copy. `--scale 2` doubles the pixel size. A browser never fails on a missing font, it falls back, so
 every `--require-font` family (and with `--brand-fonts`, the lead face of each brand font stack) must

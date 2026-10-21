@@ -26,7 +26,9 @@ Start with the graphic the team asks for every week.
 2. Create `skills/<name>/SKILL.md` as a real folder one level deep (MDA does not follow symlinks
    there). Frontmatter: `name` is the folder; `description` says when to use it, in the words
    people use when they ask. Body: what good looks like, sizes, steps, the checks to run. Put depth
-   in `references/` and keep the body small.
+   in `references/` and keep the body small. Text only: binary files (fonts, images) go in
+   `skill-binaries/<name>/`, because Context Hub takes only UTF-8 text; the stager puts them back
+   beside the skill in the sandbox.
 3. No brand facts, colours or libraries from a CDN in the skill: the brand pack supplies them.
 4. `uv run pytest -q tests/unit/test_taste_skills.py tests/unit/test_media_skills.py` checks
    frontmatter, size, links, and that every tool, script and check it names exists.

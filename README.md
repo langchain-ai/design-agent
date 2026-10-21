@@ -18,8 +18,8 @@
     <a href="https://docs.langchain.com/langsmith/python/managed-deep-agents-overview?utm_source=github&utm_medium=readme&utm_campaign=design-agent"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/deploy-Managed%20Deep%20Agents-7FC8FF.svg?variant=outline&logo=lu:Rocket&mode=dark"><img src="https://shieldcn.dev/badge/deploy-Managed%20Deep%20Agents-006DDD.svg?variant=outline&logo=lu:Rocket&mode=light" alt="Deploy with Managed Deep Agents"></picture></a>
   </p>
   <p>
-    <b><a href="#deploy-it">Put it in your team's Slack →</a></b> ·
-    <a href="#get-started">Try the demo, no keys needed</a> ·
+    <b><a href="#quickstart">Distribute the design agent to your team →</a></b> ·
+    <a href="#try-it-locally">Try it locally, no keys needed</a> ·
     <a href="docs/README.md">Docs</a>
   </p>
 </div>
@@ -36,6 +36,28 @@ X, and three in four requests come from outside marketing.
 https://github.com/user-attachments/assets/0664d09d-2ab2-41fd-b2ba-f91c96121e20
 
 <p align="center"><sub>One Slack request for a launch film: the plan, the storyboard, helpers rendering in parallel, the checks and the final cut.</sub></p>
+
+<details>
+<summary>The prompts that made this film</summary>
+
+The agent made it in one Slack thread. The opening ask:
+
+> I need you to create an explainer video on brand, in a sleek, modern, minimal way, about how your
+> media harness works and how you create videos and design in code end to end. It should be short;
+> it'll be used in the blog post about the media harness built on top of Deep Agents. A breakdown of
+> how you create a video end to end, in an engaging style.
+
+Then notes like these, each answered with a new cut:
+
+- "Keep the version we had before, I liked that more. Just show that it's Paper."
+- "For the plan, make it a little more dynamic. Maybe show steps and substeps like a to-do list."
+- "The sandbox should show a computer with all of the cool layers of tooling it has: Paper,
+  HyperFrames, skills, wiki, files and folders."
+- "Remove the taste part and add a section where it's critiquing itself and reviewing the entire
+  work, then making more edits itself."
+- "On the sandbox part you need some computer sounds and mouse clicks."
+
+</details>
 
 | Building it yourself | Starting here |
 | --- | --- |
@@ -55,35 +77,52 @@ https://github.com/user-attachments/assets/0664d09d-2ab2-41fd-b2ba-f91c96121e20
 - **Slack that holds up on long jobs:** a lead that plans and gives an ETA, takes notes mid-job,
   hands long work to helpers (subagents) running in parallel, and asks before anything goes
   public.
-- **Everything to run it:** one-command deploy to Managed Deep Agents or self-hosting with Docker,
-  evals built from real requests, and every run traced in LangSmith.
+- **Everything to run it on Managed Deep Agents:** a sandbox per thread, the Slack app, schedules
+  and tracing, plus evals built from real requests.
 
-## Get started
+## Quickstart
 
-Open the repo in Claude Code, Codex or Cursor and ask for what you want. [AGENTS.md](AGENTS.md)
-routes each request to a step-by-step [skill](.agents/skills/):
+This repository is a [Managed Deep Agents](https://docs.langchain.com/langsmith/python/managed-deep-agents-overview?utm_source=github&utm_medium=readme&utm_campaign=design-agent) project, so it deploys to your LangSmith
+workspace as it is. You need MDA access and a model key:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/langchain-ai/design-agent/main/install.sh | bash
+cd design-agent
+uv run design-agent config set LANGSMITH_API_KEY=lsv2_… ANTHROPIC_API_KEY=sk-ant-…
+uv run design-agent sandbox publish   # once per workspace: the agent's computer
+uv run mda deploy
+```
+
+The installer gets [uv](https://docs.astral.sh/uv/) if you don't have it, clones the repository and
+installs its dependencies; `git clone` and `uv sync` do the same.
+
+The first deploy sets up the agent's Slack app. Authorize it in your workspace, then mention the
+agent in a channel. It's how we run ours at LangChain. Try changes on a separate copy with
+`uv run mda deploy --name design-agent-test`; [Deploy with MDA](docs/deploy-mda.md) covers keys,
+what ships and checking it works.
+
+**Or ask your coding agent.** Open the repo in Claude Code, Codex or Cursor and say what you want.
+[AGENTS.md](AGENTS.md) routes each request to a step-by-step [skill](.agents/skills/):
 
 | Say | It will |
 | --- | --- |
-| "Set up Design Agent and run the demo." | install it, build its computer, and render a demo with no API keys |
+| "Deploy it to our Slack." | publish the sandbox, check what ships, and deploy after your yes |
 | "Build our brand pack from our website and brand guide." | draft the pack, validate it, and ask you to review it |
-| "Deploy it to our Slack." | publish the sandbox, show you what ships, and deploy after your yes |
 | "Teach it to make our weekly newsletter header." | add a skill for it and try it on a real request |
 | "Did that change make it better?" | run the evals before and after, and show you the numbers |
 
-**Or set it up by hand.** You need **Python 3.11+**, [uv](https://docs.astral.sh/uv/) and **Docker**. The demo
-runs the real agent, sandbox and checks with a scripted model, and leaves a launch card in three
-sizes and a 4-second teaser in `workspace/out/demo/`:
+## Try it locally
+
+The demo runs the real agent, sandbox and checks with a scripted model and no API keys. It needs
+**Docker**, and leaves a launch card in three sizes and a 4-second teaser in `workspace/out/demo/`:
 
 ```bash
-git clone https://github.com/langchain-ai/design-agent.git && cd design-agent
-uv sync
 uv run design-agent sandbox build
 uv run design-agent demo
 ```
 
-Then put `ANTHROPIC_API_KEY=…` in `.env` and ask for something real. Files land in
-`workspace/out/<thread>/`, and the last line tells you what the run cost:
+With a model key in `.env`, ask for something real. Files land in `workspace/out/<thread>/`, and the
+last line tells you what the run cost:
 
 ```bash
 uv run design-agent ask "A LinkedIn card announcing our design review service, 1200x627."
@@ -115,22 +154,6 @@ uv run design-agent ask "A LinkedIn card announcing our design review service, 1
 Everything on this page uses LangChain's brand, because that's the one we run. Licensed fonts go in
 `private-fonts/`, which Git ignores.
 
-## Deploy it
-
-Open the repo in Claude Code, Codex or Cursor and say "Deploy it to our Slack." The
-[deploy skill](.agents/skills/design-agent-deploy/SKILL.md) publishes the sandbox, shows you exactly
-what will ship and deploys after your yes. It's how we run ours at LangChain.
-
-| | Managed Deep Agents (recommended) | Self-hosted |
-| --- | --- | --- |
-| Start | `uv run design-agent sandbox publish`, then `uv run design-agent deploy` | `docker compose -f deploy/self-host/compose.yaml up -d --build` |
-| Who runs it | LangSmith: the agent, a sandbox per thread, the Slack app and the schedules, with secrets and tracing | you: the API, Postgres, a Docker host for the sandboxes and your own Slack app |
-| Guide | [Deploy with MDA](docs/deploy-mda.md) | [Self-hosting](docs/self-hosting.md) |
-
-Try it before your team depends on it: the demo needs no keys, and `deploy --name design-agent-test`
-gives you a separate copy to try changes on. It's Apache 2.0, so you can move to self-hosting at any
-time.
-
 ## Questions
 
 **What does it cost?** The code is free (Apache 2.0). You pay your model provider: at LangChain the
@@ -145,14 +168,19 @@ your brand guide, website, files or a Paper file.
 **Where do I start?** With the graphic your team asks for every week. Let people brief the agent,
 review the work and ask for changes in Slack, then teach it the next thing.
 
-**Do I need Slack?** No. Use the terminal (`design-agent ask`), the self-hosted HTTP API, or a
-deployment's API.
+**Do I need Slack?** No. Call the deployment's API, open it in LangSmith Studio, or use the
+terminal (`design-agent ask`). On Managed Deep Agents, long jobs that work in the background
+(films, parallel looks) report back in Slack; over the API, keep to requests that finish in one
+turn.
 
 **Is it safe with my keys?** The sandbox never holds a credential and has no network by default.
 Host tools do the fetching, generating and delivering, and drop results in as files.
 
 **Which models?** Claude Opus 5.5 by default. OpenAI and Google models, any OpenAI-compatible
 endpoint and the LangSmith Gateway work too. See [Models](docs/models.md).
+
+**Can I run it on my own servers?** Yes. It's Apache 2.0, and [Self-hosting](docs/self-hosting.md)
+runs the same agent with Docker, an HTTP API and your own Slack app.
 
 **Does it replace a designer?** No. It takes the repetitive requests, so designers spend their time on
 the work only they can do, and their judgment lives on in its skills and checks.
@@ -162,26 +190,25 @@ the work only they can do, and their judgment lives on in its skills and checks.
 The model makes the creative calls. Code does everything that has to be exactly right: rendering,
 measuring, checking, delivering files and holding your keys. It's built on the
 [Deep Agents](https://github.com/langchain-ai/deepagents) harness and runs on
-[Managed Deep Agents](https://docs.langchain.com/langsmith/python/managed-deep-agents-overview?utm_source=github&utm_medium=readme&utm_campaign=design-agent) or
-your own infrastructure.
+[Managed Deep Agents](https://docs.langchain.com/langsmith/python/managed-deep-agents-overview?utm_source=github&utm_medium=readme&utm_campaign=design-agent).
 
 Read the [architecture](docs/architecture/README.md), or start changing it:
 [instructions.md](instructions.md) · [skills/](skills/) · [Customization](docs/customization.md) ·
 [Evals](docs/evals.md) · [Operations](OPERATIONS.md) · [Contributing](CONTRIBUTING.md).
 
 **Build your own.** Fork it, add your brand tokens, fonts and skills, and deploy it to your team's
-Slack. [Get started](#get-started). If it's useful, a star helps other teams find it.
+Slack. [Quickstart](#quickstart). If it's useful, a star helps other teams find it.
 
 ## Built with
 
 <p>
-  <a href="https://github.com/langchain-ai/deepagents"><picture><source media="(prefers-color-scheme: dark)" srcset="https://github.com/langchain-ai/design-agent/raw/main/docs/assets/readme/logos/deep-agents-dark.svg"><img src="https://github.com/langchain-ai/design-agent/raw/main/docs/assets/readme/logos/deep-agents-light.svg" alt="Deep Agents" height="28"></picture></a>
+  <a href="https://github.com/langchain-ai/deepagents"><img src="docs/assets/readme/logos/deep-agents-symbol.svg" alt="" height="24" align="absmiddle"> <b>Deep Agents</b></a>
   &nbsp;&nbsp;
-  <a href="https://docs.langchain.com/langsmith/python/managed-deep-agents-overview?utm_source=github&utm_medium=readme&utm_campaign=design-agent"><picture><source media="(prefers-color-scheme: dark)" srcset="https://github.com/langchain-ai/design-agent/raw/main/docs/assets/readme/logos/langsmith-deployment-dark.svg"><img src="https://github.com/langchain-ai/design-agent/raw/main/docs/assets/readme/logos/langsmith-deployment-light.svg" alt="LangSmith Deployment" height="28"></picture></a>
+  <a href="https://docs.langchain.com/langsmith/python/managed-deep-agents-overview?utm_source=github&utm_medium=readme&utm_campaign=design-agent"><img src="docs/assets/readme/logos/langsmith-deployment-symbol.svg" alt="" height="24" align="absmiddle"> <b>Managed Deep Agents</b></a>
   &nbsp;&nbsp;
-  <a href="https://hyperframes.heygen.com"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/heygen-com/hyperframes/main/docs/logo/dark.svg"><img src="https://raw.githubusercontent.com/heygen-com/hyperframes/main/docs/logo/light.svg" alt="HyperFrames" height="28"></picture></a>
+  <a href="https://hyperframes.heygen.com"><img src="https://raw.githubusercontent.com/heygen-com/hyperframes/main/docs/logo/symbol-dark.svg" alt="" height="24" align="absmiddle"> <b>HyperFrames</b></a>
   &nbsp;&nbsp;
-  <a href="https://paper.design"><img src="https://avatars.githubusercontent.com/u/178361271?s=56" alt="Paper" height="28" align="absmiddle"> <b>Paper</b></a>
+  <a href="https://paper.design"><img src="https://avatars.githubusercontent.com/u/178361271?s=48" alt="" height="24" align="absmiddle"> <b>Paper</b></a>
 </p>
 
 Also: [LangSmith](https://smith.langchain.com/?utm_source=github&utm_medium=readme&utm_campaign=design-agent) ·

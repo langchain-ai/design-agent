@@ -151,7 +151,7 @@ const CSS_WIDE = new Set(["inherit", "initial", "unset", "revert", "revert-layer
 const monoFamilies = new Set([...lower(stacks.mono), "monospace", "ui-monospace", "menlo", "monaco", "consolas", "sf mono", "courier", "courier new"]);
 const MONO_TOKEN = /var\(\s*--brand-font-mono\s*\)/i;
 const BRAND_FONT_TOKEN = /var\(\s*--brand-font-(?:display|text|mono)\s*\)/i;
-/** `"IBM Plex Mono", Fira Code, monospace` -> ["IBM Plex Mono", "Fira Code", "monospace"]. */
+/** `"Fragment Mono", Fira Code, monospace` -> ["Fragment Mono", "Fira Code", "monospace"]. */
 const fontFamilies = (value) =>
   value
     .replace(/!important/gi, "")

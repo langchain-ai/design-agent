@@ -18,7 +18,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "managed-deepagents>=0.9.3,<0.10",
+    "managed-deepagents>=0.9.4,<0.10",
     "deepagents>=0.7.28,<0.8",
     # `langchain.mcp.MCPAdapter` is the MCP client MDA itself uses; the extra brings FastMCP.
     "langchain[mcp]>=1.4.6,<1.5",

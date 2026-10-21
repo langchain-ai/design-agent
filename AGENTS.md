@@ -62,7 +62,9 @@ behind them.
   `skills/<name>/SKILL.md`, does not follow symlinks inside `skills/`, and evals do not see a
   symlinked skills root). MDA mounts them read-only at `/skills/` from Context Hub, outside the
   sandbox filesystem; the workspace stager copies their scripts and assets into
-  `/workspace/skills/<name>/` so they can run.
+  `/workspace/skills/<name>/` so they can run. Context Hub takes only UTF-8 text, so a skill's
+  binary files live in `skill-binaries/<name>/` and the stager merges them back; a plain
+  `mda deploy` fails on one binary file under `skills/`.
 - Vendored skills keep their upstream names (HyperFrames and `langsmith-trace` under `skills/`,
   LangChain's coding-agent skills under `.agents/skills/`) and are listed in `skills-lock.json`
   (each upstream's repo, commit and license, per-file sha256). Never patch vendored files; override

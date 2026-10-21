@@ -22,7 +22,9 @@ Report missing settings by name and never paste a key, token or `.env` line.
 | Background news arrives a minute or two late on MDA | expected: MDA schedules land on the next minute |
 | "A restart may have stopped…" | a deploy or restart stopped helpers; ask the agent to resume them |
 | Paper "not connected" | Paper Desktop is closed or the bridge is down; boards still render in the sandbox |
-| `deploy` refuses the sandbox | `uv run design-agent sandbox publish` first |
+| The sandbox bake runs out of disk on `mda deploy` | `uv run design-agent sandbox publish` first |
+| "Context Hub only accepts UTF-8 text files" | move the skill's binary files to `skill-binaries/<skill>/` |
+| "source archive … exceeds the 200 MB limit" | clear old renders in `workspace/out/` |
 | An MCP server is missing | the startup log names the one that failed; the rest keep working |
 
 4. **Logs:** `uv run mda logs` on MDA; `docker compose -f deploy/self-host/compose.yaml logs api`

@@ -44,11 +44,11 @@ def test_fonts_verify_catches_a_family_the_file_does_not_carry(project: Path) ->
     pack = project / "examples/brands/example-studio"
     for name in ("fonts.toml", "tokens.json"):
         text = (pack / name).read_text()
-        assert '"Fraunces"' in text
-        (pack / name).write_text(text.replace('"Fraunces"', '"Fraunces Display"'))
+        assert '"Geist"' in text
+        (pack / name).write_text(text.replace('"Geist"', '"Geist Display"'))
     result = CliRunner().invoke(cli.main, ["fonts", "verify"])
     assert result.exit_code == 1
-    assert 'says family "Fraunces Display", the file says "Fraunces"' in result.output
+    assert 'says family "Geist Display", the file says "Geist"' in result.output
 
 
 def test_sandbox_use_points_local_runs_at_a_snapshot(project: Path) -> None:

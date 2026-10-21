@@ -29,11 +29,16 @@ class FakeSandbox:
 
 
 class FakeClient:
-    def __init__(self, setup_exit: int = 0) -> None:
+    def __init__(self, setup_exit: int = 0, existing: tuple[Any, ...] = ()) -> None:
         self.log: list[str] = []
         self.setup_exit = setup_exit
+        self.existing = existing
 
-    def create_snapshot(self, name: str, image: str, fs: int) -> Any:
+    def list_snapshots(self, *, name_contains: str) -> list[Any]:
+        return [snap for snap in self.existing if name_contains in snap.name]
+
+    def create_snapshot(self, name: str, image: str, fs: int, *, timeout: int) -> Any:
+        assert timeout >= 600, "building from a Docker image takes minutes"
         self.log.append(f"base {name} {image.split('@')[0]} {fs // publish.GIB}")
         return SimpleNamespace(id="snap-base")
 
@@ -96,3 +101,32 @@ def test_declaring_the_snapshot_rewrites_a_static_literal(project: Path) -> None
     assert "docker_image=BASE_IMAGE" not in text and publish.declared_base(project) == "snapshot"
     publish.declare_snapshot(project, "design-agent-computer-def")
     assert (project / "sandbox" / "__init__.py").read_text().count("SNAPSHOT_NAME = ") == 1
+
+
+def test_a_published_recipe_is_not_published_again(project: Path) -> None:
+    sha = publish.recipe_sha(project)
+    done = SimpleNamespace(name=f"design-agent-computer-{sha[:12]}", id="snap-done", status="ready")
+    client = FakeClient(existing=(done,))
+    published = publish.publish(client, project, say=lambda _: None)
+    assert published.snapshot_id == "snap-done" and client.log == []
+
+
+def test_a_rerun_picks_up_the_base_snapshot_it_started(project: Path) -> None:
+    sha = publish.recipe_sha(project)
+    building = SimpleNamespace(
+        name=f"design-agent-base-{sha[:12]}", id="snap-old", status="building"
+    )
+    client = FakeClient(existing=(building,))
+    publish.publish(client, project, say=lambda _: None)
+    assert not any(line.startswith("base ") for line in client.log)
+    assert client.log[0].endswith("from snap-old")
+
+
+def test_a_ready_snapshot_wins_over_a_duplicate_still_building(project: Path) -> None:
+    sha = publish.recipe_sha(project)
+    name = f"design-agent-base-{sha[:12]}"
+    stuck = SimpleNamespace(name=name, id="snap-stuck", status="building")
+    ready = SimpleNamespace(name=name, id="snap-ready", status="ready")
+    client = FakeClient(existing=(stuck, ready))
+    publish.publish(client, project, say=lambda _: None)
+    assert client.log[0].endswith("from snap-ready")

@@ -92,7 +92,7 @@ def still_steps() -> list[Step]:
             {
                 "command": (
                     f"node /workspace/tools/html2png.mjs {PROJECT}/card.html --out {PROJECT}/renders "
-                    f'--name card {sizes} --require-font "Fraunces" --require-font "Inter"'
+                    f'--name card {sizes} --require-font "Geist" --require-font "Fragment Mono"'
                 ),
                 "timeout": 300,
             },

@@ -3,16 +3,16 @@
 MDA bakes `setup.sh` on top of the base declared here and clones the result for each thread.
 MDA reads this declaration statically, so every value is a literal or a top-level constant; the
 `DESIGN_AGENT_SANDBOX_*` settings size local and self-hosted sandboxes, and these constants size
-MDA's (`design-agent deploy` warns when they disagree).
+MDA's.
 
 The computer unpacks to about 1.3 GiB, more than the 1 GiB filesystem MDA gives a `docker_image`
 bake, so production deploys use a snapshot published from the same recipe with room for renders:
 
     uv run design-agent sandbox publish --fs-gib 16
 
-`publish` rewrites BASE_IMAGE below into a snapshot declaration. `design-agent deploy` refuses to
-deploy while the base is still the Docker image. Egress is default-deny; EGRESS_ALLOW lists the
-hosts the sandbox may reach (none by default: host tools fetch, the sandbox does not).
+`publish` rewrites BASE_IMAGE below into a snapshot declaration; until then `mda deploy` runs out of
+disk baking the recipe, and `doctor` says so. Egress is default-deny; EGRESS_ALLOW lists the hosts
+the sandbox may reach (none by default: host tools fetch, the sandbox does not).
 """
 
 from managed_deepagents import define_sandbox

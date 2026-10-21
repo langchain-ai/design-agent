@@ -16,8 +16,9 @@ ideas, so a reader knows where to look before they read anything.
 - Grid: 8 px. Margins at least 8% of the frame's short edge. Text and shapes sit on the grid.
 - Strokes: 2 px (`--brand-stroke`) for connectors and rules; the mark's own frame is heavier.
 - Corners: 4, 8 or 12 px. A frame inside a frame steps down one size.
-- Type: Fraunces 600 for headlines (tight leading, about 1.05), Inter for everything else, IBM
-  Plex Mono only for code, data and file names, with letter-spacing 0.
+- Type: one grotesk, Geist. Headlines in Geist Light (300), large, with tight tracking (-0.02em)
+  and leading about 1.0; text in Geist Regular; weight changes, not new faces, carry hierarchy.
+  Fragment Mono only for code, data, sizes and file names, with letter-spacing 0.
 - Color: grounds are paper, ink or white. Moss, sky and sand fill shapes inside a frame. Chart
   series use the extended tints in order; the signal color is never a series.
 - Diagrams: concept first. Draw the specific mechanism (what flows where, what changes) and label

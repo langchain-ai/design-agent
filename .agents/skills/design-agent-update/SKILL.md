@@ -17,5 +17,5 @@ so an update never touches them. The team's own skills and instruction edits can
 5. If `sandbox/setup.sh` changed: `uv run design-agent sandbox build && uv run design-agent sandbox test`;
    for Managed Deep Agents, also `uv run design-agent sandbox publish` (the snapshot name follows the
    recipe's hash).
-6. Try the update on a test copy (`uv run design-agent deploy --name design-agent-test`), then
+6. Try the update on a test copy (`uv run mda deploy --name design-agent-test`), then
    deploy the team's agent after a yes ([design-agent-deploy](../design-agent-deploy/SKILL.md)).

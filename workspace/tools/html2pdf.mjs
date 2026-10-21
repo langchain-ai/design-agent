@@ -13,7 +13,7 @@
  *
  * Usage:
  *   node /workspace/tools/html2pdf.mjs --html deck.html --out out/deck.pdf [--size 8.5x11in] [--zoom N]
- *        [--require-font "Fraunces" ...] [--brand-fonts [--tokens <tokens.json>]]
+ *        [--require-font "Geist" ...] [--brand-fonts [--tokens <tokens.json>]]
  *
  * --zoom is an opt-in fallback, off by default: it lays the page out N x larger and prints at 1/N,
  * which also shrinks the rounding step but reflows anything sized in vw/vh. Use it only if the audit

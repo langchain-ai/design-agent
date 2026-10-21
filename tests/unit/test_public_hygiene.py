@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-from design_agent.skills_lock import vendored_folders
+from design_agent.skills_lock import locked_files, vendored_folders
 
 ROOT = Path(__file__).resolve().parents[2]
 RELEASE = os.environ.get("DESIGN_AGENT_RELEASE_CHECK") == "1"
@@ -137,9 +137,9 @@ def vendored_files() -> frozenset[str]:
     if not lock_path.is_file():
         return frozenset()
     return frozenset(
-        f"{folder}/{file}"
+        path
         for folder, entry in vendored_folders(json.loads(lock_path.read_text()))
-        for file in entry.get("files", {})
+        for path in locked_files(folder, entry)
     )
 
 

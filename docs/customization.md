@@ -25,7 +25,9 @@ reach the sandbox as deployment files (MDA) or a read-only mount (self-hosted), 
   approval rules, how it talks. Keep it short; the budget test fails past about 8k tokens.
 - `skills/<name>/SKILL.md` are workflows the agent opens when a job needs them. Add one for a
   format your team makes often (a newsletter header, a conference kit): a one-line "when to use"
-  description, steps, sizes, the gates to run, and links to `references/` for depth.
+  description, steps, sizes, the gates to run, and links to `references/` for depth. Keep the
+  folder to text: MDA syncs it to Context Hub, which takes only UTF-8, so a skill's fonts or
+  images go in `skill-binaries/<name>/` and reach the sandbox beside the skill.
 - Rules come with evidence or are phrased as defaults; brand facts belong in the brand pack, not
   in skills.
 
