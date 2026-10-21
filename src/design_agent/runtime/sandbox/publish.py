@@ -12,7 +12,9 @@ and the computer unpacks to about 1.3 GiB, so production uses a snapshot with ro
    which only re-runs the probe, because the recipe stamp matches).
 
 Every step talks to LangSmith with the operator's key, costs sandbox time, and is run only on
-request. The temporary sandbox is deleted whether or not publishing succeeded.
+request. The temporary sandbox is deleted whether or not publishing succeeded. Snapshots are found
+by name, so publishing a recipe that is already published does nothing, and a run that stopped
+part-way picks up the base snapshot it started.
 """
 
 from __future__ import annotations
@@ -27,6 +29,8 @@ from typing import Any
 
 GIB = 1024**3
 SETUP_PATH = "/tmp/design-agent-setup.sh"
+#: Building a snapshot from a Docker image takes minutes; the SDK's own default is 60 s.
+SNAPSHOT_TIMEOUT_SECONDS = 1800
 PROBE = "/opt/design-agent/probe/probe.sh"
 SETUP_TIMEOUT_SECONDS = 3600
 DECLARATION = Path("sandbox") / "__init__.py"
@@ -69,12 +73,19 @@ def publish(
     """Build and capture the computer snapshot (module doc). `client` is a `SandboxClient`."""
     sha = recipe_sha(project_root)
     name = f"design-agent-computer-{sha[:12]}"
+    published = _named(client, name)
+    if published is not None and getattr(published, "status", "") == "ready":
+        say(f"{name} is already published in this workspace.")
+        return Published(name, str(published.id), sha, "")
     setup = (project_root / "sandbox" / "setup.sh").read_bytes()
-    say(f"Base snapshot from {base_image(project_root)} with {fs_gib} GiB of filesystem…")
-    base = client.create_snapshot(
-        f"design-agent-base-{sha[:12]}", base_image(project_root), fs_gib * GIB
-    )
-    base = client.wait_for_snapshot(base.id, timeout=1800)
+    base_name = f"design-agent-base-{sha[:12]}"
+    base = _named(client, base_name)
+    if base is None:
+        say(f"Base snapshot from {base_image(project_root)} with {fs_gib} GiB of filesystem…")
+        base = client.create_snapshot(
+            base_name, base_image(project_root), fs_gib * GIB, timeout=SNAPSHOT_TIMEOUT_SECONDS
+        )
+    base = client.wait_for_snapshot(base.id, timeout=SNAPSHOT_TIMEOUT_SECONDS)
     if getattr(base, "status", "ready") != "ready":
         raise PublishError("the base snapshot did not become ready")
     builder = f"design-agent-publish-{sha[:12]}-{int(time.time())}"
@@ -98,9 +109,9 @@ def publish(
             raise PublishError("the recipe's probe failed after setup")
         say("Capturing the snapshot…")
         snapshot = client.capture_snapshot(
-            builder, name, fs_capacity_bytes=fs_gib * GIB, timeout=1800
+            builder, name, fs_capacity_bytes=fs_gib * GIB, timeout=SNAPSHOT_TIMEOUT_SECONDS
         )
-        snapshot = client.wait_for_snapshot(snapshot.id, timeout=1800)
+        snapshot = client.wait_for_snapshot(snapshot.id, timeout=SNAPSHOT_TIMEOUT_SECONDS)
         if getattr(snapshot, "status", "ready") != "ready":
             raise PublishError("the captured snapshot did not become ready")
     finally:
@@ -109,6 +120,13 @@ def publish(
         except Exception:  # noqa: BLE001 - it expires on its own; publishing already decided
             say(f"Could not delete the temporary sandbox {builder}; it will idle out.")
     return Published(name, str(snapshot.id), sha, str(getattr(probe, "stdout", "")).strip()[-300:])
+
+
+def _named(client: Any, name: str) -> Any | None:
+    """The workspace's snapshot called exactly `name`, or None."""
+    return next(
+        (snap for snap in client.list_snapshots(name_contains=name) if snap.name == name), None
+    )
 
 
 def declare_snapshot(project_root: Path, snapshot_name: str) -> None:
