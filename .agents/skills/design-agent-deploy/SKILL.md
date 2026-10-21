@@ -5,7 +5,7 @@ description: Put Design Agent in a team's Slack. Deploy it to Managed Deep Agent
 
 # Deploy Design Agent
 
-A deployment is what the team uses. Ask before `deploy`, before connecting Slack, and before
+A deployment is what the team uses. Ask before `mda deploy`, before connecting Slack, and before
 anything that bills (publishing a snapshot, hosting). Never print a key; name missing settings.
 Setup comes first: `uv run design-agent doctor` should pass and the brand pack should validate
 (`design-agent-onboarding`, `brand-onboarding`).
@@ -25,13 +25,13 @@ Setup comes first: `uv run design-agent doctor` should pass and the brand pack s
    secret. List the key *names* in `.env` and confirm they are only what the deployed agent uses
    (model, media, `DESIGN_AGENT_*`, `PAPER_*`); self-hosting keys (`SLACK_*`, `DATABASE_URL`,
    `DESIGN_AGENT_API_TOKENS`) must not be there. Renders in `workspace/out/` ship too and count
-   toward MDA's 200 MB archive limit. `uv run design-agent deploy --build-only` shows exactly what
-   a minimal copy would ship.
+   toward MDA's 200 MB archive limit. `uv run design-agent doctor` names all of this
+   (`mda-deploy`), and `uv run mda build` compiles what would ship into `.mda/build/`.
 3. **Try a copy first.** `uv run mda deploy --name design-agent-test` is a separate deployment; the
    team's agent is untouched.
 4. **Deploy** with `uv run mda deploy` after a yes. The first deploy provisions the Slack app; the
-   person authorizes it in their Slack workspace. `uv run design-agent deploy` is the checked
-   alternative: a preflight, a minimal staged copy and a filtered `.env`.
+   person authorizes it in their Slack workspace. Without a `LANGSMITH_API_KEY`, `mda deploy`
+   offers a browser sign-in.
 5. **Verify with real requests:** a quick still, then a short storyboarded teaser. In Slack you
    should see live progress, a check-in while it renders, and files attached at the end. Without
    Slack, call the deployment's API ([docs/deploy-mda.md](../../../docs/deploy-mda.md) has the

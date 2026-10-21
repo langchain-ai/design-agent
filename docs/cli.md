@@ -13,8 +13,6 @@
 | `sandbox build\|test\|publish\|use SNAPSHOT` | build the local image, run its probe, publish the LangSmith snapshot for MDA, point local runs at a snapshot |
 | `skills verify\|sync-vendor` | vendored HyperFrames, LangSmith and Deep Agents skills against `skills-lock.json`; re-vendor from upstream (`--upstream` for one, `--check-only` to compare pins) |
 | `manifest` | what the workspace stager puts in each sandbox |
-| `deploy [--build-only] [--yes] [--name NAME]` | preflight, stage what ships, `mda deploy` after a yes; `--name` makes a separate deployment ([MDA](deploy-mda.md)) |
-| `dev` | the staged project in `mda dev` (LangSmith Studio) |
 | `serve` | the self-hosted HTTP API ([self-hosting](self-hosting.md)) |
 | `slack` | the self-hosted Slack app |
 | `paper-bridge` | serve this machine's Paper Desktop to a remote agent behind a bearer token ([Paper](partners/paper.md)) |

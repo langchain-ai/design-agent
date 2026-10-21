@@ -4,10 +4,10 @@
 
 ### Changed
 
-- A plain `mda deploy` deploys the project: vendored skills' binary files (fonts) live in
-  `skill-binaries/`, so `skills/` syncs to Context Hub as it is, and the docs lead with
-  `uv run mda deploy`. `design-agent deploy` stays as the checked alternative. Requires
-  managed-deepagents 0.9.4.
+- A plain `mda deploy` deploys the project, and `mda dev` runs it: vendored skills' binary files
+  (fonts) live in `skill-binaries/`, so `skills/` syncs to Context Hub as it is. The `deploy` and
+  `dev` wrappers are gone; `doctor` checks what would make `mda deploy` fail or ship the wrong
+  thing. The README leads with the MDA quickstart. Requires managed-deepagents 0.9.4.
 - The product spec moved to `docs/spec.md`.
 - `langsmith:anthropic/*` and `langsmith:openai/*` models use the LangSmith Gateway's native
   routes, so prompt caching, context editing, tool search and effort work through the gateway.
@@ -15,8 +15,7 @@
   as written when it repairs a thread.
 - Brand packs can name colour roles per mode; web-format brand fonts load through `@font-face`;
   `fonts verify` checks each file's family; the render font gate accepts web fonts.
-- `ask` prints the run's estimated cost; `deploy --name` deploys a separate copy; binary skill
-  files ship outside Context Hub; `demo` always uses the sample brand; evals keep the task set's
+- `ask` prints the run's estimated cost; `demo` always uses the sample brand; evals keep the task set's
   brand.
 
 ### Added
@@ -72,9 +71,7 @@
   and an optional soft job budget.
 - MCP servers from `config/mcp.toml` on every runtime (`{server}_{tool}` names), loaded per server
   with isolation, disclosed through provider tool search or a bounded selector.
-- `design-agent deploy`: a preflight, a minimal staged project with a filtered `.env`, and
-  `mda deploy` after a yes; `deploy --build-only` compiles it. `sandbox publish` builds the
-  computer as a LangSmith snapshot and declares it.
+- `sandbox publish` builds the computer as a LangSmith snapshot and declares it.
 - The self-hosted runtime: a FastAPI surface with per-caller thread ownership, attachments,
   background updates and downloads; Postgres (or SQLite) persistence; durable check-ins; startup
   sweep, idle sandbox reaping and housekeeping; a Docker Compose stack.
@@ -98,6 +95,6 @@
   design-wiki (public doctrine, platform specs, review rubric), motion-direction (directing, craft,
   techniques, sound, review, motion presets), launch-film (phases, orchestration, eight briefs, aligned
   with the pipeline) and reference-study; the router points at them.
-- CLI: `dev`, `brand init`, `fonts verify`, `sandbox use`, `test model|sandbox|paper|slack|db`, and
+- CLI: `brand init`, `fonts verify`, `sandbox use`, `test model|sandbox|paper|slack|db`, and
   a key preflight on `ask`.
 

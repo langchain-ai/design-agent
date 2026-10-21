@@ -37,6 +37,28 @@ https://github.com/user-attachments/assets/0664d09d-2ab2-41fd-b2ba-f91c96121e20
 
 <p align="center"><sub>One Slack request for a launch film: the plan, the storyboard, helpers rendering in parallel, the checks and the final cut.</sub></p>
 
+<details>
+<summary>The prompts that made this film</summary>
+
+The agent made it in one Slack thread. The opening ask:
+
+> I need you to create an explainer video on brand, in a sleek, modern, minimal way, about how your
+> media harness works and how you create videos and design in code end to end. It should be short;
+> it'll be used in the blog post about the media harness built on top of Deep Agents. A breakdown of
+> how you create a video end to end, in an engaging style.
+
+Then notes like these, each answered with a new cut:
+
+- "Keep the version we had before, I liked that more. Just show that it's Paper."
+- "For the plan, make it a little more dynamic. Maybe show steps and substeps like a to-do list."
+- "The sandbox should show a computer with all of the cool layers of tooling it has: Paper,
+  HyperFrames, skills, wiki, files and folders."
+- "Remove the taste part and add a section where it's critiquing itself and reviewing the entire
+  work, then making more edits itself."
+- "On the sandbox part you need some computer sounds and mouse clicks."
+
+</details>
+
 | Building it yourself | Starting here |
 | --- | --- |
 | Months on a harness, a sandbox, skills and a Slack UX | Fork it, add your brand, deploy with one command |
@@ -61,14 +83,18 @@ https://github.com/user-attachments/assets/0664d09d-2ab2-41fd-b2ba-f91c96121e20
 ## Quickstart
 
 This repository is a [Managed Deep Agents](https://docs.langchain.com/langsmith/python/managed-deep-agents-overview?utm_source=github&utm_medium=readme&utm_campaign=design-agent) project, so it deploys to your LangSmith
-workspace as it is. You need MDA access, a model key and [uv](https://docs.astral.sh/uv/):
+workspace as it is. You need MDA access and a model key:
 
 ```bash
-git clone https://github.com/langchain-ai/design-agent.git && cd design-agent
+curl -fsSL https://raw.githubusercontent.com/langchain-ai/design-agent/main/install.sh | bash
+cd design-agent
 uv run design-agent config set LANGSMITH_API_KEY=lsv2_… ANTHROPIC_API_KEY=sk-ant-…
 uv run design-agent sandbox publish   # once per workspace: the agent's computer
 uv run mda deploy
 ```
+
+The installer gets [uv](https://docs.astral.sh/uv/) if you don't have it, clones the repository and
+installs its dependencies; `git clone` and `uv sync` do the same.
 
 The first deploy sets up the agent's Slack app. Authorize it in your workspace, then mention the
 agent in a channel. It's how we run ours at LangChain. Try changes on a separate copy with
@@ -174,13 +200,13 @@ Slack. [Quickstart](#quickstart). If it's useful, a star helps other teams find 
 ## Built with
 
 <p>
-  <a href="https://github.com/langchain-ai/deepagents"><picture><source media="(prefers-color-scheme: dark)" srcset="https://github.com/langchain-ai/design-agent/raw/main/docs/assets/readme/logos/deep-agents-dark.svg"><img src="https://github.com/langchain-ai/design-agent/raw/main/docs/assets/readme/logos/deep-agents-light.svg" alt="Deep Agents" height="28"></picture></a>
+  <a href="https://github.com/langchain-ai/deepagents"><img src="docs/assets/readme/logos/deep-agents-symbol.svg" alt="" height="24" align="absmiddle"> <b>Deep Agents</b></a>
   &nbsp;&nbsp;
-  <a href="https://docs.langchain.com/langsmith/python/managed-deep-agents-overview?utm_source=github&utm_medium=readme&utm_campaign=design-agent"><picture><source media="(prefers-color-scheme: dark)" srcset="https://github.com/langchain-ai/design-agent/raw/main/docs/assets/readme/logos/langsmith-deployment-dark.svg"><img src="https://github.com/langchain-ai/design-agent/raw/main/docs/assets/readme/logos/langsmith-deployment-light.svg" alt="LangSmith Deployment" height="28"></picture></a>
+  <a href="https://docs.langchain.com/langsmith/python/managed-deep-agents-overview?utm_source=github&utm_medium=readme&utm_campaign=design-agent"><img src="docs/assets/readme/logos/langsmith-deployment-symbol.svg" alt="" height="24" align="absmiddle"> <b>Managed Deep Agents</b></a>
   &nbsp;&nbsp;
-  <a href="https://hyperframes.heygen.com"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/heygen-com/hyperframes/main/docs/logo/dark.svg"><img src="https://raw.githubusercontent.com/heygen-com/hyperframes/main/docs/logo/light.svg" alt="HyperFrames" height="28"></picture></a>
+  <a href="https://hyperframes.heygen.com"><img src="https://raw.githubusercontent.com/heygen-com/hyperframes/main/docs/logo/symbol-dark.svg" alt="" height="24" align="absmiddle"> <b>HyperFrames</b></a>
   &nbsp;&nbsp;
-  <a href="https://paper.design"><img src="https://avatars.githubusercontent.com/u/178361271?s=56" alt="Paper" height="28" align="absmiddle"> <b>Paper</b></a>
+  <a href="https://paper.design"><img src="https://avatars.githubusercontent.com/u/178361271?s=48" alt="" height="24" align="absmiddle"> <b>Paper</b></a>
 </p>
 
 Also: [LangSmith](https://smith.langchain.com/?utm_source=github&utm_medium=readme&utm_campaign=design-agent) ·

@@ -218,37 +218,6 @@ def brand_show() -> None:
 
 
 @main.command()
-@click.option("--yes", is_flag=True, help="Deploy without asking (CI).")
-@click.option(
-    "--build-only", is_flag=True, help="Stage and compile with `mda build`; deploy nothing."
-)
-@click.option(
-    "--allow-docker-base",
-    is_flag=True,
-    help="Deploy on the Docker image base (1 GiB filesystem: development only).",
-)
-@click.option(
-    "--name",
-    default="design-agent",
-    show_default=True,
-    help="Deployment name; a second name is a separate deployment (for example a test one).",
-)
-def deploy(yes: bool, build_only: bool, allow_docker_base: bool, name: str) -> None:
-    """Preflight, stage only what ships, then `mda deploy` to your LangSmith workspace."""
-    from design_agent.deploy import deploy_main
-
-    sys.exit(
-        deploy_main(
-            _root(),
-            yes=yes,
-            build_only=build_only,
-            allow_docker_base=allow_docker_base,
-            name=name,
-        )
-    )
-
-
-@main.command()
 def serve() -> None:
     """Run the self-hosted HTTP API (DESIGN_AGENT_API_HOST:DESIGN_AGENT_API_PORT)."""
     import uvicorn
@@ -648,19 +617,6 @@ def sandbox_use(snapshot: str) -> None:
         _root(), {"DESIGN_AGENT_SANDBOX": "langsmith", "DESIGN_AGENT_SANDBOX_SNAPSHOT": snapshot}
     )
     click.echo(f"Local and self-hosted runs now clone {snapshot} (DESIGN_AGENT_SANDBOX=langsmith).")
-
-
-@main.command()
-def dev() -> None:
-    """Stage the project as `deploy` would and run it in `mda dev` (LangSmith Studio)."""
-    import shutil
-
-    from design_agent.deploy import stage
-
-    root = _root()
-    staged = stage(root)
-    mda = shutil.which("mda") or str(root / ".venv" / "bin" / "mda")
-    sys.exit(subprocess.call([mda, "dev", str(staged)]))  # noqa: S603 - fixed argv
 
 
 @main.group("test")

@@ -69,11 +69,11 @@ toward MDA's 200 MB archive limit, so clear old ones before deploying.
 To try a change without touching the deployment people use, deploy a separate copy:
 `uv run mda deploy --name design-agent-test`.
 
-**A checked deploy.** `uv run design-agent deploy` adds a preflight (brand pack, workspace
-manifest, vendored skills, the sandbox declaration, the model key, MCP declarations), stages only
-what the agent needs into `.mda/deploy-src/` with an `.env` holding only the keys it reads, shows
-what will ship and runs `mda deploy` on that after a yes. `--build-only` stops after compiling, and
-`--name` deploys a copy. Use it when your checkout holds other keys or large renders.
+**Before you deploy,** `uv run design-agent doctor` names what would make `mda deploy` fail or ship
+the wrong thing (`mda-deploy` and `mda-project`): the unpublished sandbox, a binary file under
+`skills/`, self-hosting keys in `.env`, a large `workspace/out/`. `uv run mda build` compiles what
+would ship into `.mda/build/` without deploying. Without a `LANGSMITH_API_KEY` in `.env`, `mda deploy`
+offers a browser sign-in; `sandbox publish` needs the key.
 
 ## 4. Verify
 

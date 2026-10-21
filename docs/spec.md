@@ -53,7 +53,7 @@ taste encoded as skills. The internal reference deployment taught every rule in 
 2. Configure a model (`provider:model`), optional media keys (OpenAI images, ElevenLabs), and a brand
    pack with the coding-agent onboarding skill or the optional setup console.
 3. `uv run design-agent ask "Make a 1080x1350 LinkedIn card announcing our v2 launch"` locally.
-4. `uv run design-agent deploy` (MDA, recommended) or `docker compose up -d --build` (self-host).
+4. `uv run mda deploy` (MDA, recommended) or `docker compose up -d --build` (self-host).
 5. `uv run design-agent doctor` diagnoses configuration without printing secrets.
 
 ### 3.2 Requester (marketer, PM, engineer, founder) in Slack
@@ -733,9 +733,9 @@ See [Paper](partners/paper.md). Summary:
 ### 14.3 CLI
 
 `design-agent setup | doctor [--sandbox] | demo | ask "<request>" [--file …] | brand
-(validate|show|init) | fonts verify | sandbox (publish|use|test) | skills (verify|sync-vendor) | deploy
-| dev | serve | slack | config (show|set|generate) | test (model|sandbox|paper|slack|db|all)`, with
-`--json` where useful. `deploy` runs the preflight then `mda deploy .`; `dev` runs `mda dev .`.
+(validate|show|init) | fonts verify | sandbox (publish|use|test) | skills (verify|sync-vendor) | serve
+| slack | config (show|set|generate) | test (model|sandbox|paper|slack|db|all)`, with `--json` where
+useful. The project deploys and runs with MDA's own `mda deploy` and `mda dev`.
 
 ### 14.4 Studio
 
@@ -761,10 +761,9 @@ same capabilities and produces the same files. Presentation and timing may diffe
   `identity.py`, `channels/slack.py`, `schedules/housekeeping.py`, `sandbox/__init__.py` +
   `sandbox/setup.sh`, optional `memory.py`, optional `tools/mcp.py`, `skills/<name>/SKILL.md`,
   `[tool.mda] python-version` in `pyproject.toml`. Do not author `langgraph.json`.
-- `uv run design-agent deploy`: preflight (`doctor`, brand pack, fonts, manifest, `.env` review —
-  MDA forwards every non-reserved `.env` key as a deployment secret and archives ordinary project
-  files even if Git-ignored), then `mda deploy .`, Slack authorization hand-off, wait for the revision,
-  then a smoke message. The optional console's "Deploy agent" button runs the same action.
+- `uv run mda deploy` on the project as it is, after `doctor` (brand pack, fonts, manifest, `.env`
+  review — MDA forwards every non-reserved `.env` key as a deployment secret and archives ordinary
+  project files even if Git-ignored), then the Slack authorization hand-off and a smoke message.
 - One-click from GitHub: MDA has a hidden `mda prepare` used by LangSmith's GitHub-sourced builds. If
   LangSmith exposes a public "deploy this repository" flow by release, add a README button; otherwise
   the command above is the one-click path. (Open question for the MDA team.)

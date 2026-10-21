@@ -52,7 +52,7 @@ truth. Set `DESIGN_AGENT_JOB_BUDGET_USD` to make the agent ask before going past
 | Background news arrives a minute or two late on MDA | expected: MDA schedules land on the next minute |
 | "A restart may have stopped…" | a deploy or restart stopped helpers; ask the agent to resume them |
 | Paper "not connected" | Paper Desktop is closed or the bridge is unreachable; boards still render in the sandbox |
-| `deploy` refuses the sandbox | publish the snapshot first: `uv run design-agent sandbox publish` |
+| The sandbox bake runs out of disk on `mda deploy` | publish the snapshot first: `uv run design-agent sandbox publish` |
 | An MCP server is missing | it failed to load; the startup log names it and the rest keep working |
 
 Logs: `uv run mda logs` for MDA; `docker compose -f deploy/self-host/compose.yaml logs api` for

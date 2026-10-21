@@ -57,3 +57,15 @@ def test_runtime_skills_are_utf8_text() -> None:
         if path.is_file() and not is_text(path)
     ]
     assert not binary, f"move these to skill-binaries/: {binary}"
+
+
+def test_binary_skill_files_reach_the_sandbox_beside_their_skill() -> None:
+    from design_agent.brand.schema import load_brand_pack
+    from design_agent.workspace.manifest import build_manifest
+
+    fonts = sorted((ROOT / "skill-binaries").rglob("*.woff2"))
+    assert fonts, "the vendored frame-preset fonts live in skill-binaries/"
+    pack = load_brand_pack(ROOT / "examples/brands/example-studio", project_root=ROOT)
+    staged = {str(asset.destination) for asset in build_manifest(ROOT, pack).assets}
+    for font in fonts:
+        assert f"/workspace/skills/{font.relative_to(ROOT / 'skill-binaries').as_posix()}" in staged

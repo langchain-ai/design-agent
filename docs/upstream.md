@@ -16,7 +16,7 @@ HyperFrames and Paper are in [docs/partners/](partners/).
 | Route direct-message follow-ups to the thread already working | a new top-level DM is its own thread and runs in parallel | not handled |
 | Expose a schedule run's Slack conversation and thread | after a restart, wake-up turns cannot find their Slack thread until a message run happens | progress reuses the thread's last known target |
 | Dedupe Slack's duplicate deliveries at ingress; react when a message is queued | duplicate events and a silent queue | not handled on MDA (the self-hosted adapter dedupes) |
-| An ignore list for `mda deploy` | it archives Git-ignored files (except `.env` and virtualenvs), so renders in `workspace/out/` count toward the 200 MB limit | clear old renders, or `design-agent deploy` stages a minimal copy |
+| An ignore list for `mda deploy` | it archives Git-ignored files (except `.env` and virtualenvs), so renders in `workspace/out/` count toward the 200 MB limit | `doctor` warns past 150 MB; clear old renders |
 | A larger filesystem for `docker_image` bakes (honor `fs_capacity_bytes`) | the computer is 1.3 GiB; `docker_image` bakes get a fixed 1 GiB, so a fresh clone can't go straight to `mda deploy` | a published snapshot (`design-agent sandbox publish`) once per workspace |
 
 ## LangChain (1.4.6)
