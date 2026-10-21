@@ -9,17 +9,22 @@ the MCP path. Behind that, every call goes through the same `PaperPolicy` the ag
 only name a file in it.
 
 Only tools are proxied; Paper's resources and prompts are not offered. A failure in Desktop or the
-transport comes back as one sentence, never its internals.
+transport comes back as one sentence, never its internals. Desktop writes an export to this
+machine's Downloads folder and answers with the paths, which mean nothing to a remote agent, so the
+bridge reads the files it just wrote and returns their bytes instead (`tools.paper.take_exports`).
 """
 
 from __future__ import annotations
 
 import asyncio
+import base64
 import hmac
 import json
 import logging
 import re
+import time
 from collections.abc import Callable, Iterable, Sequence
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -28,16 +33,19 @@ from fastmcp.exceptions import PromptError, ResourceError
 from fastmcp.server import create_proxy
 from fastmcp.server.middleware import Middleware, MiddlewareContext
 from fastmcp.tools.base import ToolResult
-from mcp.types import TextContent
+from mcp.types import BlobResourceContents, EmbeddedResource, ImageContent, TextContent
 from starlette.datastructures import Headers
 from starlette.responses import PlainTextResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from design_agent.tools.paper import (
+    EXPORT_TOOLS,
     GLOBAL_TOOLS,
     PaperPolicy,
     check_catalog,
+    exported_paths,
     log_catalog,
+    take_exports,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -237,9 +245,16 @@ class TeamScope:
 class BridgePolicy(Middleware):
     """The host's `PaperPolicy` and the optional team check, applied to every proxied call."""
 
-    def __init__(self, policy: PaperPolicy, team: TeamScope | None = None) -> None:
+    def __init__(
+        self,
+        policy: PaperPolicy,
+        team: TeamScope | None = None,
+        *,
+        exports_folder: Path | None = None,
+    ) -> None:
         self.policy = policy
         self.team = team
+        self.exports_folder = exports_folder
         self._checked = False
 
     async def on_list_tools(self, context: MiddlewareContext[Any], call_next: Any) -> Any:
@@ -257,9 +272,10 @@ class BridgePolicy(Middleware):
         if decision.refusal is not None:
             return _text(decision.refusal)
         forwarded = context.copy(message=params.model_copy(update={"arguments": decision.args}))
+        started = time.time()
         try:
             if self.team is None or params.name == "get_guide":
-                return await call_next(forwarded)
+                return self._with_exports(params.name, await call_next(forwarded), started)
             async with self.team.lock:
                 listing = await self.team.listing()
                 if isinstance(listing, str):
@@ -267,10 +283,41 @@ class BridgePolicy(Middleware):
                 if params.name == "list_resources":
                     return self.team.filtered(listing, decision.args.get("limit"))
                 refusal = self.team.refusal(params.name, decision.args, listing)
-                return _text(refusal) if refusal is not None else await call_next(forwarded)
+                if refusal is not None:
+                    return _text(refusal)
+                return self._with_exports(params.name, await call_next(forwarded), started)
         except Exception as error:  # noqa: BLE001 - never hand Desktop or transport internals back
             _LOGGER.warning("[paper-bridge] %s failed: %s", params.name, type(error).__name__)
             return _text(DESKTOP_UNAVAILABLE)
+
+    def _with_exports(self, tool: str, result: Any, started: float) -> Any:
+        """An export's result with the files Desktop just wrote here in place of their paths."""
+        if tool not in EXPORT_TOOLS or getattr(result, "is_error", False):
+            return result
+        blocks = list(getattr(result, "content", None) or [])
+        texts = [block.text for block in blocks if isinstance(block, TextContent)]
+        taken = take_exports(texts, since=started, folder=self.exports_folder)
+        if not taken:
+            return result
+        content: list[Any] = [
+            block
+            for block in blocks
+            if not (isinstance(block, TextContent) and exported_paths(block.text))
+        ]
+        for item in taken:
+            data = base64.b64encode(item.data).decode()
+            if item.mime_type.startswith("image/"):
+                content.append(ImageContent(type="image", data=data, mimeType=item.mime_type))
+            else:
+                content.append(
+                    EmbeddedResource(
+                        type="resource",
+                        resource=BlobResourceContents(
+                            uri="paper://export", mimeType=item.mime_type, blob=data
+                        ),
+                    )
+                )
+        return ToolResult(content=content)
 
     # Paper's resources and prompts are not offered; FastMCP passes `call_next` by keyword.
 

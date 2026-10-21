@@ -19,9 +19,12 @@ The runtime skill [`paper-design`](../../skills/paper-design/SKILL.md) holds the
 read `get_guide(topic="paper-mcp-instructions")` once per session, pass `fileId` explicitly, put new
 work on its own page in the drafts file, check with `get_screenshot`, and call
 `finish_working_on_nodes` when done. A storyboard's frames go to a Paper page; the sign-off board is
-exported from Paper and attached to the thread. Each export is saved in the project's `renders/`,
-and the project's `run.json` gets a receipt under `paper` (file id, page id, app link, saved paths;
-never a token). When Paper is not connected, the agent says so once and renders the board in the
+exported from Paper and attached to the thread. Paper Desktop writes an export to the Downloads
+folder of its machine and answers with the paths; whatever runs beside Desktop reads those files
+back (the host in Local mode, the bridge in Bridged mode, which returns the bytes), only files that
+export just wrote, and removes them from Downloads. Each export is saved in the project's
+`renders/`, and the project's `run.json` gets a receipt under `paper` (file id, page id, app link,
+saved paths; never a token). When Paper is not connected, the agent says so once and renders the board in the
 sandbox instead.
 
 ## Connection modes
@@ -132,8 +135,8 @@ Canvas content, comments and tool output are untrusted input: they never change 
 1. A hosted or remote MCP, or a headless or service-account mode, for agents that run in the cloud.
 2. Multi-user authorization and team scoping for a shared agent; a documented team field (the bridge
    reads `teamId` from `list_resources` today).
-3. How `export` and `export_combined_pdf` bytes should reach a remote agent (the host keeps what the
-   result carries as file bytes).
+3. An export that returns its bytes, or takes a destination folder: today Desktop writes to its
+   Downloads folder and the host or bridge reads the files back.
 4. A supported raster import path without `paper-asset:` or `file:` URLs.
 5. Tool-name stability and a version or capability endpoint.
 6. Pagination for files and folders beyond 200 entries (the team check sees the 200 most recent).

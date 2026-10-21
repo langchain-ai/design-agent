@@ -39,21 +39,32 @@ await runCli("review-thumb", async () => {
         written.push(out);
       }
     } else {
-      const cols = Math.ceil(Math.sqrt(inputs.length));
-      const rows = Math.ceil(inputs.length / cols);
-      const cell = Math.floor((MAX - (cols + 1) * GAP) / cols);
+      // Cells take the frames' own shape (the median aspect), and the column count is the one that
+      // makes them largest inside MAX, so a row of 16:9 frames is not boxed into squares.
+      const sizes = await Promise.all(inputs.map((src) => sharp(src).metadata()));
+      const ratios = sizes.map((m) => m.width / m.height).sort((a, b) => a - b);
+      const aspect = ratios[Math.floor(ratios.length / 2)];
+      let layout = null;
+      for (let cols = 1; cols <= inputs.length; cols++) {
+        const rows = Math.ceil(inputs.length / cols);
+        const width = Math.floor(Math.min((MAX - (cols + 1) * GAP) / cols, ((MAX - (rows + 1) * GAP) / rows) * aspect));
+        if (!layout || width > layout.width) layout = { cols, rows, width };
+      }
+      const { cols, rows } = layout;
+      const cellW = layout.width;
+      const cellH = Math.floor(cellW / aspect);
       const tiles = [];
       for (let i = 0; i < inputs.length; i++) {
-        const buf = await sharp(inputs[i]).resize(cell, cell, { fit: "inside", withoutEnlargement: true }).toBuffer();
+        const buf = await sharp(inputs[i]).resize(cellW, cellH, { fit: "inside", withoutEnlargement: true }).toBuffer();
         const meta = await sharp(buf).metadata();
         tiles.push({
           input: buf,
-          left: GAP + (i % cols) * (cell + GAP) + Math.floor((cell - meta.width) / 2),
-          top: GAP + Math.floor(i / cols) * (cell + GAP) + Math.floor((cell - meta.height) / 2),
+          left: GAP + (i % cols) * (cellW + GAP) + Math.floor((cellW - meta.width) / 2),
+          top: GAP + Math.floor(i / cols) * (cellH + GAP) + Math.floor((cellH - meta.height) / 2),
         });
       }
       const out = path.join(dir, "review-sheet.jpg");
-      await sharp({ create: { width: cols * cell + (cols + 1) * GAP, height: rows * cell + (rows + 1) * GAP, channels: 3, background: SHEET_GROUND } })
+      await sharp({ create: { width: cols * cellW + (cols + 1) * GAP, height: rows * cellH + (rows + 1) * GAP, channels: 3, background: SHEET_GROUND } })
         .composite(tiles)
         .jpeg({ quality: 82 })
         .toFile(out);

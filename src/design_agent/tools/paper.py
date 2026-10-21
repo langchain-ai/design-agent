@@ -109,6 +109,82 @@ KNOWN_TOOLS = (
     | REORG_TOOLS
     | NEVER_TOOLS
 )
+#: Paper Desktop writes an export into the Downloads folder of the machine it runs on and returns
+#: the paths (`{"exports": [{"nodeId", "filePath"}]}`), so whatever runs beside Desktop reads them
+#: back: the host in Local mode, the bridge in Bridged mode.
+EXPORT_TYPES = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+    ".avif": "image/avif",
+    ".svg": "image/svg+xml",
+    ".pdf": "application/pdf",
+    ".mp4": "video/mp4",
+    ".webm": "video/webm",
+}
+MAX_EXPORT_BYTES = 200 * 1024 * 1024
+#: A file's modification time and the clock the call started on can disagree by a moment.
+_EXPORT_CLOCK_SLACK_S = 2.0
+
+
+@dataclass(frozen=True)
+class ExportedFile:
+    data: bytes
+    mime_type: str
+
+
+def exported_paths(text: str) -> list[str]:
+    """The file paths in one block of Paper's export result, or none."""
+    try:
+        value = json.loads(text)
+    except ValueError:
+        return []
+    exports = value.get("exports") if isinstance(value, dict) else None
+    if not isinstance(exports, list):
+        return []
+    return [
+        item["filePath"]
+        for item in exports
+        if isinstance(item, dict) and isinstance(item.get("filePath"), str)
+    ]
+
+
+def take_exports(
+    texts: Iterable[str], *, since: float, folder: Path | None = None
+) -> list[ExportedFile]:
+    """The files a Paper export just wrote, read and removed from `folder` (Downloads by default).
+
+    A path outside that folder, of another type, over the size cap or older than the call is left
+    where it is, so nothing the person put there is touched.
+    """
+    home = (folder or Path.home() / "Downloads").resolve()
+    taken: list[ExportedFile] = []
+    for text in texts:
+        for raw in exported_paths(text):
+            try:
+                path = Path(raw).resolve(strict=True)
+                stat = path.stat()
+            except OSError:
+                continue
+            mime_type = EXPORT_TYPES.get(path.suffix.lower())
+            if (
+                mime_type is None
+                or not path.is_relative_to(home)
+                or not path.is_file()
+                or stat.st_size > MAX_EXPORT_BYTES
+                or stat.st_mtime < since - _EXPORT_CLOCK_SLACK_S
+            ):
+                continue
+            try:
+                data = path.read_bytes()
+                path.unlink()
+            except OSError:
+                continue
+            taken.append(ExportedFile(data, mime_type))
+    return taken
+
+
 #: Tools that take no `fileId`.
 GLOBAL_TOOLS = frozenset({"get_guide", "list_resources", "create_file", "rename_resource"})
 #: File-scoped calls that must name their file instead of defaulting to the drafts file:

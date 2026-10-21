@@ -162,7 +162,15 @@ def build_agent_components(
     ) -> list[AgentMiddleware[Any, Any, Any]]:
         # Paper's policy sits outside disclosure, so search only ever sees admitted Paper tools.
         scope: list[AgentMiddleware[Any, Any, Any]] = (
-            [PaperScopeMiddleware(paper, backend_for=runtime.backend_for)] if paper else []
+            [
+                PaperScopeMiddleware(
+                    paper,
+                    backend_for=runtime.backend_for,
+                    local_exports=settings.paper_mode == "local",
+                )
+            ]
+            if paper
+            else []
         )
         return [
             *scope,

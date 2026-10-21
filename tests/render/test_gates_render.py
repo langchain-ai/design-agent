@@ -205,6 +205,21 @@ def test_review_thumb_makes_a_contact_sheet(sandbox: Sandbox, out: Path) -> None
         assert max(sheet.size) <= 1600
 
 
+def test_a_contact_sheet_takes_the_frames_shape(sandbox: Sandbox, out: Path) -> None:
+    """Four 16:9 frames make a wide 2x2 sheet, not four letterboxed squares."""
+    from PIL import Image
+
+    proc = sandbox(
+        "node tools/html2png.mjs fixtures/brand/clean.html --out out --name w --size 1600x900 >/dev/null && "
+        "node tools/review-thumb.mjs --sheet out/w-1600x900.png out/w-1600x900.png "
+        "out/w-1600x900.png out/w-1600x900.png"
+    )
+    assert proc.returncode == 0, proc.stderr
+    with Image.open(out / "review-sheet.jpg") as sheet:
+        width, height = sheet.size
+    assert width == 1600 and height < 1000, sheet.size
+
+
 # --- PDF and copy ----------------------------------------------------------------------------------
 
 

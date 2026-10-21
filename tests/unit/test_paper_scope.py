@@ -153,12 +153,14 @@ async def turn(
     policy: PaperPolicy | None = None,
     backend: Any = None,
     model: ScriptedChatModel | None = None,
+    **scope_options: Any,
 ) -> dict[str, Any]:
     """Run one turn whose only tool call is this one, and hand back the final state."""
     scope = PaperScopeMiddleware(
         policy or PaperPolicy(brand_file_id=BRAND, drafts_file_id=DRAFT),
         backend_for=lambda _runtime: backend,
         clock=lambda: 1_790_000_000.0,
+        **scope_options,
     )
     lead = model or ScriptedChatModel(
         steps=[lambda _m: tool_call(name, args), lambda _m: reply("Done.")]
@@ -493,3 +495,50 @@ def test_page_and_file_reorganization_is_an_opt_in_setting() -> None:
     assert not REORG_TOOLS & PaperPolicy.from_settings(Settings(_env_file=None)).admitted  # type: ignore[call-arg]
     allowed = PaperPolicy.from_settings(Settings(_env_file=None, paper_allow_reorg=True))  # type: ignore[call-arg]
     assert REORG_TOOLS <= allowed.admitted
+
+
+async def test_a_local_export_moves_the_files_desktop_wrote_into_the_project(
+    calls: Calls, sandbox: FolderSandbox, tmp_path: Path
+) -> None:
+    """Paper Desktop writes an export to Downloads and answers with the path; in Local mode the host
+    moves that file into the project's renders and records it."""
+    downloads = tmp_path / "Downloads"
+    downloads.mkdir()
+    written = downloads / "Frame 1 · Ready.png"
+    written.write_bytes(PNG)
+    answer = {"exports": [{"nodeId": "A-1", "filePath": str(written)}]}
+    result = await turn(
+        stand_ins(calls, [{"type": "text", "text": json.dumps(answer)}]),
+        "paper_export",
+        {"nodes": {"A-1": []}, "pageId": "2-0", "project": "teaser"},
+        backend=sandbox,
+        local_exports=True,
+        exports_folder=downloads,
+    )
+    message = replied(result)
+    saved = "/workspace/projects/teaser/renders/paper-20260921-141320-1.png"
+    assert saved in message.text and "Downloads" not in message.text
+    assert (tmp_path / "sb" / saved.removeprefix("/")).read_bytes() == PNG
+    assert not written.exists()
+    data = json.loads(
+        (tmp_path / "sb" / "workspace" / "projects" / "teaser" / "run.json").read_text()
+    )
+    assert data["paper"][0]["exports"] == [saved]
+
+
+async def test_a_bridged_export_never_reads_this_machines_files(
+    calls: Calls, sandbox: FolderSandbox, tmp_path: Path
+) -> None:
+    downloads = tmp_path / "Downloads"
+    downloads.mkdir()
+    written = downloads / "frame.png"
+    written.write_bytes(PNG)
+    answer = {"exports": [{"nodeId": "A-1", "filePath": str(written)}]}
+    result = await turn(
+        stand_ins(calls, [{"type": "text", "text": json.dumps(answer)}]),
+        "paper_export",
+        {"nodes": {"A-1": []}, "project": "teaser"},
+        backend=sandbox,
+        exports_folder=downloads,
+    )
+    assert "returned no file bytes" in replied(result).text and written.exists()

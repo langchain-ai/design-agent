@@ -12,8 +12,10 @@ line naming them is appended to the system message, so the model can pass `fileI
 
 Tool calls: each `paper_*` call goes through `PaperPolicy.decide`. A file-scoped call that names no
 file is aimed at the drafts file. Exports take one host argument the model sees in their schema,
-`project` (a folder under /workspace/projects): what Paper returns as file bytes is written to that
-project's `renders/`, the images are replaced by the saved paths so they do not pile up in context,
+`project` (a folder under /workspace/projects): what Paper returns as file bytes, or in Local mode
+the files Paper Desktop just wrote to this machine's Downloads folder (`tools.paper.take_exports`),
+is written to that project's `renders/`, the images are replaced by the saved paths so they do not
+pile up in context,
 and the Paper file id, page id and app link are recorded under `paper` in the project's `run.json`.
 Only ids this code validated reach the receipt; no token or header ever does.
 
@@ -30,6 +32,7 @@ import posixpath
 import re
 import time
 from collections.abc import Awaitable, Callable, Sequence
+from pathlib import Path
 from typing import Any
 
 from langchain.agents.middleware import (
@@ -49,8 +52,10 @@ from design_agent.tools.paper import (
     PaperPolicy,
     bare_name,
     check_catalog,
+    exported_paths,
     link,
     log_catalog,
+    take_exports,
 )
 from design_agent.tools.projects import PROJECT_SLUG, PROJECTS_ROOT
 
@@ -136,6 +141,15 @@ def _binary(block: object) -> tuple[bytes, str] | str | None:
     return (data, extension) if 0 < len(data) <= _MAX_EXPORT_BYTES else "unknown"
 
 
+def _text_of(block: object) -> str | None:
+    if isinstance(block, str):
+        return block
+    if isinstance(block, dict) and block.get("type") == "text":
+        text = block.get("text")
+        return text if isinstance(text, str) else None
+    return None
+
+
 async def _listed(backend: Any, path: str, *, directory: bool) -> bool:
     """Whether the sandbox lists `path` (a folder or a file) in its parent."""
     try:
@@ -158,11 +172,15 @@ class PaperScopeMiddleware(AgentMiddleware[Any, Any, Any]):
         policy: PaperPolicy,
         *,
         backend_for: BackendFor,
+        local_exports: bool = False,
+        exports_folder: Path | None = None,
         clock: Callable[[], float] = time.time,
     ) -> None:
         super().__init__()
         self._policy = policy
         self._backend_for = backend_for
+        self._local_exports = local_exports
+        self._exports_folder = exports_folder
         self._clock = clock
         self._checked = False
 
@@ -258,6 +276,7 @@ class PaperScopeMiddleware(AgentMiddleware[Any, Any, Any]):
                 f"There is no project folder named {project}; pass the folder under "
                 "/workspace/projects this board belongs to.",
             )
+        started = self._clock()
         result = await handler(request.override(tool_call={**call, "args": decision.args}))
         if not isinstance(result, ToolMessage) or result.status == "error":
             return result
@@ -273,6 +292,15 @@ class PaperScopeMiddleware(AgentMiddleware[Any, Any, Any]):
                 kept.append(block)
             else:
                 unreadable += 1
+        if not files and self._local_exports:
+            taken = take_exports(
+                [text for block in kept if (text := _text_of(block))],
+                since=started,
+                folder=self._exports_folder,
+            )
+            if taken:
+                files = [(item.data, _EXTENSIONS[item.mime_type]) for item in taken]
+                kept = [block for block in kept if not exported_paths(_text_of(block) or "")]
         stamp = time.strftime("%Y%m%d-%H%M%S", time.gmtime(self._clock()))
         saved: list[str] = []
         try:
