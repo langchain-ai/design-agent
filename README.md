@@ -169,7 +169,9 @@ your brand guide, website, files or a Paper file.
 review the work and ask for changes in Slack, then teach it the next thing.
 
 **Do I need Slack?** No. Call the deployment's API, open it in LangSmith Studio, or use the
-terminal (`design-agent ask`).
+terminal (`design-agent ask`). On Managed Deep Agents, long jobs that work in the background
+(films, parallel looks) report back in Slack; over the API, keep to requests that finish in one
+turn.
 
 **Is it safe with my keys?** The sandbox never holds a credential and has no network by default.
 Host tools do the fetching, generating and delivering, and drop results in as files.

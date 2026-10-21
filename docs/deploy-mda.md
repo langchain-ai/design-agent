@@ -98,6 +98,12 @@ await client.runs.wait(
 Runs without a channel (the API, Studio) have no Slack to attach files to, so `upload_files`
 attaches them to the run's trace in LangSmith; open them from the trace or Studio.
 
+Background work reports back only where MDA can schedule a wake-up on the thread: in Slack (the
+channel) or for a signed-in person. A thread started with an API key has neither, since MDA does not
+count an API key as a person, so helpers, render watchers and check-ins finish their work but the
+agent is never woken to deliver it. Use Slack for jobs that run in the background (films, parallel
+looks, long decks), or keep API requests to work that finishes in one turn.
+
 ## How it behaves on MDA
 
 In Slack the agent streams its steps into one message per turn, ends replies with a short footer

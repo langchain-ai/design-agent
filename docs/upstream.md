@@ -17,6 +17,7 @@ HyperFrames and Paper are in [docs/partners/](partners/).
 | Expose a schedule run's Slack conversation and thread | after a restart, wake-up turns cannot find their Slack thread until a message run happens | progress reuses the thread's last known target |
 | Dedupe Slack's duplicate deliveries at ingress; react when a message is queued | duplicate events and a silent queue | not handled on MDA (the self-hosted adapter dedupes) |
 | An ignore list for `mda deploy` | it archives Git-ignored files (except `.env` and virtualenvs), so renders in `workspace/out/` count toward the 200 MB limit | `doctor` warns past 150 MB; clear old renders |
+| Same-thread wake-ups for API callers: agent-owned schedules without a channel, or API keys counted as people | a thread started with an API key cannot be woken (`User schedules require an authenticated person`; agent-owned same-thread schedules need a channel), so background work over the API never reports back | Slack only ([deploy guide](deploy-mda.md#4-verify)) |
 | A larger filesystem for `docker_image` bakes (honor `fs_capacity_bytes`) | the computer is 1.3 GiB; `docker_image` bakes get a fixed 1 GiB, so a fresh clone can't go straight to `mda deploy` | a published snapshot (`design-agent sandbox publish`) once per workspace |
 
 ## LangChain (1.4.6)
