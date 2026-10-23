@@ -7,7 +7,8 @@ and `servers_for_runtime` returns both:
     url = "https://docs.example.com/mcp"
     transport = "http"                      # or "sse"; "stdio" with `command` instead of `url`
     headers_env = { Authorization = "DOCS_MCP_AUTH" }   # local/self-hosted: header -> host env var
-    connection = "docs-token"               # MDA: agent-owned workspace connection (Agent Auth)
+    connection = "docs-token"               # MDA: a workspace connection (Agent Auth)
+    owner = "agent"                         # MDA: "agent" (one shared account) or "user" (each person's own)
     include_tools = ["search"]              # optional
     timeout = 30                            # seconds per request
     always_shown = false                    # keep its schemas bound instead of deferred
@@ -26,9 +27,12 @@ Isolation:
 Credentials stay on the host and out of artifacts. Locally and self-hosted, header values are read
 from the host environment when the server loads (a `bearer` comes from typed settings, masked). On
 MDA the declaration is compiled into the deployment, so header values are never put in it: a server
-that needs credentials names an agent-owned workspace connection (`connection`), which MDA resolves
-at call time; one that names only `headers_env` or a `bearer` is left out on MDA with a warning.
-Nothing reaches the sandbox.
+that needs credentials names a workspace connection (`connection`), which MDA resolves at call time;
+one that names only `headers_env` or a `bearer` is left out on MDA with a warning. A connection is
+owned by the deployment (`owner = "agent"`: one account everyone's requests use) or by each person
+(`owner = "user"`: MDA's credential gate asks a person who has not connected yet to sign in, with a
+connect link, before the run starts). Per-person connections exist only on MDA, so local and
+self-hosted runtimes leave those servers out with a warning. Nothing reaches the sandbox.
 
 Stdio servers (`transport = "stdio"`, a local app's own CLI) run locally and self-hosted only: MDA's
 `define_mcp` speaks HTTP and SSE, so they are left out of its declaration with a warning. The child
@@ -61,6 +65,7 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 SERVER_NAME = re.compile(r"[a-z][a-z0-9]{0,30}")
+Owner = Literal["agent", "user"]
 CONFIG = Path("config") / "mcp.toml"
 
 
@@ -78,6 +83,8 @@ class McpServer:
     timeout: float = 30.0
     always_shown: bool = False
     connection: str | None = None
+    owner: Owner = "agent"
+    """Who the connection belongs to on MDA: the deployment, or each person (module doc)."""
     command: tuple[str, ...] = ()
     """A stdio server's executable and arguments (`url` is empty)."""
     bearer: SecretStr | None = field(default=None, repr=False, compare=False)
@@ -115,6 +122,13 @@ def declared_servers(project_root: Path) -> list[McpServer]:
                 f"MCP server {name}: url must be https (or http://127.0.0.1 for a local app)"
             )
         include = entry.get("include_tools")
+        owner = entry.get("owner", "agent")
+        if owner not in ("agent", "user"):
+            raise McpConfigError(f"MCP server {name}: owner must be agent or user")
+        if owner == "user" and not entry.get("connection"):
+            raise McpConfigError(
+                f'MCP server {name}: owner = "user" needs a connection for each person to sign in to'
+            )
         servers.append(
             McpServer(
                 name=name,
@@ -128,6 +142,7 @@ def declared_servers(project_root: Path) -> list[McpServer]:
                 timeout=float(entry.get("timeout", 30)),
                 always_shown=bool(entry.get("always_shown", False)),
                 connection=str(entry["connection"]) if entry.get("connection") else None,
+                owner=owner,
             )
         )
     return servers
@@ -156,6 +171,14 @@ def servers_for_runtime(
     from design_agent.tools.paper import SERVER, PaperConfigError, paper_server
 
     servers = declared_servers(project_root)
+    if runtime != "mda":
+        for server in servers:
+            if server.owner == "user":
+                _LOGGER.warning(
+                    "[mcp] %s left out: per-person connections need Managed Deep Agents",
+                    server.name,
+                )
+        servers = [server for server in servers if server.owner != "user"]
     if any(s.name == SERVER for s in servers):
         raise McpConfigError(
             f"config/mcp.toml declares `{SERVER}`; Paper is configured with PAPER_MODE instead"
@@ -246,7 +269,7 @@ def mda_declaration(servers: Sequence[McpServer]) -> Any:
             "timeout": server.timeout,
         }
         if server.connection is not None:
-            entry["connection"] = connections.get(server.connection, {"type": "agent"})
+            entry["connection"] = connections.get(server.connection, {"type": server.owner})
         if server.include_tools is not None:
             entry["include_tools"] = list(server.include_tools)
         declared[server.name] = entry

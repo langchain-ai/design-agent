@@ -50,7 +50,9 @@ sibling skill of ours, or send the change upstream.
 
 - **MCP servers:** copy `config/mcp.example.toml` to `config/mcp.toml` and declare servers. Locally,
   header values come from the environment (`headers_env`); on MDA a server that needs credentials
-  names a workspace connection (`connection`). MDA serves HTTP and SSE only. Paper is configured
+  names a workspace connection (`connection`), owned by the deployment or each person (`owner`).
+  The example file has presets for Notion, Linear, GitHub, Figma and others
+  ([integrations](../../../docs/integrations.md)). MDA serves HTTP and SSE only. Paper is configured
   with `PAPER_*`, not here ([Paper](../../../docs/partners/paper.md)).
 - **Media keys:** `OPENAI_API_KEY` (images), `ELEVENLABS_API_KEY` (voice, music, sound effects),
   `GROQ_API_KEY` (transcription).

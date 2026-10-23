@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Added
+
+- Integrations: `config/mcp.example.toml` has ready entries for the official MCP servers of
+  Notion, Linear, GitHub, Figma, Atlassian, Asana, Canva, Webflow and Box, and a server's
+  connection can belong to each person (`owner = "user"`), so MDA asks whoever has not connected
+  to sign in with a link and the agent then acts as them. `docs/integrations.md` sets each up.
+
 ### Changed
 
 - A plain `mda deploy` deploys the project, and `mda dev` runs it: vendored skills' binary files

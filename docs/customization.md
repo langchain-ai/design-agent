@@ -48,10 +48,12 @@ where people must not see each other's requests ([SECURITY.md](../SECURITY.md#tr
 
 ## MCP servers
 
-Copy `config/mcp.example.toml` to `config/mcp.toml` and declare servers there. Every runtime names
+[Integrations](integrations.md) sets up the hosted ones (Notion, Linear, GitHub, Figma and more) in
+a few commands. Copy `config/mcp.example.toml` to `config/mcp.toml` and declare servers there. Every runtime names
 their tools `{server}_{tool}`; the agent discovers them on demand, so many servers do not crowd its
 context. Locally, header values come from your environment (`headers_env`); on MDA a server that
-needs credentials names a workspace connection (`connection`). A local app's own server can run
+needs credentials names a workspace connection (`connection`), owned by the deployment or by each
+person (`owner`). A local app's own server can run
 over stdio (`transport = "stdio"` with a `command`) locally and self-hosted; MDA serves HTTP and SSE
 only and leaves it out. A server that fails to load or errors leaves the rest working. Paper is
 configured with `PAPER_*` instead ([Paper](partners/paper.md)), so do not declare a `paper` server.

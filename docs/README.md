@@ -12,6 +12,7 @@ which one fits.
 | [CLI](cli.md) | every `design-agent` command |
 | [Models](models.md) | providers, the LangSmith Gateway, roles, effort, cost |
 | [Customization](customization.md) | brand packs, instructions, runtime skills, learning, MCP servers |
+| [Integrations](integrations.md) | Notion, Linear, GitHub, Figma and other MCP servers, per person or shared |
 | [Paper](partners/paper.md) | the shared canvas: local, bridged and off |
 | [HyperFrames](partners/hyperframes.md) | the video engine and its vendored skills |
 
