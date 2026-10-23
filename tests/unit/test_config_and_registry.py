@@ -159,3 +159,16 @@ def test_brand_path_falls_back_to_the_sample_brand(tmp_path) -> None:  # type: i
     (tmp_path / "workspace/brand").mkdir(parents=True)
     (tmp_path / "workspace/brand/brand.toml").write_text("name = 'x'\n")
     assert settings().resolved_brand_path(tmp_path) == tmp_path / "workspace/brand"
+
+
+@pytest.mark.parametrize("name", ["Design Agent", "Design Agent Test", "design-agent_2.0", "A"])
+def test_a_slack_name_mda_accepts_is_accepted(name: str) -> None:
+    assert settings(slack_name=name).slack_name == name
+
+
+@pytest.mark.parametrize(
+    "name", ["Design Agent (test)", " Design Agent", "Design Agent-", "Design!"]
+)
+def test_a_slack_name_mda_would_reject_fails_before_the_deploy(name: str) -> None:
+    with pytest.raises(ValueError, match="slack_name"):
+        settings(slack_name=name)

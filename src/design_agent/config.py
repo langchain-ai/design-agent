@@ -171,7 +171,12 @@ class Settings(BaseSettings):
     """For models without native tool search: MCP tools a selector may expose per call."""
 
     # MDA Slack appearance
-    slack_name: str = Field(default="Design Agent", max_length=35)
+    # MDA's own rule for a Slack app name; checked here so a bad name fails before a deploy does.
+    slack_name: str = Field(
+        default="Design Agent",
+        max_length=35,
+        pattern=r"^[A-Za-z0-9_.](?:[A-Za-z0-9 _.\-]*[A-Za-z0-9_.])?$",
+    )
     slack_description: str = Field(
         default="On-brand design and motion from a chat thread.", max_length=139
     )
