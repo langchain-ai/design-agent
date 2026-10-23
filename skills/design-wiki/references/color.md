@@ -18,6 +18,27 @@ use the palette well.
 - **Gradients belong to light, not decoration**: a light falling across a ground, a pool, a limb. A
   two-colour fill used to make a frame look busy is decoration. Default to weigh.
 
+## Depth and surfaces
+
+- **Build a ladder per mode.** From the pack's colours, list the ground, a raised surface, text,
+  secondary text, connectors and hairlines for each mode, with their measured contrast; the sample
+  brand's `graphic-language.md` has one. Raise contrast by stepping down the ladder, not by jumping
+  to the accent: an accent-coloured border is a second accent. Default to weigh.
+- **Elevation flips between modes.** On a dark ground a raised surface is lighter than the ground.
+  On a light ground with no lighter colour left (pure white banned, or already used), the shell goes
+  darker and the cards inside it return to the ground's tone. Default to weigh.
+- **Text, data marks and chrome take separate tokens.** Secondary text is not the border colour, and
+  a chart's axis or line needs more contrast than the card edge beside it. Default to weigh.
+- **A dashed border loses weight against a solid one.** A faint dashed boundary disappears; give a
+  dash a step more contrast than a solid line, and measure borders against their ground (3:1 for
+  one that carries meaning). Default to weigh.
+- **A line graphic behind copy gets a ground-colour fade** that is strongest behind the words, so the
+  text reads without boxing it. A highlight chip on a dark ground is a low-opacity tint of the
+  accent with light text, not a bright fill. Default to weigh.
+- **An "off-palette" fill in a supplied source is often a token at low opacity.** Before declaring
+  an exception, solve `alpha = (sampled - ground) / (token - ground)` per channel; if the three agree,
+  the source used the token over the ground, and `rgba()` of the token reproduces it exactly.
+
 ## One accent, carrying meaning
 
 - **One accent element per frame.** The accent marks the single thing that matters most: the key

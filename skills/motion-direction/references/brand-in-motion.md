@@ -18,6 +18,9 @@ Taste, a reference and a default never override these.
 - **The brand's faces**, loaded locally through `@font-face` from the pack's `fonts.toml` and checked
   by the renderer; never a fallback face in a final.
 - **No outlined or stroked type** to fake a weight the face lacks.
+- **Supplied artwork moves only by its own layers.** A flat PNG, or an SVG that wraps a raster, is
+  not ready to animate: ask for the layered file (isolated parts with their bounds and anchors),
+  and never fake a moving part (an eye, a leaf, a limb) by cropping a guess out of the flat image.
 - **Colours from the tokens**, or declared with their source in the film's `STYLE.md` when a
   recreation samples a reference (and mapped to the nearest token wherever the brand's own work is
   concerned). `brand-lint` checks the compositions.

@@ -46,6 +46,19 @@ The question decides the form, not the data's shape:
   straight; return paths are clean computed curves; one arrowhead style per figure; no connector
   crosses text. The brand pack's `diagramConstruction` sets the stroke and arrowhead rules and
   `brand-lint` checks them (`diagram.*`).
+- **Connectors, drawn.** The stroke comes from the pack's stroke token, set in CSS
+  (`.connector { stroke-width: var(--brand-stroke) }`): a custom property in an SVG presentation
+  attribute is ignored and draws a 1 px line. Each connector is one continuous path; every
+  arrowhead references one shared `<marker>`, about 4-5 strokes long and close to equilateral, and
+  appears only where the flow has a direction. A connector ends exactly on the middle of its node's
+  edge (no gap, not the node's centre), continues through a container to the real target, and sits
+  in a layer above the cards it joins.
+- **Connectors are quieter than the words they join**: a lower-contrast token than the text, so the
+  labels lead. When rebuilding a source, match its weights first; a rebuild that reads "messier"
+  than the original almost always has heavier strokes.
+- **Crisp lines.** An odd-width stroke centred on a whole pixel blurs across two; centre it on a half
+  pixel along the axis that crosses the line (`y` on a horizontal run, `x` on a vertical one), and
+  an even-width stroke on a whole one.
 - **Hierarchy in a diagram** is position and weight before colour: the main path is the straight,
   heavier one; side paths are lighter. The accent marks the one step that matters.
 - **Direction is reading direction.** Flows run left to right or top to bottom for left-to-right

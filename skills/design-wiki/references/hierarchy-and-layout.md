@@ -21,6 +21,17 @@ it is a checkable rule or a default to weigh.
 - **Use the brand's grid.** The pack's spacing unit (`--brand-space-unit`) and margins
   (`graphic-language.md`) set the grid; positions and sizes are multiples of it. Fractional box
   lengths snap unevenly to device pixels (`brand-lint` warns on `grid.fractional`).
+- **Spacing encodes grouping.** Gaps grow with the level of grouping (within a line < between lines
+  < between blocks < between zones, roughly doubling at a zone boundary), stay equal among peers,
+  and never invert. Measure gaps between the ink, not the boxes: a large line box carries slack
+  below its descenders. Default to weigh.
+- **One spacing scale.** Padding and gaps come from the pack's unit and its multiples; peers share a
+  value, and padding is symmetric unless the design says otherwise. An off-scale value usually
+  means the structure is wrong, not that the number needs nudging. Default to weigh.
+- **Margins on all four sides.** Every frame and page keeps real outer margins, bottom included,
+  and nothing clips at the edge unless the piece is meant to bleed. Default to weigh.
+- **A box that cannot grow takes its room from gaps, not leading.** Tightening line-height to fit a
+  capped card undoes the reading comfort the leading was there for. Default to weigh.
 - **One alignment system per frame.** Pick left-aligned or centred and hold it; mixed alignment reads
   as accident. Text aligns left unless the format centres it (a poster, an end card). Default to weigh.
 - **Equal outer margins across a set.** A carousel, a deck or a size set holds the same margins, so

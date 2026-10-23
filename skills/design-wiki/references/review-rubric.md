@@ -62,6 +62,8 @@ Then name the strengths the next pass must protect, so a fix does not break what
 | Template sameness | Six slides that are one layout recoloured | Vary the spatial idea; keep the system |
 | Lost on a phone | Proof text that is 7 px on a 360 px screen | Fewer words, larger type, a narrower canvas |
 | Unofficial logo | A typeset stand-in or recoloured mark | The real file from the pack, at its minimum size or larger |
+| Generic software look | Mono on prose, all-caps mono eyebrows, bold display type, everything centred, floating columns with no container, glows | Same elements and copy: retreat mono to literal values, set labels in the text face, the display weight the pack names, one alignment, real containers, no effects. Name the diagnosis in one line |
+| Faked weight | A light face stroked or outlined to look heavier | A real weight of the face, or more size |
 | Self-review | "It's fine" from the maker | An independent look with fresh evidence |
 
 ## Writing the review

@@ -15,6 +15,15 @@ them. Each rule names its evidence or is marked as a default to weigh.
 A frame uses two families at most (display and text), plus mono where something is literally code
 or data. Default to weigh; the pack can say otherwise.
 
+- **Labels are text, not mono.** An eyebrow, section label, field key or button is the text face in
+  sentence case; a step of weight or the secondary colour gives it hierarchy. All-caps mono
+  eyebrows are the most common generic-software tell. Default to weigh.
+- **Mono at its regular weight.** Heavier mono spaces unevenly at small sizes: narrow letters ("ll")
+  look loose and wide ones ("AMA") crammed, because every cell is the same width. Default to weigh.
+- **Energy from size, not weight.** A light display face stays light; emphasis comes from size,
+  position or the accent. Bold display type reads as a template default. Default to weigh; the
+  pack's weights decide.
+
 ## Sizes at the delivered size
 
 Type is sized for the smallest view the piece gets, not for the canvas you author on.
@@ -50,7 +59,10 @@ Type is sized for the smallest view the piece gets, not for the canvas you autho
   copy keeps its punctuation. Default to weigh.
 - **No decorative separators.** Middle dots, bullets and pipes between words are ornament; use space,
   a line break or real punctuation. Dots that mean something stay: decimals, versions, URLs, code.
-  (`brand-lint` rejects the decorative characters and marker classes the pack lists.)
+  (`brand-lint` rejects the decorative characters and marker classes the pack lists.) A separator
+  the person wrote in their copy stays, with one word space on each side, never padded into a gap.
+- **Copy handed over is the text; how a request is typed is not.** Copy given as the words for the
+  piece keeps its wording and casing; a lowercase chat message is not a casing instruction.
 - **Proper nouns and product names are exact**, including their own casing.
 - **Numbers are figures with units** ("3 hours", "40%") unless the pack's voice says otherwise.
 
@@ -59,7 +71,17 @@ Type is sized for the smallest view the piece gets, not for the canvas you autho
 - **No one-word last lines** (widows) in body copy or multi-line headlines: rewrap or rebalance.
   Default to weigh.
 - **No type effects**: no stroke, outline, shadow or glow on text, no justified text. Default to weigh;
-  most packs make it a rule.
+  most packs make it a rule. Never stroke a light face to fake a heavier weight the brand did not
+  ask for: reviewers read it as the wrong font. Use a real weight of the face, or more size.
+- **Letter-spacing and word-spacing are separate.** Tightening the tracking of a light face pulls
+  its words together too; hold the word spacing when you change the letter spacing, and never
+  track mono. Default to weigh.
+- **Figures.** Numbers that must line up or that count in motion need tabular figures
+  (`font-variant-numeric: tabular-nums`, if the face has them) or mono, or they jitter. Read
+  proportional figures at the delivered size: some faces open a gap after a narrow digit.
+- **A contrast note on text already at the palette's maximum is a legibility note.** The levers
+  are size (grow into the free width, judged at the phone view) and format (offer the vertical
+  version), not a brighter colour that does not exist.
 - **Align icons by their ink, not their box**: a glyph's optical centre is rarely its box centre.
   Default to weigh.
 - **Measure, don't estimate.** Fit text by measuring it after fonts load, never by counting characters:
