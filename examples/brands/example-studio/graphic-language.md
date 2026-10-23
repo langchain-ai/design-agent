@@ -96,6 +96,10 @@ Starting sizes at delivery size, to adjust by eye on the render:
 | Thumbnail | 1280 × 720 | 120-180 px, five words at most | none |
 | Email banner | 1200 × 600 | 64-88 px | 24-28 px |
 | Story | 1080 × 1920 | 110-160 px | 36-44 px |
+| Diagram, as a post or slide | the post or slide size | node labels 32-44 px | edge labels 24 px or more |
+
+A diagram fills its frame inside the margins; when its labels come out under these sizes, cut
+nodes or words, or turn it into a portrait or a sequence, rather than shrinking the type.
 
 ## Construction
 
@@ -126,10 +130,12 @@ Motion is calm and exact; the viewer should feel things settle into place.
   It never fades, pulses or glows. One light per shot, meaning the same thing in every shot.
 - **The signature move**, for an opening or an end card: the frame draws, the horizon crosses it,
   the light switches on, then everything holds. Frame 0 is the poster a player shows before it
-  plays, so the move starts part-drawn (the frame's first side and the ground already on screen),
-  never on an empty ground.
-- **The end card** assembles the mark the same way (frame, horizon, light, then the wordmark), from
-  the real SVG paths, and holds 1-1.5 s on a reel or 2.5 s on a longer film.
+  plays, so the move starts part-drawn (the frame's first side already on screen) and continues
+  from exactly that state: nothing visible at frame 0 disappears or redraws later.
+- **The end card and a logo sting** assemble the mark the same way (frame, horizon, light, then the
+  wordmark), from the real SVG paths. The mark is the subject: about a third of the frame's width,
+  centred while it builds, moving aside only when the wordmark joins. Hold 1-1.5 s on a reel or
+  2.5 s on a longer film.
 - **Allowed in film, declared in `STYLE.md`:** one change of mode at the turn (paper to ink or back);
   a soft falloff of light from the lit element on an ink ground; cards up to 12 px radius, as in
   stills. Not allowed: flash frames, bloom, particles, grain, chromatic fringing, a starfield, or
