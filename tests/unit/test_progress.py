@@ -19,7 +19,15 @@ from design_agent.middleware.progress import HelperProgressMiddleware, ThreadPro
 from design_agent.surfaces.slack import stream as stream_module
 from design_agent.surfaces.slack.phrasebook import services
 from design_agent.surfaces.slack.target import SlackSurface
-from design_agent.testing.fake_slack import BOT, PERSON, TEAM, THREAD_TS, FakeResolver, FakeSlack
+from design_agent.testing.fake_slack import (
+    BOT,
+    PERSON,
+    TEAM,
+    THREAD_TS,
+    FakeResolver,
+    FakeSlack,
+    slack_target,
+)
 
 RUNTIME = SimpleNamespace(config={"configurable": {"thread_id": "t-lead"}})
 ANSWERED = {"messages": [HumanMessage("make it blue"), AIMessage(content="Here it is.")]}
@@ -239,12 +247,61 @@ async def test_without_streaming_the_cards_go_in_one_updated_message() -> None:
     first, second = list(fake.posted.values())
     body = json.dumps(first.blocks)
     assert "*Done*" in body
-    assert (
-        ":white_check_mark: Put a helper on it" in body
-        and ":white_check_mark: Generated the image" in body
-    )
+    # A closed message folds its steps away, as the native stream does.
+    assert "Put a helper on it" not in body and ":heavy_check_mark:" not in body
     assert "in_progress" not in body and ":hourglass" not in body
     assert first.text == "Done" and not first.deleted and second.text == "Done"
+
+
+async def test_a_message_without_a_team_streams_to_the_tokens_own_workspace() -> None:
+    """Some events carry no team (a file upload), and Slack refuses a channel stream without one:
+    the stream names the token's own workspace instead of falling back."""
+    fake = FakeSlack()
+    surface = SlackSurface(FakeResolver(fake, slack_target(team_id="")))
+    middleware = ThreadProgressMiddleware(surface, servers=services(["paper"]))
+
+    await middleware.abefore_agent({}, RUNTIME)
+    await middleware.awrap_tool_call(call("start_task"), ran)
+    await middleware.aafter_agent(ANSWERED, RUNTIME)
+
+    (opened,) = [fields for method, fields in fake.calls if method == "chat.startStream"]
+    assert (opened["recipient_user_id"], opened["recipient_team_id"]) == (PERSON, TEAM)
+    assert "chat.postMessage" not in fake.methods()
+
+
+async def test_a_refusal_about_one_message_leaves_streaming_on_for_the_next() -> None:
+    """`missing_recipient_team_id` is about that message's fields, not the workspace: one
+    refusal must not turn every later card in the process into the fallback."""
+    fake = FakeSlack(refuse={"chat.startStream": "missing_recipient_team_id"})
+    middleware = lead(fake)
+
+    await middleware.abefore_agent({}, RUNTIME)
+    await middleware.awrap_tool_call(call("start_task"), ran)
+    await middleware.aafter_agent(ANSWERED, RUNTIME)
+    fake.refuse.clear()
+    await middleware.abefore_agent({}, RUNTIME)
+    await middleware.awrap_tool_call(call("generate_image", call_id="c2"), ran)
+    await middleware.aafter_agent(ANSWERED, RUNTIME)
+
+    assert fake.methods().count("chat.startStream") == 2
+    assert fake.methods()[-1] == "chat.stopStream"
+
+
+async def test_the_fallback_merges_repeats_and_shows_only_the_latest_steps() -> None:
+    fake = FakeSlack(refuse={"chat.startStream": "unknown_method"})
+    progress = stream_module.SlackProgress(fake.client(), slack_target(), min_update=0.0)
+    titles = ["Read the brief", *["Read an image"] * 3, "Ran a script", "Shot stills", "Fonts"]
+    for i, title in enumerate(titles):
+        await progress.step(stream_module.card(f"c{i}", title, "complete"))
+
+    (message,) = fake.posted.values()
+    working = json.dumps(message.blocks, ensure_ascii=False)
+    assert "… 1 earlier step" in working and "Read the brief" not in working
+    assert "Read an image ×3" in working and "Fonts" in working
+
+    await progress.close("Done")
+    closed = json.dumps(message.blocks, ensure_ascii=False)
+    assert "*Done*" in closed and "Read an image" not in closed
 
 
 async def test_a_run_with_no_slack_thread_says_nothing() -> None:

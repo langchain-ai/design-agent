@@ -53,8 +53,13 @@ HEARTBEAT_LIFETIME = 3 * 3600.0
 MIN_UPDATE_SECONDS = 1.5
 #: Refusals no fallback can fix: the stream goes dark instead.
 _FINAL = AUTH_ERRORS | {"ratelimited", "channel_not_found", "not_in_channel", "is_archived"}
+#: Refusals about one message's fields (`missing_recipient_team_id`), not the workspace: that
+#: message falls back, and the next one streams again.
+_PER_MESSAGE = ("missing_", "invalid_")
+#: Steps a fallback message shows while it works; the native stream folds the rest away.
+FALLBACK_STEPS = 4
 _GLYPHS = {
-    "complete": ":white_check_mark:",
+    "complete": ":heavy_check_mark:",
     "in_progress": ":hourglass_flowing_sand:",
     "error": ":x:",
     "pending": ":white_circle:",
@@ -147,6 +152,7 @@ class SlackProgress:
         self._ts = ""
         self._streaming = False
         self._dead = False
+        self._closed = False
         self._header = ""
         self._lock = asyncio.Lock()
         self._last = time.monotonic()
@@ -223,18 +229,14 @@ class SlackProgress:
                 "task_display_mode": "plan",
                 "chunks": chunks,
             }
-            if self._target.user_id and self._target.team_id:
-                # Slack refuses a stream in a channel that names no recipient.
-                fields |= {
-                    "recipient_user_id": self._target.user_id,
-                    "recipient_team_id": self._target.team_id,
-                }
+            fields |= await self._recipient()
             try:
                 opened = await self._client.call("chat.startStream", fields)
             except SlackError as error:
                 if error.code in _FINAL:
                     raise
-                _UNSTREAMABLE.add(self._client)
+                if not error.code.startswith(_PER_MESSAGE):
+                    _UNSTREAMABLE.add(self._client)
                 _LOGGER.info(
                     "[progress] streaming refused (%s); one updated message instead", error.code
                 )
@@ -256,6 +258,15 @@ class SlackProgress:
         self._channel = str(posted.get("channel") or self._channel)
         self._drawn, self._drawn_at = text + str(blocks), time.monotonic()
         self._dead = not self._ts
+
+    async def _recipient(self) -> dict[str, str]:
+        """Who the stream is shown to. Slack refuses a stream in a channel without both halves,
+        and some events carry no team (a file upload): those take the token's own workspace."""
+        user, team = self._target.user_id, self._target.team_id
+        if user and not team:
+            with contextlib.suppress(SlackError):
+                team = (await self._client.identity()).team_id
+        return {"recipient_user_id": user, "recipient_team_id": team} if user and team else {}
 
     async def _append(self, chunks: list[Card]) -> None:
         await self._client.call(
@@ -283,14 +294,33 @@ class SlackProgress:
                 self._items.append(("text", str(chunk.get("text") or "")))
 
     def _render(self) -> tuple[str, list[dict[str, object]]]:
-        lines = []
+        """The fallback message: the header, narration, and the latest few steps while working.
+
+        Repeats of a step merge into one line ("Read an image ×3"). A closed message keeps only
+        the header and narration, as the native stream folds its steps away.
+        """
+        # (kind, text or title, status, repeats)
+        entries: list[tuple[str, str, str, int]] = []
         for kind, value in self._items:
-            if kind == "card":
-                title, status = self._cards[value]
-                lines.append(f"{_GLYPHS.get(status, _GLYPHS['pending'])} {_escape(title)}")
+            if kind == "text":
+                entries.append(("text", value.strip(), "", 0))
+                continue
+            title, status = self._cards[value]
+            if entries and entries[-1][:3] == ("card", title, status):
+                entries[-1] = ("card", title, status, entries[-1][3] + 1)
             else:
-                lines.append(value.strip())
-        body, dropped = "\n".join(lines), 0
+                entries.append(("card", title, status, 1))
+        steps = [i for i, entry in enumerate(entries) if entry[0] == "card"]
+        hidden = set(steps if self._closed else steps[:-FALLBACK_STEPS])
+        earlier = f"… {len(hidden)} earlier step{'s' if len(hidden) > 1 else ''}"
+        lines = [earlier] if hidden and not self._closed else []
+        for i, (kind, text, status, repeats) in enumerate(entries):
+            if kind == "text":
+                lines.append(text)
+            elif i not in hidden:
+                glyph = _GLYPHS.get(status, _GLYPHS["pending"])
+                lines.append(f"{glyph} {_escape(text)}{f' ×{repeats}' if repeats > 1 else ''}")
+        body, dropped = "\n".join(line for line in lines if line), 0
         while len(body) > SECTION_LIMIT and len(lines) > 1:
             lines.pop(0)
             dropped += 1
@@ -402,6 +432,7 @@ class SlackProgress:
                         await self._client.call("chat.stopStream", where)
                     else:
                         self._header = header or self._header
+                        self._closed = True
                         await self._draw(now=True)
             if delete and self._ts:
                 with contextlib.suppress(SlackError):
