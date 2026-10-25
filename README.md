@@ -56,22 +56,32 @@ delivers.
 
 <p align="center"><sub>How we run it at LangChain. Your copy starts with the integrations you turn on (<a href="docs/integrations.md">Integrations</a>).</sub></p>
 
-- **Slack.** Mention it in a thread with whatever you have, and the finished files come back to that
-  thread. It shows its progress step by step and takes your notes mid-job.
-- **A computer per thread.** Every thread gets its own Linux sandbox with Chrome, FFmpeg,
-  [HyperFrames](https://hyperframes.heygen.com), D2 and your fonts. The project stays there between
-  messages, so a change is a quick edit, not a restart. API keys never enter it.
-- **Skills and a design wiki.** 35 skills teach it each kind of job, from a resized ad to a launch
-  film, and the wiki holds what good work looks like. They load only when a job needs them.
-- **Your tools.** HyperFrames for video, [Paper](https://paper.design) as a canvas you edit
-  together, image and voice models, and MCP servers like Notion, Linear and Figma, signed in as the
-  person asking.
-- **Async subagents.** On a big job the main agent acts as a chief of staff: it splits the work,
-  hands the parts to subagents running in parallel, and stays free to talk while they build.
-- **Memory.** Tell it a rule once. Team rules go to memory everyone shares; personal preferences go
-  to your own.
-- **It gets better.** After each job it writes down what worked against the skill it used. Later
-  jobs rate those notes, and the bad ones are dropped.
+- **Slack.** Mention it in a thread with a brief and any files. MDA's Slack app hands the message
+  and attachments to the agent, and the finished files come back to the same thread. While it
+  works, one message updates step by step, a footer shows what's running and the cost so far, and
+  anything you add mid-job reaches the work in progress.
+- **A computer per thread.** Each thread gets its own LangSmith sandbox: a Linux machine with
+  Chrome, FFmpeg, [HyperFrames](https://hyperframes.heygen.com), D2 and your fonts, built from one
+  pinned recipe ([`sandbox/setup.sh`](sandbox/)). Everything it makes is code in a project folder
+  there (a slide is HTML, a film is an animation timeline), so a change is an edit and a re-render,
+  not a restart. API keys never enter it.
+- **Skills and a design wiki.** The always-on prompt is small. For each ask it first reads a router
+  skill that picks the right workflow, from a resized ad to a launch film, out of 35
+  [skills](skills/). The wiki holds the craft (type, colour, layout, charts) and your brand pack
+  holds the facts. Skills load only when a job needs them, served by MDA from Context Hub.
+- **Your tools.** Video is built in HyperFrames, which treats a film as a web page on a timeline.
+  [Paper](https://paper.design) is a shared canvas where you edit a storyboard or layout directly.
+  Image, voice and music models run as tools outside the sandbox, and MCP servers like Notion,
+  Linear, GitHub and Figma connect through MDA, with each person signed in as themselves.
+- **Async subagents.** On a big job the main agent plans, splits the work and starts subagents in
+  the background on the same sandbox and files. MDA wakes it when one finishes, fails or stalls, so
+  it never sits waiting and can keep talking to you. Films go storyboard, animatic, then
+  production, and code makes every part pass review before assembly.
+- **Memory.** Tell it a rule once ("never use orange on LinkedIn") and it saves it that turn. MDA
+  gives it two layers of files: team memory everyone shares and personal memory for each person,
+  and each layer's index loads into every run.
+- **It gets better.** After a job, `learn_from_job` writes notes on what worked against the skill
+  it used. Later jobs read and rate those notes, and the ones that don't hold up are dropped.
 
 ### Watch it explain itself
 
