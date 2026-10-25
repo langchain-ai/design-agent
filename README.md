@@ -43,9 +43,10 @@ LAUNCH_FILM_URL
 
 Content Studio runs on a **media harness**: what a designer has, rebuilt for an agent.
 [Deep Agents](https://github.com/langchain-ai/deepagents) supplies the agent loop, planning, files and
-subagents, and [Managed Deep Agents](https://docs.langchain.com/langsmith/python/managed-deep-agents-overview?utm_source=github&utm_medium=readme&utm_campaign=design-agent)
-runs it in production. The model makes the creative calls; code renders, checks, delivers files
-and holds your keys.
+subagents.
+[Managed Deep Agents](https://docs.langchain.com/langsmith/python/managed-deep-agents-overview?utm_source=github&utm_medium=readme&utm_campaign=design-agent)
+runs it in production, and this repo adds the design layer on top. The model makes the creative
+calls; code renders, checks, delivers files and holds your keys.
 
 <p align="center">
   <picture>
@@ -56,18 +57,16 @@ and holds your keys.
 
 <p align="center"><sub>How we run it at LangChain. Your copy starts with the integrations you turn on (<a href="docs/integrations.md">Integrations</a>).</sub></p>
 
-- **Designer's computer.** Each Slack thread gets its own Linux sandbox with Chrome, FFmpeg,
-  [HyperFrames](https://hyperframes.heygen.com) and D2. Everything it makes is code (a slide is
-  HTML, a film is an animation timeline), so a change is one edit and a re-render. Keys stay
-  outside, in host tools.
-- **Designer's brain.** [Skills](skills/) say how to do each kind of job, and a router skill picks
-  the right one. The wiki holds what good work looks like.
-- **Spec-driven design.** Big work goes storyboard, then animatic, then production, and you approve
-  each step. In production, a pipeline makes every part pass review before assembly.
-- **A chief of staff.** The main agent splits a job into parts for async subagents, then stays in
-  the thread, posting progress and taking your notes while they build.
-- **Self-improving.** After a job, `learn_from_job` files notes against the skills it used, and
-  later jobs rate them.
+| Layer | Managed Deep Agents gives you | This repo adds |
+| --- | --- | --- |
+| **Slack**<br>Ask in a thread, get files back there | The Slack app, attachments into the sandbox, files back to the thread | Live progress for each step, a footer with what's running and its cost, notes folded into running work |
+| **Designer's computer**<br>A Linux machine per thread | A LangSmith sandbox per thread, cloned from your snapshot, files kept between turns | The recipe: Chrome, FFmpeg, HyperFrames, D2 and your fonts, pinned and tested. Keys stay outside |
+| **Designer's brain**<br>Know-how loaded only when needed | Skills synced to Context Hub, mounted read-only, loaded on demand | 35 skills, a router skill that picks one, a design wiki, and your brand pack checked in code |
+| **Tools**<br>Works with what your team uses | MCP servers through connections, signed in as each person or one shared account | Presets for Notion, Linear, GitHub, Figma and more; HyperFrames for video; [Paper](https://paper.design) as a shared canvas; image, voice and music tools |
+| **Async subagents**<br>Long jobs run, the thread stays open | Subagents, durable runs, and schedules that wake the agent | A chief-of-staff lead with `start_task`, `check_tasks`, `steer_task` and `resume_task`; render watchers; pipelines that enforce review |
+| **Memory**<br>Say a rule once | Team memory and per-person memory as files, loaded into every run | Off until you add `memory.py` |
+| **Self-improvement**<br>Better with every job | A durable store and a trace for every run | `learn_from_job` files notes against the skills a job used; later jobs rate them, and weak ones are dropped |
+| **Shipping it**<br>One command to your team | `mda deploy`, tracing in LangSmith | Evals built from real requests, cost per job, `design-agent doctor` |
 
 ### Watch it explain itself
 
