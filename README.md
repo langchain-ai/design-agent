@@ -37,12 +37,6 @@ LAUNCH_FILM_URL
 
 <p align="center"><sub>Content Studio made its own launch film: from a 1-bit chick to champion in 50 seconds.</sub></p>
 
-<p align="center">
-  <img src="docs/assets/readme/shipped-wall.png" alt="Shipped with Content Studio: article covers, talk decks, thumbnails, comparison graphics, a livestream promo and a short, with the views each post drew" width="100%">
-</p>
-
-<p align="center"><sub>Some of what it shipped for us between August and October, with the views each post drew.</sub></p>
-
 ## How it works
 
 The model makes the creative calls. Code does everything that has to be exactly right: rendering,
