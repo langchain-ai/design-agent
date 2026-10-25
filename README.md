@@ -37,7 +37,7 @@ We asked Content Studio for its own launch film. It went full Rocky.
 
 LAUNCH_FILM_URL
 
-<p align="center"><sub>From a 1-bit chick to champion in 50 seconds.</sub></p>
+<p align="center"><sub>From a 1-bit chick to champion in 47 seconds.</sub></p>
 
 ## How it works
 
@@ -85,10 +85,10 @@ delivers.
 
 ### Watch it explain itself
 
-We asked it to explain its own harness as a nature documentary. The same parrot walks through the
-computer, the tools and the context behind its work.
+We asked it to explain its own harness as a nature documentary, starring a pixel parrot. It walks
+through the computer, the tools and the context behind its work.
 
-EXPLAINER_FILM_URL
+https://github.com/user-attachments/assets/0664d09d-2ab2-41fd-b2ba-f91c96121e20
 
 <p align="center"><sub>Storyboarded, built and narrated by the agent, in one Slack thread.</sub></p>
 
