@@ -121,6 +121,11 @@ follow-ups while a job runs ([surfaces](architecture/surfaces.md)).
   one status line ("Still working: act 2 (12 min).") rather than nothing.
 - **Housekeeping.** `schedules/housekeeping.py` runs every 15 minutes, sweeps what a restart killed
   and tidies expired schedules, with no model call.
+- **Memory.** `memory.py` turns on two layers. `/memories/agent/` is the team's: anyone who
+  mentions the agent can add a rule to it, so it never holds private data. `/memories/user/`
+  belongs to the person asking and follows them anywhere in Slack; MDA mounts it only when a
+  verified person is behind the run. Each layer's `AGENTS.md` loads on every turn. To keep personal
+  memory to DMs (MDA's default), drop the `allow` policy; to turn memory off, delete the file.
 - **MCP servers** come from `config/mcp.toml` through `tools/mcp.py`. A server that needs
   credentials names an agent-owned workspace connection (`connection = "slug"`); header values are
   never compiled into the deployment.

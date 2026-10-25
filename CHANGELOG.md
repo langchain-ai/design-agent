@@ -4,6 +4,10 @@
 
 ### Added
 
+- Memory on Managed Deep Agents (`memory.py`): a team layer every caller shares and a personal
+  layer for each person, mounted anywhere in Slack rather than only in their DM. The agent saves a
+  rule the turn someone states it; a team rule beats a personal one and the brand pack beats both.
+  Locally and self-hosted there are no memory layers.
 - Integrations: `config/mcp.example.toml` has ready entries for the official MCP servers of
   Notion, Linear, GitHub, Figma, Atlassian, Asana, Canva, Webflow and Box, and a server's
   connection can belong to each person (`owner = "user"`), so MDA asks whoever has not connected

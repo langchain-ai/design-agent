@@ -75,7 +75,7 @@ behind them.
   third-party footage, frames or contact sheets.
 - `private-fonts/`: operator-supplied licensed fonts. Git-ignored; reach the sandbox only as
   MDA deployment files or self-host mounts.
-- `agent.py`, `identity.py`, `channels/`, `schedules/`, `sandbox/`, `tools/mcp.py`: MDA project
+- `agent.py`, `identity.py`, `memory.py`, `channels/`, `schedules/`, `sandbox/`, `tools/mcp.py`: MDA project
   declarations. Keep them thin.
 - `src/design_agent/assembly.py`: the shared model, tools, middleware, subagents and policy.
 - `src/design_agent/harness/`: orchestration (background helpers, wake-ups, check-ins, durable

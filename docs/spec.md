@@ -417,12 +417,12 @@ duplicates merge; a note whose harm votes lead by two is dropped. Observations a
 weighs, never rules. Brand rules are forever; model rules last until the next model. Optional, on by
 default when a store exists.
 
-### 7.13 Memory (optional, off by default)
+### 7.13 Memory (on for MDA)
 
-MDA native memory (`define_memory(agent=MemoryLayer(), user=MemoryLayer())`) is opt-in. When enabled:
-every lesson has one owner (craft → a skill, a fact → a check, a person's taste → their own layer);
-the hot file is an index capped in code at 200 lines / 12k chars; writes to a person's files must read
-first; the user layer is private to that person and never quoted into shared threads. Memory is not a
+`memory.py` declares MDA native memory: a team layer for every caller and a personal layer per person,
+mounted anywhere in Slack (MDA's default is the person's DM only). Every lesson has one owner (craft →
+a skill, a fact → a check, a team rule → the team layer, a person's taste → their own layer); the hot
+file is kept a short index by instruction; writes to a person's files must read first; the user layer is private to that person and never quoted into shared threads. Memory is not a
 primary value driver for design work; observations (§7.12) carry most of the learning.
 
 ## 8. The designer's computer
@@ -476,7 +476,7 @@ Rules:
   fonts/              open fonts plus the operator's licensed fonts
   references/         the user's reference films and teardowns (when provided)
   .renders/           detached render logs and exit files
-/memories/            optional MDA memory layers
+/memories/            MDA memory layers: agent/ (team), user/ (the person asking)
 ```
 
 `projects/<slug>/` lives with the thread's sandbox: files survive an idle stop; running processes do
@@ -759,7 +759,7 @@ same capabilities and produces the same files. Presentation and timing may diffe
   model key. Regions: GCP US (default), GCP EU, GCP APAC, AWS US via `LANGSMITH_ENDPOINT`.
 - Project layout follows MDA conventions: root `agent.py` (named `agent` export), `instructions.md`,
   `identity.py`, `channels/slack.py`, `schedules/housekeeping.py`, `sandbox/__init__.py` +
-  `sandbox/setup.sh`, optional `memory.py`, optional `tools/mcp.py`, `skills/<name>/SKILL.md`,
+  `sandbox/setup.sh`, `memory.py`, optional `tools/mcp.py`, `skills/<name>/SKILL.md`,
   `[tool.mda] python-version` in `pyproject.toml`. Do not author `langgraph.json`.
 - `uv run mda deploy` on the project as it is, after `doctor` (brand pack, fonts, manifest, `.env`
   review — MDA forwards every non-reserved `.env` key as a deployment secret and archives ordinary
@@ -810,7 +810,7 @@ LangSmith-free path, following the Paid Media Agent.
 ### 18.1 Layout (target)
 
 ```text
-agent.py · identity.py · instructions.md · memory.py.example
+agent.py · identity.py · instructions.md · memory.py
 channels/slack.py · schedules/housekeeping.py · sandbox/{__init__.py,setup.sh,Dockerfile,README.md}
 skills/<name>/                     runtime skills, ours and vendored (one level; see §10)
 src/design_agent/

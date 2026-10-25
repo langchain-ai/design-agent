@@ -89,8 +89,8 @@ keep the keys, and drop their results in as files:
 
 | | Managed Deep Agents | Self-hosted |
 | --- | --- | --- |
-| Agent | `agent.py` (`define_deep_agent`), `identity.py`, `tools/mcp.py` | the same assembly in a FastAPI app |
-| Threads and memory | LangSmith | Postgres checkpointer and store |
+| Agent | `agent.py` (`define_deep_agent`), `identity.py`, `memory.py`, `tools/mcp.py` | the same assembly in a FastAPI app |
+| Threads and memory | LangSmith; team and per-person memory layers (`memory.py`) | Postgres checkpointer and store; no memory layers |
 | Sandboxes | LangSmith sandboxes from your snapshot (`sandbox/__init__.py`) | containers on your Docker host |
 | Slack | managed app (`channels/slack.py`) | your Bolt app, Socket Mode or signed HTTP |
 | Wake-ups and housekeeping | runtime schedules; `schedules/housekeeping.py` every 15 minutes | in-process waker and maintenance loop |
