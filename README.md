@@ -41,13 +41,11 @@ LAUNCH_FILM_URL
 
 ## How it works
 
-Content Studio is a [Deep Agents](https://github.com/langchain-ai/deepagents) agent: a lead agent per
-Slack thread, helper subagents that work in the background, skills it loads on demand, and a Linux
-sandbox per thread to build and render in. The model makes the creative calls. Code does
-everything that has to be exactly right: rendering, measuring, checking, delivering files and
-holding your keys. One assembly ([`assembly.py`](src/design_agent/assembly.py)) runs on
-[Managed Deep Agents](https://docs.langchain.com/langsmith/python/managed-deep-agents-overview?utm_source=github&utm_medium=readme&utm_campaign=design-agent),
-self-hosted, from the CLI and in Slack.
+Content Studio runs on a **media harness**: what a designer has, rebuilt for an agent.
+[Deep Agents](https://github.com/langchain-ai/deepagents) supplies the agent loop, planning, files and
+subagents, and [Managed Deep Agents](https://docs.langchain.com/langsmith/python/managed-deep-agents-overview?utm_source=github&utm_medium=readme&utm_campaign=design-agent)
+runs it in production. The model makes the creative calls; code renders, checks, delivers files
+and holds your keys.
 
 <p align="center">
   <picture>
@@ -58,54 +56,23 @@ self-hosted, from the CLI and in Slack.
 
 <p align="center"><sub>How we run it at LangChain. Your copy starts with the integrations you turn on (<a href="docs/integrations.md">Integrations</a>).</sub></p>
 
-- **A request's path.** A Slack mention starts a turn for the thread's lead. Skill scripts, the
-  checks, your brand pack and fonts are staged into the thread's sandbox against a sha256 manifest.
-  The lead plans in the thread's project folder, builds and renders, looks at its own output with a
-  vision `look` tool, runs the checks, and posts finals with `upload_files`. `DELIVERY.json`
-  records what went out, so a retry never posts twice.
-- **A Linux machine per thread.** One recipe, [`sandbox/setup.sh`](sandbox/), pins Chrome
-  Headless Shell, FFmpeg, [HyperFrames](https://hyperframes.heygen.com), sharp, ECharts, D2 and
-  open fonts by version and sha256, then proves itself by rendering a page, a film and a diagram.
-  It builds the local Docker image, the CI image and the LangSmith sandbox snapshot that MDA clones
-  for each thread (8 vCPU, 16 GiB disk, default-deny egress). Project files persist in
-  `/workspace/projects/` between turns.
-- **Keys stay on the host.** The sandbox never holds a credential. Image generation, voice and
-  music, transcription, asset fetching, [Paper](https://paper.design) and your MCP servers run as
-  host tools that keep the keys and drop results into the sandbox as files. The agent only sees
-  paths.
-- **Skills and the wiki.** The always-on prompt ([`instructions.md`](instructions.md)) is about
-  4k tokens. Everything else loads on demand: 35 skills (`skills/<name>/SKILL.md`) for stills,
-  decks, charts, diagrams, storyboards, HyperFrames motion, sound and thumbnails, and
-  `design-wiki`, the craft reference for type, colour, layout, data and review. On MDA they sync to
-  Context Hub and mount read-only. Brand facts come only from your brand pack, which the checks
-  enforce in code.
-- **Subagents in the background.** The lead hands long work (builds, renders, reviews) to helper
-  subagents on the same sandbox and files, picks the model effort per brief, and ends its turn
-  while they run. Each helper keeps a heartbeat and a durable transcript in the store, so a restart
-  reports it interrupted and `resume_task` picks it up. Render watchers tail HyperFrames and FFmpeg
-  logs for progress, stalls and failures. Pipelines script multi-step jobs in Python, and looks
-  fork a project to try directions side by side.
-- **Woken by events.** The lead never sits waiting. Helper ends, failed renders, stalls and
-  check-ins go onto one event bus. An attention rule decides what wakes the lead now, what rides along with its next turn
-  and what is only logged, and events seconds apart arrive as one notice. On MDA a wake-up is a
-  one-time runtime schedule on the thread.
-- **Slack built for long jobs.** Each turn streams one message of plain-language step cards through
-  Slack's streaming API, each helper streams its own, and replies end with a footer of what's
-  running, time so far and estimated cost. A follow-up mid-job reaches the work: the lead reads new
-  messages before each model call and passes notes to a helper with `steer_task`. The bot token
-  stays on the host. MDA ships the Slack app; self-hosted, `design-agent slack` runs a Bolt app.
-- **Where it runs.** On MDA, threads and state live in LangSmith, sandboxes come from your
-  snapshot, and schedules handle wake-ups. Self-hosted, the same agent runs in FastAPI with a
-  Postgres checkpointer and Docker sandboxes. Claude Opus 5.5 is the default model; any
-  tool-calling model with vision works, set per role. The lead's prompt cache stays warm for an
-  hour while it sleeps, every call is metered per job and helper, and LangSmith traces every run.
+- **Designer's computer.** Each Slack thread gets its own Linux sandbox with Chrome, FFmpeg,
+  [HyperFrames](https://hyperframes.heygen.com) and D2. Everything it makes is code (a slide is
+  HTML, a film is an animation timeline), so a change is one edit and a re-render. Keys stay
+  outside, in host tools.
+- **Designer's brain.** [Skills](skills/) say how to do each kind of job, and a router skill picks
+  the right one. The wiki holds what good work looks like.
+- **Spec-driven design.** Big work goes storyboard, then animatic, then production, and you approve
+  each step. In production, a pipeline makes every part pass review before assembly.
+- **A chief of staff.** The main agent splits a job into parts for async subagents, then stays in
+  the thread, posting progress and taking your notes while they build.
+- **Self-improving.** After a job, `learn_from_job` files notes against the skills it used, and
+  later jobs rate them.
 
 ### Watch it explain itself
 
-The same parrot is back, this time on the agent's own computer. We asked Content Studio how it
-makes a film, told like a nature documentary, and it walks through the parts above: the apps in
-its sandbox, the skills and wiki it reads, the host tools that hold the keys, and the helpers it
-sends off in parallel.
+We asked it to explain its own harness as a nature documentary. The same parrot walks through the
+computer, the tools and the context behind its work.
 
 EXPLAINER_FILM_URL
 
@@ -143,8 +110,6 @@ Read the [architecture](docs/architecture/README.md), or start changing it:
 - **Your brand is code.** Layouts only take your tokens: your colours, fonts and spacing.
 - **It checks what a machine can count.** Colours, fonts, contrast, sizes and chart math are checked
   in code on every render. Taste stays with your designers.
-- **Big pieces start cheap.** A film starts as a plan and a storyboard, and nothing renders until you
-  say yes.
 
 <p align="center">
   <img src="docs/assets/readme/hero.png" alt="The agent's computer: a Slack request for a launch film, project folders, a HyperFrames render in the terminal, the film preview, layers and references" width="100%">
