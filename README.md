@@ -41,12 +41,11 @@ LAUNCH_FILM_URL
 
 ## How it works
 
-Content Studio runs on a **media harness**: what a designer has, rebuilt for an agent.
-[Deep Agents](https://github.com/langchain-ai/deepagents) supplies the agent loop, planning, files and
-subagents.
-[Managed Deep Agents](https://docs.langchain.com/langsmith/python/managed-deep-agents-overview?utm_source=github&utm_medium=readme&utm_campaign=design-agent)
-runs it in production, and this repo adds the design layer on top. The model makes the creative
-calls; code renders, checks, delivers files and holds your keys.
+Content Studio is a [Deep Agents](https://github.com/langchain-ai/deepagents) agent deployed on
+[Managed Deep Agents](https://docs.langchain.com/langsmith/python/managed-deep-agents-overview?utm_source=github&utm_medium=readme&utm_campaign=design-agent).
+Managed Deep Agents runs the infrastructure: Slack, sandboxes, memory, schedules and tracing. This
+repo is the design agent on top. The model makes the creative calls, and code renders, checks and
+delivers.
 
 <p align="center">
   <picture>
@@ -57,16 +56,22 @@ calls; code renders, checks, delivers files and holds your keys.
 
 <p align="center"><sub>How we run it at LangChain. Your copy starts with the integrations you turn on (<a href="docs/integrations.md">Integrations</a>).</sub></p>
 
-| Layer | Managed Deep Agents gives you | This repo adds |
-| --- | --- | --- |
-| **Slack**<br>Ask in a thread, get files back there | The Slack app, attachments into the sandbox, files back to the thread | Live progress for each step, a footer with what's running and its cost, notes folded into running work |
-| **Designer's computer**<br>A Linux machine per thread | A LangSmith sandbox per thread, cloned from your snapshot, files kept between turns | The recipe: Chrome, FFmpeg, HyperFrames, D2 and your fonts, pinned and tested. Keys stay outside |
-| **Designer's brain**<br>Know-how loaded only when needed | Skills synced to Context Hub, mounted read-only, loaded on demand | 35 skills, a router skill that picks one, a design wiki, and your brand pack checked in code |
-| **Tools**<br>Works with what your team uses | MCP servers through connections, signed in as each person or one shared account | Presets for Notion, Linear, GitHub, Figma and more; HyperFrames for video; [Paper](https://paper.design) as a shared canvas; image, voice and music tools |
-| **Async subagents**<br>Long jobs run, the thread stays open | Subagents, durable runs, and schedules that wake the agent | A chief-of-staff lead with `start_task`, `check_tasks`, `steer_task` and `resume_task`; render watchers; pipelines that enforce review |
-| **Memory**<br>Say a rule once | Team memory and per-person memory as files, loaded into every run | Off until you add `memory.py` |
-| **Self-improvement**<br>Better with every job | A durable store and a trace for every run | `learn_from_job` files notes against the skills a job used; later jobs rate them, and weak ones are dropped |
-| **Shipping it**<br>One command to your team | `mda deploy`, tracing in LangSmith | Evals built from real requests, cost per job, `design-agent doctor` |
+- **Slack.** Mention it in a thread with whatever you have, and the finished files come back to that
+  thread. It shows its progress step by step and takes your notes mid-job.
+- **A computer per thread.** Every thread gets its own Linux sandbox with Chrome, FFmpeg,
+  [HyperFrames](https://hyperframes.heygen.com), D2 and your fonts. The project stays there between
+  messages, so a change is a quick edit, not a restart. API keys never enter it.
+- **Skills and a design wiki.** 35 skills teach it each kind of job, from a resized ad to a launch
+  film, and the wiki holds what good work looks like. They load only when a job needs them.
+- **Your tools.** HyperFrames for video, [Paper](https://paper.design) as a canvas you edit
+  together, image and voice models, and MCP servers like Notion, Linear and Figma, signed in as the
+  person asking.
+- **Async subagents.** On a big job the main agent acts as a chief of staff: it splits the work,
+  hands the parts to subagents running in parallel, and stays free to talk while they build.
+- **Memory.** Tell it a rule once. Team rules go to memory everyone shares; personal preferences go
+  to your own.
+- **It gets better.** After each job it writes down what worked against the skill it used. Later
+  jobs rate those notes, and the bad ones are dropped.
 
 ### Watch it explain itself
 
