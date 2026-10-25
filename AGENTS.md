@@ -104,8 +104,10 @@ behind them.
   the brand folder. Large results go to files with compact summaries.
 - Do not copy private company data, internal people, channels, accounts, licensed fonts,
   third-party footage or internal implementation notes into this repository. LangChain's brand
-  appears only in the README and `docs/assets/readme/` (the project's own presentation: figures
-  exported from its Paper designs and its explainer film); the agent's sample brand, skills, examples and tests stay brand-neutral.
+  and the agent's public name, Content Studio, appear only in the README and `docs/assets/readme/`
+  (the project's own presentation: figures exported from its Paper designs and its films) and as the
+  default Slack app name; the code, the agent's sample brand, skills, examples and tests stay
+  brand-neutral and say Design Agent.
 
 ## Change discipline
 

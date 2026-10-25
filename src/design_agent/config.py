@@ -173,7 +173,7 @@ class Settings(BaseSettings):
     # MDA Slack appearance
     # MDA's own rule for a Slack app name; checked here so a bad name fails before a deploy does.
     slack_name: str = Field(
-        default="Design Agent",
+        default="Content Studio",
         max_length=35,
         pattern=r"^[A-Za-z0-9_.](?:[A-Za-z0-9 _.\-]*[A-Za-z0-9_.])?$",
     )

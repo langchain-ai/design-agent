@@ -50,7 +50,16 @@ def _rule(category: str, pattern: str, *allowed: str) -> Rule:
 SPEC_DOCS = ("AGENTS.md", "docs/*.md", "docs/**/*.md")
 
 RULES: tuple[Rule, ...] = (
-    _rule("internal codename", r"(?i)content[\s_-]?studio", "NOTICE.md"),
+    _rule(
+        "public agent name outside its presentation",
+        r"(?i)content[\s_-]?studio",
+        "AGENTS.md",
+        "NOTICE.md",
+        "README.md",
+        "docs/assets/readme/*",
+        "src/design_agent/config.py",
+        ".env.example",
+    ),
     _rule("internal repository", r"(?i)langchain[-_]media"),
     _rule(
         "company brand asset",
@@ -209,7 +218,7 @@ def test_internal_build_notes_are_gone() -> None:
 @pytest.mark.parametrize(
     ("line", "category"),
     [
-        ("Ported from the internal Content Studio agent", "internal codename"),
+        ("Ported from the internal Content Studio agent", "public agent name outside its presentation"),
         ("color: var(--lc-ink);", "company brand asset"),
         ("mail the team at ops@langchain.dev", "company email"),
         ("https://my-agent-1234.us.langgraph.app/threads", "LangSmith workspace or deployment URL"),

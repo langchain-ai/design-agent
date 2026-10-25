@@ -9,7 +9,7 @@
   </p>
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://github.com/langchain-ai/design-agent/raw/main/docs/assets/readme/header-dark.png">
-    <img src="https://github.com/langchain-ai/design-agent/raw/main/docs/assets/readme/header-light.png" alt="Design Agent: one design brain for your whole company" width="100%">
+    <img src="https://github.com/langchain-ai/design-agent/raw/main/docs/assets/readme/header-light.png" alt="Content Studio: one design brain for your whole company" width="100%">
   </picture>
   <p>
     <a href="LICENSE"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/license-Apache%202.0-7FC8FF.svg?variant=outline&logo=lu:Scale&mode=dark"><img src="https://shieldcn.dev/badge/license-Apache%202.0-006DDD.svg?variant=outline&logo=lu:Scale&mode=light" alt="License: Apache 2.0"></picture></a>
@@ -18,37 +18,32 @@
     <a href="https://docs.langchain.com/langsmith/python/managed-deep-agents-overview?utm_source=github&utm_medium=readme&utm_campaign=design-agent"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/deploy-Managed%20Deep%20Agents-7FC8FF.svg?variant=outline&logo=lu:Rocket&mode=dark"><img src="https://shieldcn.dev/badge/deploy-Managed%20Deep%20Agents-006DDD.svg?variant=outline&logo=lu:Rocket&mode=light" alt="Deploy with Managed Deep Agents"></picture></a>
   </p>
   <p>
-    <b><a href="#quickstart">Distribute the design agent to your team →</a></b> ·
+    <b><a href="#quickstart">Distribute Content Studio to your team →</a></b> ·
     <a href="#try-it-locally">Try it locally, no keys needed</a> ·
+    <a href="https://www.langchain.com/blog/how-we-built-our-design-agent?utm_source=github&utm_medium=readme&utm_campaign=design-agent">How we built it</a> ·
     <a href="docs/README.md">Docs</a>
   </p>
 </div>
 
-**The design agent LangChain runs, open source.** Add your brand and deploy it to your team's Slack
-with Managed Deep Agents. Anyone can ask it like they'd ask a designer, attach what they have, and
+**Content Studio is the design agent LangChain runs, now open source.** Add your brand and deploy it
+to your team's Slack with Managed Deep Agents. Anyone can ask it like they'd ask a designer, attach what they have, and
 get finished, on-brand files back, from a resized ad to a launch film.
 
 Since August it has shipped over 3,000 assets for us, posts with its work drew about 4.5M views on
-X, and three in four requests come from outside marketing.
+X, and three in four requests come from outside marketing. [How we built it](https://www.langchain.com/blog/how-we-built-our-design-agent?utm_source=github&utm_medium=readme&utm_campaign=design-agent) goes deeper
+into each part.
 
 ## See it work
 
-https://github.com/user-attachments/assets/0664d09d-2ab2-41fd-b2ba-f91c96121e20
+LAUNCH_FILM_URL
 
-<p align="center"><sub>One Slack request for a launch film: the plan, the storyboard, helpers rendering in parallel, the checks and the final cut.</sub></p>
+<p align="center"><sub>Content Studio made its own launch film: from a 1-bit chick to champion in 50 seconds.</sub></p>
 
-<details>
-<summary>The prompts that made this film</summary>
+<p align="center">
+  <img src="docs/assets/readme/shipped-wall.png" alt="Shipped with Content Studio: article covers, talk decks, thumbnails, comparison graphics, a livestream promo and a short, with the views each post drew" width="100%">
+</p>
 
-The agent made it in one Slack thread, from this ask and a few rounds of notes:
-
-> Make a short explainer of how you create videos in code, end to end, for our blog post on the
-> media harness we built on Deep Agents. Narrate it like a David Attenborough nature documentary,
-> starring the pixel parrot from our promo, with your subagents as its flock. Keep it technical
-> enough for an engineer, in real terms: skills, wiki, tools, apps. Storyboard it before you build,
-> and end on "Built on Managed Deep Agents".
-
-</details>
+<p align="center"><sub>Some of what it shipped for us between August and October, with the views each post drew.</sub></p>
 
 | Building it yourself | Starting here |
 | --- | --- |
@@ -121,6 +116,12 @@ uv run design-agent ask "A LinkedIn card announcing our design review service, 1
 
 ## Why it doesn't look like AI
 
+<p align="center">
+  <img src="docs/assets/readme/same-prompt.png" alt="The same prompt for a hiring chart to a local coding agent with a brand skill and to Content Studio: a broken logo lockup, a generic font, no axis and an off-brand bar on the left; a clean lockup, the brand typeface, an axis with gridlines and brand-blue bars on the right" width="100%">
+</p>
+
+<p align="center"><sub>The same prompt to a local coding agent with a brand skill, and to Content Studio.</sub></p>
+
 - **It looks at its work.** It renders, then looks at the image before it posts anything.
 - **Your brand is code.** Layouts only take your tokens: your colours, fonts and spacing.
 - **It checks what a machine can count.** Colours, fonts, contrast, sizes and chart math are checked
@@ -173,10 +174,36 @@ endpoint and the LangSmith Gateway work too. See [Models](docs/models.md).
 **Can I run it on my own servers?** Yes. It's Apache 2.0, and [Self-hosting](docs/self-hosting.md)
 runs the same agent with Docker, an HTTP API and your own Slack app.
 
+**Why two names?** Content Studio is what we call the agent at LangChain, and the name its Slack app
+gets unless you set `DESIGN_AGENT_SLACK_NAME`. The repository, package and command are `design-agent`.
+
 **Does it replace a designer?** No. It takes the repetitive requests, so designers spend their time on
 the work only they can do, and their judgment lives on in its skills and checks.
 
 ## How it works
+
+<p align="center">
+  <img src="docs/assets/readme/architecture.png" alt="Content Studio on Managed Deep Agents: a Slack thread goes to the main agent, which reads skills and the wiki, keeps team and personal memory, uses managed tools and MCP servers with each person's own account, and works in a sandbox per thread with Chromium, ffmpeg, HyperFrames, motion-studio and async subagents in parallel, then posts the film back to the same thread" width="100%">
+</p>
+
+<p align="center"><sub>How we run it at LangChain. Your copy starts with the integrations you turn on (<a href="docs/integrations.md">Integrations</a>).</sub></p>
+
+EXPLAINER_FILM_URL
+
+<p align="center"><sub>The agent explaining how it makes a film, end to end. It made this one too.</sub></p>
+
+<details>
+<summary>The prompt that made this film</summary>
+
+The agent made it in one Slack thread, from this ask and a few rounds of notes:
+
+> Make a short explainer of how you create videos in code, end to end, for our blog post on the
+> media harness we built on Deep Agents. Narrate it like a David Attenborough nature documentary,
+> starring the pixel parrot from our promo, with your subagents as its flock. Keep it technical
+> enough for an engineer, in real terms: skills, wiki, tools, apps. Storyboard it before you build,
+> and end on "Built on Managed Deep Agents".
+
+</details>
 
 The model makes the creative calls. Code does everything that has to be exactly right: rendering,
 measuring, checking, delivering files and holding your keys. It's built on the
