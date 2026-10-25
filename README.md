@@ -33,9 +33,11 @@ into each part.
 
 ## See it work
 
+We asked Content Studio for its own launch film. It went full Rocky.
+
 LAUNCH_FILM_URL
 
-<p align="center"><sub>Content Studio made its own launch film: from a 1-bit chick to champion in 50 seconds.</sub></p>
+<p align="center"><sub>From a 1-bit chick to champion in 50 seconds.</sub></p>
 
 ## How it works
 
@@ -65,14 +67,21 @@ measuring, checking, delivering files and holding your keys. It's built on the
 - **Everything to run it on Managed Deep Agents:** a sandbox per thread, the Slack app, schedules
   and tracing, plus evals built from real requests.
 
+### Watch it explain itself
+
+The same parrot is back, this time on the agent's own computer. We asked Content Studio how it
+makes a film, told like a nature documentary, and it walks through the parts above: the apps in
+its sandbox, the skills and wiki it reads, the host tools that hold the keys, and the helpers it
+sends off in parallel.
+
 EXPLAINER_FILM_URL
 
-<p align="center"><sub>The agent explaining how it makes a film, end to end. It made this one too.</sub></p>
+<p align="center"><sub>Storyboarded, built and narrated by the agent, in one Slack thread.</sub></p>
 
 <details>
 <summary>The prompt that made this film</summary>
 
-The agent made it in one Slack thread, from this ask and a few rounds of notes:
+The agent made it from this ask and a few rounds of notes:
 
 > Make a short explainer of how you create videos in code, end to end, for our blog post on the
 > media harness we built on Deep Agents. Narrate it like a David Attenborough nature documentary,
