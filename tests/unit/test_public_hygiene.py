@@ -218,7 +218,10 @@ def test_internal_build_notes_are_gone() -> None:
 @pytest.mark.parametrize(
     ("line", "category"),
     [
-        ("Ported from the internal Content Studio agent", "public agent name outside its presentation"),
+        (
+            "Ported from the internal Content Studio agent",
+            "public agent name outside its presentation",
+        ),
         ("color: var(--lc-ink);", "company brand asset"),
         ("mail the team at ops@langchain.dev", "company email"),
         ("https://my-agent-1234.us.langgraph.app/threads", "LangSmith workspace or deployment URL"),
