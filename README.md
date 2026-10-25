@@ -35,7 +35,7 @@ into each part.
 
 We asked Content Studio for its own launch film. It went full Rocky.
 
-https://github.com/user-attachments/assets/1874d6ea-2457-4349-a6c4-45ada6312f13
+https://github.com/user-attachments/assets/ee5b98e0-7ec6-4b24-ada6-1f27087947a3
 
 <p align="center"><sub>From a 1-bit chick to champion in 47 seconds.</sub></p>
 
