@@ -35,7 +35,7 @@ dependencies = [
     # LangChain does not validate dict-form JSON schema tool arguments; the host guard does.
     "jsonschema>=4.23,<5",
     # Image clamp, contact sheets and the look tool's resize.
-    "pillow>=12,<13",
+    "pillow>=12,<14",
     # Self-hosted API, Paper bridge and the optional local setup console.
     "fastapi>=0.115,<1",
     "uvicorn>=0.35,<1",
