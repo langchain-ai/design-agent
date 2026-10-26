@@ -13,7 +13,7 @@ Setup comes first: `uv run design-agent doctor` should pass and the brand pack s
 | | Managed Deep Agents (recommended) | Self-hosted |
 | --- | --- | --- |
 | Who runs it | LangSmith: runtime, sandboxes, Slack app, schedules | the person: API, Postgres, Docker host |
-| Needs | a LangSmith organization with MDA access and a deployment-capable `LANGSMITH_API_KEY` | Docker with Compose v2.24+ |
+| Needs | a LangSmith Cloud account (MDA is in public beta) and a deployment-capable `LANGSMITH_API_KEY` | Docker with Compose v2.24+ |
 | Cost | hosting is paid, plus model and media spend | their machine, plus model and media spend |
 
 ## Managed Deep Agents

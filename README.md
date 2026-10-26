@@ -136,7 +136,8 @@ Read the [architecture](docs/architecture/README.md), or start changing it:
 | Every team fixes the same mistakes | Fix a skill once, and every asset after it follows |
 
 This repository is a [Managed Deep Agents](https://docs.langchain.com/langsmith/python/managed-deep-agents-overview?utm_source=github&utm_medium=readme&utm_campaign=design-agent) project, so it deploys to your LangSmith
-workspace as it is. You need MDA access and a model key:
+workspace as it is. You need a LangSmith account (Managed Deep Agents is in public beta on
+LangSmith Cloud) and a model key:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/langchain-ai/design-agent/main/install.sh | bash

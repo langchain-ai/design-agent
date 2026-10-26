@@ -15,7 +15,7 @@ uv run mda deploy
 
 ## What you need
 
-- A LangSmith organization with MDA access and an API key with deployment permission
+- A LangSmith Cloud account (Managed Deep Agents is in public beta) and an API key with deployment permission
   (`LANGSMITH_API_KEY`; region via `LANGSMITH_ENDPOINT`). [Hosting is paid](https://www.langchain.com/pricing).
 - A model key for your configured model ([Models](models.md)).
 - [uv](https://docs.astral.sh/uv/). Docker only if you want to test the sandbox recipe locally first.
