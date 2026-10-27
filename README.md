@@ -15,7 +15,7 @@
   <p>
     <b><a href="#quickstart">Distribute Content Studio to your team →</a></b> ·
     <a href="#try-it-locally">Try it locally, no keys needed</a> ·
-    <a href="https://www.langchain.com/blog/how-we-built-our-design-agent?utm_source=github&utm_medium=readme&utm_campaign=design-agent">How we built it</a> ·
+    <a href="https://www.langchain.com/blog/design-agent?utm_source=github&utm_medium=readme&utm_campaign=design-agent">How we built it</a> ·
     <a href="docs/README.md">Docs</a>
   </p>
 </div>
@@ -25,7 +25,7 @@ to your team's Slack with Managed Deep Agents. Anyone can ask it like they'd ask
 get finished, on-brand files back, from a resized ad to a launch film.
 
 Since August it has shipped over 3,000 assets for us, posts with its work drew about 4.5M views on
-X, and three in four requests come from outside marketing. [How we built it](https://www.langchain.com/blog/how-we-built-our-design-agent?utm_source=github&utm_medium=readme&utm_campaign=design-agent) goes deeper
+X, and three in four requests come from outside marketing. [How we built it](https://www.langchain.com/blog/design-agent?utm_source=github&utm_medium=readme&utm_campaign=design-agent) goes deeper
 into each part.
 
 ## See it work
