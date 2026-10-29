@@ -4,6 +4,10 @@
 
 ### Added
 
+- Every run's trace names the template it came from: a `template:langchain-ai/design-agent` tag
+  and `ls_template` / `ls_template_version` metadata, on MDA's root run and through the shared
+  trace middleware everywhere else, so a renamed fork still counts. Nothing about the deployment
+  or its people; `DESIGN_AGENT_TEMPLATE_TELEMETRY=0` turns it off.
 - Memory on Managed Deep Agents (`memory.py`): a team layer every caller shares and a personal
   layer for each person, mounted anywhere in Slack rather than only in their DM. The agent saves a
   rule the turn someone states it; a team rule beats a personal one and the brand pack beats both.

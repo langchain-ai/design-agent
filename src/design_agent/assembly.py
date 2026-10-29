@@ -47,7 +47,7 @@ from design_agent.middleware.steering import (
     SteeringToolsMiddleware,
 )
 from design_agent.middleware.today import TodayMiddleware, ZoneFor, fixed_zone
-from design_agent.middleware.tracing import RunTagsMiddleware, TraceLinks
+from design_agent.middleware.tracing import RunTagsMiddleware, TraceLinks, template_marker
 from design_agent.middleware.watch_tools import WatchToolsMiddleware
 from design_agent.middleware.workspace import WorkspaceStagerMiddleware
 from design_agent.models.factory import Role, build_chat_model, resolve_model
@@ -211,7 +211,10 @@ def build_agent_components(
         ),
         TodoListMiddleware(),
         TodayMiddleware(zone_for=zone_for or fixed_zone(settings.timezone)),
-        RunTagsMiddleware(surface=runtime.surface),
+        RunTagsMiddleware(
+            surface=runtime.surface,
+            template=template_marker() if settings.template_telemetry else None,
+        ),
     ]
     slack = runtime.slack
     servers = services([s.name for s in mcp_servers])

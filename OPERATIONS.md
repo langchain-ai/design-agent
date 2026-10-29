@@ -21,6 +21,10 @@ Settings live in `.env` (Git-ignored); `.env.example` documents every one.
 them, `config generate` fills random tokens and passwords. `uv run design-agent doctor` checks the
 model for every role, the brand pack, the sandbox and the MDA declarations without printing secrets.
 
+Every run's trace names the template it came from (`ls_template: langchain-ai/design-agent` and its
+version) so LangChain can count deployments of this repository; nothing about you or your people
+goes with it. `DESIGN_AGENT_TEMPLATE_TELEMETRY=0` turns it off.
+
 ## The sandbox computer
 
 One recipe (`sandbox/setup.sh`) builds every sandbox: the local Docker image

@@ -22,8 +22,9 @@ stream) and `src/design_agent/middleware/{progress,footer,steering,tracing}.py`.
   the helper reads it before its next model call. While the lead's own turn is busy, it reads new
   messages in the thread before each model call and folds them in; "stop", "cancel" or "never mind"
   ends the turn at its next step.
-- **Trace tags.** Each run is tagged with its trigger, surface and the kinds of files delivered; no
-  user ids by default.
+- **Trace tags.** Each run is tagged with its trigger, surface and the kinds of files delivered, and
+  names the template and version it came from (`DESIGN_AGENT_TEMPLATE_TELEMETRY=0` turns that
+  off); no user ids by default.
 
 The bot token stays on the host: progress and footer call the Slack Web API from middleware, and
 the sandbox never sees a token, a Slack URL or a Slack payload.
