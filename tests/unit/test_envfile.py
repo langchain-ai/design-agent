@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import shutil
+import sys
 from pathlib import Path
 
 import pytest
@@ -39,7 +40,8 @@ def test_set_keeps_other_lines_masks_secrets_and_is_private(project: Path) -> No
     text = (project / ".env").read_text()
     assert text.startswith("# mine\nUNRELATED=keep\nANTHROPIC_API_KEY=sk-new\n")
     assert read_env(project)["DESIGN_AGENT_MODEL"] == "anthropic:claude-opus-5-5"
-    assert (project / ".env").stat().st_mode & 0o077 == 0
+    if sys.platform != "win32":
+        assert (project / ".env").stat().st_mode & 0o077 == 0
     rows = {row["name"]: row for row in view(project)}
     assert rows["ANTHROPIC_API_KEY"]["value"] == "set" and rows["ANTHROPIC_API_KEY"]["secret"]
     assert rows["DESIGN_AGENT_MODEL"]["value"] == "anthropic:claude-opus-5-5"

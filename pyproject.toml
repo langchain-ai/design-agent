@@ -41,6 +41,8 @@ dependencies = [
     "uvicorn>=0.35,<1",
     "langgraph-checkpoint-sqlite>=3.1.2,<4",
     "python-multipart>=0.0.20,<1",
+    # PEP 615: zoneinfo needs IANA time zone data on Windows.
+    "tzdata>=2024.1; sys_platform == 'win32'",
 ]
 
 [project.urls]

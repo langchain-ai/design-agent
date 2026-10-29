@@ -944,6 +944,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-multipart" },
+    { name = "tzdata", marker = "sys_platform == 'win32'" },
     { name = "uvicorn" },
 ]
 
@@ -1004,6 +1005,7 @@ requires-dist = [
     { name = "python-multipart", specifier = ">=0.0.20,<1" },
     { name = "slack-bolt", marker = "extra == 'slack'", specifier = ">=1.30,<2" },
     { name = "slack-sdk", marker = "extra == 'slack'", specifier = ">=3.45,<4" },
+    { name = "tzdata", marker = "sys_platform == 'win32'", specifier = ">=2024.1" },
     { name = "uvicorn", specifier = ">=0.35,<1" },
     { name = "uvicorn", extras = ["standard"], marker = "extra == 'self-host'", specifier = ">=0.35,<1" },
 ]
