@@ -163,6 +163,9 @@ class Settings(BaseSettings):
     enable_traces: bool = True
     """`list_traces` and `read_trace`: the agent reads every thread's traces in its own LangSmith
     project with the host's credentials. Turn off where people must not see each other's requests."""
+    template_telemetry: bool = True
+    """Every run's trace names the template and its version (`ls_template`), so LangChain can count
+    deployments of this repository. Nothing about the deployment or its people."""
     enable_tool_clearing: bool = False
     """Server-side clearing of old tool results in helpers' requests (Anthropic only)."""
     timezone: str = "UTC"

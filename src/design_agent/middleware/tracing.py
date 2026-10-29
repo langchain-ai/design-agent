@@ -9,7 +9,10 @@ trace's root carries tags (and the same facts as metadata):
   approval or a prompt answer), `helper` (a background helper's own trace);
 - `surface:<name>`: the channel provider (`slack`), else the runtime's default (`cli`, `api`);
 - `delivered:<kind>`: one per kind of file `upload_files` sent (`image`, `video`, `audio`, `pdf`,
-  `other`), on the root when it is still running and on the tool call's own run otherwise.
+  `other`), on the root when it is still running and on the tool call's own run otherwise;
+- `template:langchain-ai/design-agent`, with `ls_template` and `ls_template_version` metadata: the
+  repository and version every deployment runs, however it is renamed, so LangChain can count
+  adopters. `DESIGN_AGENT_TEMPLATE_TELEMETRY=0` leaves it off.
 
 No user ids, names, channels or message text go on a trace from here.
 
@@ -30,6 +33,7 @@ import logging
 import mimetypes
 from collections.abc import Awaitable, Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from importlib import metadata as package_metadata
 from typing import Any
 
 from langchain.agents.middleware import AgentMiddleware, AgentState
@@ -41,6 +45,7 @@ from langgraph.types import Command
 from langsmith import RunTree
 from langsmith.run_helpers import get_current_run_tree
 
+from design_agent import __version__
 from design_agent.harness import tasks
 from design_agent.middleware.background import CHECK_IN_MARK
 from design_agent.middleware.quiet import SENTINEL_MARK
@@ -60,6 +65,16 @@ DELIVERED_KINDS = (
 )
 #: Human messages the runtime writes, not a person: the date note and the running-work note.
 NOTE_IDS = (DATE_NOTE, "running:")
+TEMPLATE = "langchain-ai/design-agent"
+
+
+def template_marker() -> dict[str, str]:
+    """The template and its version (module doc): nothing about the deployment or its people."""
+    try:
+        version = package_metadata.version("design-agent")
+    except package_metadata.PackageNotFoundError:
+        version = __version__
+    return {"ls_template": TEMPLATE, "ls_template_version": version}
 
 
 @dataclass(frozen=True)
@@ -151,12 +166,19 @@ class RunTagsMiddleware(AgentMiddleware[AgentState[Any], Any, Any]):
     """Tag the run's trace with its trigger, surface and deliveries (module doc).
 
     `surface` names runs that come through no platform channel (`cli` locally, `api` on the
-    self-hosted API), or is a function of the runtime for adapters that know better.
+    self-hosted API), or is a function of the runtime for adapters that know better. `template`
+    is `template_marker()`, or empty when the operator turned it off.
     """
 
-    def __init__(self, *, surface: str | Callable[[Any], str] = "api") -> None:
+    def __init__(
+        self,
+        *,
+        surface: str | Callable[[Any], str] = "api",
+        template: Mapping[str, str] | None = None,
+    ) -> None:
         super().__init__()
         self._surface = surface
+        self._template = dict(template or {})
 
     @property
     def name(self) -> str:
@@ -174,11 +196,10 @@ class RunTagsMiddleware(AgentMiddleware[AgentState[Any], Any, Any]):
             if root is not None:
                 trigger = trigger_of(runtime, list(state.get("messages") or []))
                 surface = self._surface_of(runtime)
-                stamp(
-                    root,
-                    [TRIGGER.format(trigger), SURFACE.format(surface)],
-                    {"trigger": trigger, "surface": surface},
-                )
+                tags = [TRIGGER.format(trigger), SURFACE.format(surface)]
+                if self._template:
+                    tags.append(f"template:{self._template['ls_template']}")
+                stamp(root, tags, {"trigger": trigger, "surface": surface, **self._template})
         except Exception as error:  # noqa: BLE001 - a label is never worth a run
             _LOGGER.warning("[trace] run not labeled: %s", type(error).__name__)
         return None
