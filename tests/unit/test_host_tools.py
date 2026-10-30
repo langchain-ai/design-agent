@@ -14,7 +14,7 @@ from deepagents.backends.protocol import FileDownloadResponse, FileUploadRespons
 
 from design_agent.config import Settings
 from design_agent.tools.fetch import FetchRefused, build_fetch_tool, check_url, public_address
-from design_agent.tools.media import _png_alpha_report, build_media_tools
+from design_agent.tools.media import _png_alpha_report, build_media_tools, image_route
 
 
 class MemoryBackend:
@@ -188,3 +188,46 @@ async def test_generate_image_writes_b64_output_and_reports_alpha(
     assert "wrote /workspace/projects/p/lamp.png" in result and "alpha verified" in result
     assert seen["body"]["model"] == "gpt-image-2.5-flare"
     assert seen["url"].startswith("https://api.openai.com/")
+
+
+def _settings(**values: Any) -> Settings:
+    return Settings(_env_file=None, **values)  # type: ignore[call-arg]
+
+
+def test_images_go_to_openai_with_its_key_else_through_the_gateway() -> None:
+    direct = image_route(_settings(openai_api_key="sk-test", langsmith_gateway_api_key="lsv2-g"))
+    assert direct is not None and direct.url.startswith("https://api.openai.com/")
+    assert direct.key == "sk-test"
+
+    gateway = image_route(_settings(langsmith_gateway_api_key="lsv2-g", langsmith_api_key="lsv2-l"))
+    assert gateway is not None
+    assert gateway.url == "https://gateway.smith.langchain.com/openai/v1/images/generations"
+    assert gateway.key == "lsv2-g"
+
+    lead = image_route(
+        _settings(model="langsmith:anthropic/claude-opus-5-5", langsmith_api_key="lsv2-l")
+    )
+    assert lead is not None and lead.key == "lsv2-l" and lead.via == "the LangSmith Gateway"
+
+    assert image_route(_settings(langsmith_api_key="lsv2-l")) is None
+
+
+async def test_a_gateway_without_an_openai_key_says_where_to_add_one(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fake_post(self: httpx.AsyncClient, url: str, **kwargs: Any) -> httpx.Response:
+        return httpx.Response(424, content=b"{}", request=httpx.Request("POST", url))
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+    backend = MemoryBackend()
+    tools = {
+        t.name: t
+        for t in build_media_tools(
+            _settings(langsmith_gateway_api_key="lsv2-g"), lambda _rt: backend
+        )
+    }  # type: ignore[arg-type,return-value]
+    result = await tools["generate_image"].coroutine(
+        prompt="a lamp", sandbox_path="/workspace/projects/p/lamp.png", runtime=None
+    )  # type: ignore[misc]
+    assert "LangSmith Gateway HTTP 424" in result and "no OpenAI key" in result
+    assert not backend.files

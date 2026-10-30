@@ -24,6 +24,7 @@ from langchain_core.tools import BaseTool, StructuredTool
 from pydantic import JsonValue
 
 from design_agent.config import Settings
+from design_agent.models.factory import GATEWAY_NATIVE_ROUTES, GATEWAY_ORIGIN, gateway_key
 from design_agent.tools.files import (
     BackendFor,
     WorkspaceError,
@@ -41,23 +42,49 @@ VOICE_ID = re.compile(r"[A-Za-z0-9]{10,40}")
 
 
 @dataclass(frozen=True)
+class ImageRoute:
+    """Where image generation goes, with the key for it and a name for messages."""
+
+    url: str
+    key: str
+    via: str
+
+
+def _secret(secret: Any) -> str | None:
+    return (secret.get_secret_value() or None) if secret is not None else None
+
+
+def image_route(settings: Settings) -> ImageRoute | None:
+    """OpenAI with its own key; else the LangSmith Gateway's OpenAI route when this deployment uses
+    the gateway (a gateway key, or a `langsmith:` lead model), which uses its workspace's OpenAI key."""
+    if openai := _secret(settings.openai_api_key):
+        return ImageRoute(f"{OPENAI_BASE_URL}/images/generations", openai, "OpenAI")
+    uses_gateway = bool(_secret(settings.langsmith_gateway_api_key))
+    try:
+        uses_gateway = uses_gateway or settings.lead_model().via_gateway
+    except ValueError:
+        pass
+    if uses_gateway and (key := gateway_key(settings)):
+        url = f"{GATEWAY_ORIGIN}{GATEWAY_NATIVE_ROUTES['openai']}/images/generations"
+        return ImageRoute(url, key, "the LangSmith Gateway")
+    return None
+
+
+@dataclass(frozen=True)
 class MediaKeys:
     """Provider credentials, held only by host tools."""
 
-    openai: str | None
+    image: ImageRoute | None
     elevenlabs: str | None
     groq: str | None
     image_model: str
 
     @classmethod
     def from_settings(cls, settings: Settings) -> MediaKeys:
-        def value(secret: Any) -> str | None:
-            return secret.get_secret_value() if secret is not None else None
-
         return cls(
-            openai=value(settings.openai_api_key),
-            elevenlabs=value(settings.elevenlabs_api_key),
-            groq=value(settings.groq_api_key),
+            image=image_route(settings),
+            elevenlabs=_secret(settings.elevenlabs_api_key),
+            groq=_secret(settings.groq_api_key),
             image_model=settings.image_model,
         )
 
@@ -562,8 +589,12 @@ def build_media_tools(settings: Settings, backend_for: BackendFor) -> list[BaseT
         try:
             path = workspace_path(sandbox_path)
             backend = require_backend(backend_for, runtime)
-            if not keys.openai:
-                return "image generation unavailable: no OPENAI_API_KEY configured."
+            route = keys.image
+            if route is None:
+                return (
+                    "image generation unavailable: no OPENAI_API_KEY, and this deployment does not "
+                    "use the LangSmith Gateway."
+                )
             body: dict[str, JsonValue] = {
                 "model": model or keys.image_model,
                 "prompt": prompt,
@@ -580,12 +611,19 @@ def build_media_tools(settings: Settings, backend_for: BackendFor) -> list[BaseT
             wants_alpha = str(body.get("background", "")).strip().lower() == "transparent"
             async with httpx.AsyncClient(timeout=240, follow_redirects=False) as client:
                 response = await client.post(
-                    f"{OPENAI_BASE_URL}/images/generations",
-                    headers={"Authorization": f"Bearer {keys.openai}"},
-                    json=body,
+                    route.url, headers={"Authorization": f"Bearer {route.key}"}, json=body
                 )
             if response.status_code != 200:
-                return f"image generation failed: OpenAI HTTP {response.status_code}{_reason(response)}"
+                hint = (
+                    " (the gateway's workspace has no OpenAI key; add one there or set "
+                    "OPENAI_API_KEY)"
+                    if response.status_code == 424
+                    else ""
+                )
+                return (
+                    f"image generation failed: {route.via} HTTP {response.status_code}"
+                    f"{_reason(response)}{hint}"
+                )
             items = response.json().get("data") or []
             written: list[str] = []
             reports: list[str] = []

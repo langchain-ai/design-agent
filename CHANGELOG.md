@@ -4,6 +4,16 @@
 
 ### Added
 
+- Image generation goes through the LangSmith Gateway when there is no `OPENAI_API_KEY` and the
+  deployment uses the gateway (a `langsmith:` model or `LANGSMITH_GATEWAY_API_KEY`); a gateway
+  workspace with no OpenAI key says so.
+- LangSmith's managed tool servers (Parallel web search) work locally and self-hosted with no header
+  config: they are sent `LANGSMITH_API_KEY`. `config/mcp.example.toml` has the entry.
+- `sandbox publish` says it takes 10-15 minutes, numbers its steps and reports the time it took.
+- README: what `sandbox publish` and `mda deploy` each do, the gateway setup, agent environments and
+  where their traces are, example asks, and which skills are for coding agents. The brand-onboarding
+  skill reminds you to redeploy and offers a Slack app icon.
+
 - Every run's trace names the template it came from: a `template:langchain-ai/design-agent` tag
   and `ls_template` / `ls_template_version` metadata, on MDA's root run and through the shared
   trace middleware everywhere else, so a renamed fork still counts. Nothing about the deployment
@@ -16,6 +26,13 @@
   Notion, Linear, GitHub, Figma, Atlassian, Asana, Canva, Webflow and Box, and a server's
   connection can belong to each person (`owner = "user"`), so MDA asks whoever has not connected
   to sign in with a link and the agent then acts as them. `docs/integrations.md` sets each up.
+
+### Fixed
+
+- Self-hosted and local: summarization no longer fails with `permission_denied` offloading history
+  and images (#41). Deep Agents' artifacts go to `/workspace/.agent/`, which the agent can write.
+- Slack progress carries on as an updated message when Slack ends a long stream
+  (`message_not_in_streaming_state`), instead of stopping.
 
 ### Changed
 

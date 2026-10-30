@@ -56,6 +56,9 @@ _FINAL = AUTH_ERRORS | {"ratelimited", "channel_not_found", "not_in_channel", "i
 #: Refusals about one message's fields (`missing_recipient_team_id`), not the workspace: that
 #: message falls back, and the next one streams again.
 _PER_MESSAGE = ("missing_", "invalid_")
+#: Slack closed this message's stream (it ends idle or long streams); the message itself remains,
+#: so it carries on as an ordinary message redrawn with `chat.update`.
+_STREAM_ENDED = "message_not_in_streaming_state"
 #: Steps a fallback message shows while it works; the native stream folds the rest away.
 FALLBACK_STEPS = 4
 _GLYPHS = {
@@ -269,9 +272,19 @@ class SlackProgress:
         return {"recipient_user_id": user, "recipient_team_id": team} if user and team else {}
 
     async def _append(self, chunks: list[Card]) -> None:
-        await self._client.call(
-            "chat.appendStream", {"channel": self._channel, "ts": self._ts, "chunks": chunks}
-        )
+        try:
+            await self._client.call(
+                "chat.appendStream", {"channel": self._channel, "ts": self._ts, "chunks": chunks}
+            )
+        except SlackError as error:
+            if error.code != _STREAM_ENDED:
+                raise
+            self._ended_stream()
+            await self._draw(now=True)
+
+    def _ended_stream(self) -> None:
+        self._streaming = False
+        _LOGGER.info("[progress] Slack ended the stream; updating the message instead")
 
     def _stop(self, error: SlackError) -> None:
         self._dead = True
@@ -425,12 +438,17 @@ class SlackProgress:
             where = {"channel": self._channel, "ts": self._ts}
             if not self._dead and self._ts and not delete:
                 with contextlib.suppress(SlackError):
+                    if self._streaming and header and header != self._header:
+                        retitle: Card = {"type": "plan_update", "title": header[:TITLE_LIMIT]}
+                        await self._append([retitle])
                     if self._streaming:
-                        if header and header != self._header:
-                            retitle: Card = {"type": "plan_update", "title": header[:TITLE_LIMIT]}
-                            await self._append([retitle])
-                        await self._client.call("chat.stopStream", where)
-                    else:
+                        try:
+                            await self._client.call("chat.stopStream", where)
+                        except SlackError as error:
+                            if error.code != _STREAM_ENDED:
+                                raise
+                            self._ended_stream()
+                    if not self._streaming:
                         self._header = header or self._header
                         self._closed = True
                         await self._draw(now=True)

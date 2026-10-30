@@ -12,7 +12,10 @@ ANTHROPIC_API_KEY=…
 default; Google, Groq and Mistral are extras (`uv sync --extra google`). The LangSmith Gateway is an
 optional preset (`langsmith:anthropic/claude-opus-5-5` with `LANGSMITH_GATEWAY_API_KEY`, else
 `LANGSMITH_API_KEY`), never required. Anthropic and OpenAI models go through the gateway's native
-routes and keep every feature in the table below; other providers use its shared route. For an OpenAI-compatible endpoint, set `DESIGN_AGENT_MODEL_BASE_URL` and
+routes and keep every feature in the table below; other providers use its shared route. Image
+generation uses `OPENAI_API_KEY` when it is set; without it, a deployment that uses the gateway (a
+`langsmith:` model or `LANGSMITH_GATEWAY_API_KEY`) generates images through the gateway's OpenAI
+route, with the OpenAI key stored in that gateway workspace. For an OpenAI-compatible endpoint, set `DESIGN_AGENT_MODEL_BASE_URL` and
 `DESIGN_AGENT_MODEL_API_KEY_ENV` (the name of the variable that holds its key).
 
 ## Roles

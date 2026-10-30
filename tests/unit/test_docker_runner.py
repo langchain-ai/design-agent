@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import subprocess
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Any
 
 import pytest
 
+from design_agent.runtime.sandbox import _with_skills
 from design_agent.runtime.sandbox.docker import (
+    ARTIFACTS_ROOT,
     DockerSandboxBackend,
     DockerSandboxRunner,
     SandboxUnavailableError,
@@ -121,6 +124,16 @@ def test_uploads_outside_writable_folders_are_refused() -> None:
         [("/workspace/brand/tokens.json", b"{}"), ("/workspace/projects/x/a.txt", b"a")]
     )
     assert [r.error for r in results] == ["permission_denied", None]
+
+
+def test_summarization_offloads_land_where_the_agent_can_write(tmp_path: Path) -> None:
+    """Deep Agents writes conversation history, large results and media under the graph backend's
+    artifacts root; the default `/` failed with permission_denied (issue 41)."""
+    graph = _with_skills(DockerSandboxBackend(RecordingRunner(), thread_id=lambda: "t"), tmp_path)
+    assert graph.artifacts_root == ARTIFACTS_ROOT
+    media = f"{ARTIFACTS_ROOT}/conversation_history/media/910208ce0b6e3c89.png"
+    backend = DockerSandboxBackend(RecordingRunner(), thread_id=lambda: "t")
+    assert backend.upload_files([(media, b"png")])[0].error is None
 
 
 @pytest.mark.parametrize("path", ["/etc/passwd", "/workspace/../etc/shadow", "/root/.ssh/id_rsa"])

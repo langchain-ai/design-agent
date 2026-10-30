@@ -21,6 +21,9 @@ reach the sandbox as deployment files (MDA) or a read-only mount (self-hosted), 
 
 ## Instructions and skills
 
+Two folders hold skills. `.agents/skills/` is for coding agents working on this repo (onboarding,
+brand setup, deploy, evals); `skills/` is what the agent itself reads at work.
+
 - `instructions.md` is the always-loaded prompt: identity, how the agent works, delivery and
   approval rules, how it talks. Keep it short; the budget test fails past about 8k tokens.
 - `skills/<name>/SKILL.md` are workflows the agent opens when a job needs them. Add one for a

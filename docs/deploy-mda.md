@@ -43,7 +43,7 @@ default-deny: the agent's host tools fetch and generate, the sandbox only render
 `mda deploy` forwards every key in `.env` as a deployment secret, except LangSmith's own
 (`LANGSMITH_API_KEY` signs the deploy and stays home). It never reads keys from your shell for
 the deployment. So keep `.env` to what the deployed agent uses: the model key, and optionally
-`OPENAI_API_KEY` (images), `ELEVENLABS_API_KEY` (voice and music), `DESIGN_AGENT_*` and `PAPER_*`
+`OPENAI_API_KEY` (images, unless you use the LangSmith Gateway), `ELEVENLABS_API_KEY` (voice and music), `DESIGN_AGENT_*` and `PAPER_*`
 settings. Self-hosting keys (`SLACK_*`, `DATABASE_URL`, `DESIGN_AGENT_API_TOKENS`) don't belong in
 the `.env` you deploy from.
 

@@ -105,7 +105,7 @@ def build_chat_model(
     if spec.via_gateway:
         upstream = spec.upstream
         # Never "" -> provider key: a missing gateway key must fail at the gateway, not leak.
-        kwargs.setdefault("api_key", _gateway_key(settings))
+        kwargs.setdefault("api_key", gateway_key(settings))
         if upstream.provider in GATEWAY_NATIVE_ROUTES:
             kwargs.setdefault("base_url", GATEWAY_ORIGIN + GATEWAY_NATIVE_ROUTES[upstream.provider])
             native = replace(resolved, spec=upstream)
@@ -176,7 +176,7 @@ def _openai(settings: Settings, resolved: ResolvedModel, kwargs: dict[str, Any])
     return ChatOpenAI(model=resolved.spec.model, **kwargs)
 
 
-def _gateway_key(settings: Settings) -> str:
+def gateway_key(settings: Settings) -> str:
     """The gateway credential: its own key, else the LangSmith key; "" when there is neither."""
     for key in (settings.langsmith_gateway_api_key, settings.langsmith_api_key):
         if key is not None and key.get_secret_value():

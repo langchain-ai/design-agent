@@ -143,17 +143,31 @@ LangSmith Cloud) and a model key:
 curl -fsSL https://raw.githubusercontent.com/langchain-ai/design-agent/main/install.sh | bash
 cd design-agent
 uv run design-agent config set LANGSMITH_API_KEY=lsv2_… ANTHROPIC_API_KEY=sk-ant-…
-uv run design-agent sandbox publish   # once per workspace: the agent's computer
-uv run mda deploy
+uv run design-agent sandbox publish   # once per workspace, 10-15 min: the agent's computer
+uv run mda deploy                     # the agent itself, and its Slack app
 ```
 
 The installer gets [uv](https://docs.astral.sh/uv/) if you don't have it, clones the repository and
 installs its dependencies; `git clone` and `uv sync` do the same.
 
+The two last commands do different things. `sandbox publish` builds the Linux machine every thread
+works on, as a snapshot in your LangSmith workspace; nothing you can talk to exists yet. `mda deploy`
+deploys the agent, which clones that machine for each thread. Publish again only when
+`sandbox/setup.sh` changes.
+
+**On the LangSmith Gateway?** Skip the provider key and run
+`uv run design-agent config set DESIGN_AGENT_MODEL=langsmith:anthropic/claude-opus-5-5`. The agent
+then uses `LANGSMITH_GATEWAY_API_KEY`, else `LANGSMITH_API_KEY`, and image generation goes through
+the gateway too when there is no `OPENAI_API_KEY`. For any other OpenAI-compatible endpoint, set
+`DESIGN_AGENT_MODEL_BASE_URL` and `DESIGN_AGENT_MODEL_API_KEY_ENV` ([Models](docs/models.md)).
+
 The first deploy sets up the agent's Slack app. Authorize it in your workspace, then mention the
 agent in a channel. It's how we run ours at LangChain. Try changes on a separate copy with
-`uv run mda deploy --name design-agent-test`; [Deploy with MDA](docs/deploy-mda.md) covers keys,
-what ships and checking it works.
+`uv run mda deploy --name design-agent-test`. In a workspace with agent mode,
+`uv run mda deploy --agent-environment production` (or `staging`, `development`) deploys into that
+environment of the agent, and each environment keeps its own traces: open the agent in LangSmith
+and pick the environment. `uv run mda dev` traces to its Local environment.
+[Deploy with MDA](docs/deploy-mda.md) covers keys, what ships and checking it works.
 
 **Or ask your coding agent.** Open the repo in Claude Code, Codex or Cursor and say what you want.
 [AGENTS.md](AGENTS.md) routes each request to a step-by-step [skill](.agents/skills/):
@@ -184,13 +198,25 @@ uv run design-agent ask "A LinkedIn card announcing our design review service, 1
 
 ## Make it yours
 
+This repo has two kinds of skills. The ones in [`.agents/skills/`](.agents/skills/) are for your
+coding agent, to set up, brand, deploy and change this repo. The ones in [`skills/`](skills/) are
+what Content Studio reads while it works. [Customization](docs/customization.md) covers both.
+
 | Want | Add | Guide |
 | --- | --- | --- |
-| Your brand | `workspace/brand/` (until then, a neutral sample brand) | [brand-onboarding skill](.agents/skills/brand-onboarding/SKILL.md) |
-| Generated images | `OPENAI_API_KEY` | [Models](docs/models.md) |
+| Your brand | `workspace/brand/` (until then, a neutral sample brand), then redeploy | [brand-onboarding skill](.agents/skills/brand-onboarding/SKILL.md) |
+| Generated images | `OPENAI_API_KEY`, or the LangSmith Gateway | [Models](docs/models.md) |
 | Voice, music, sound effects | `ELEVENLABS_API_KEY` | [sound skill](skills/sound/SKILL.md) |
 | The Paper canvas | `PAPER_MODE=local` with Paper Desktop, or `bridged` when deployed | [Paper](docs/partners/paper.md) |
 | Web search, your docs, other tools | MCP servers in `config/mcp.toml` | [Customization](docs/customization.md) |
+
+Once it's yours, ask it in Slack like you'd ask a designer:
+
+- "A launch card for our new feature, in LinkedIn, X and Instagram sizes."
+- "A Rocky-themed promo film for our launch, with music and sound effects."
+- "A chart of our weekly signups from this CSV." (attach the file)
+- "A YouTube thumbnail for this video."
+- "Caption this webinar clip." (attach the clip)
 
 Everything on this page uses LangChain's brand, because that's the one we run. Licensed fonts go in
 `private-fonts/`, which Git ignores.

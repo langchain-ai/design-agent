@@ -39,8 +39,17 @@ _LOGGER = logging.getLogger(__name__)
 
 AGENT_USER = "1000:1000"
 AGENT_HOME = "/home/node"
+#: Where Deep Agents offloads conversation history, large tool results and media when it
+#: summarizes. Its default is `/`, which the agent cannot write.
+ARTIFACTS_ROOT = "/workspace/.agent"
 #: Paths the agent may write. Everything else in the container is image or staged content.
-AGENT_WRITABLE = ("/workspace/projects", "/workspace/attachments", "/workspace/.renders", "/tmp")
+AGENT_WRITABLE = (
+    "/workspace/projects",
+    "/workspace/attachments",
+    "/workspace/.renders",
+    ARTIFACTS_ROOT,
+    "/tmp",
+)
 #: Paths the agent may read back through the file tools.
 AGENT_READABLE = ("/workspace", "/tmp", "/opt/design-agent/probe")
 #: Directories created at container start. The first set belongs to the agent; the second is
@@ -50,6 +59,7 @@ AGENT_DIRS = (
     "/workspace/attachments",
     "/workspace/references",
     "/workspace/.renders",
+    ARTIFACTS_ROOT,
 )
 STAGED_DIRS = ("/workspace/skills", "/workspace/tools", "/workspace/brand", "/workspace/fonts")
 DEFAULT_TIMEOUT_SECONDS = 30 * 60

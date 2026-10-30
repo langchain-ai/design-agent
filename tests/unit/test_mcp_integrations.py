@@ -95,3 +95,25 @@ def test_per_person_servers_run_only_on_mda(
         local = servers_for_runtime(tmp_path, settings(), "local")
     assert [s.name for s in local] == ["docs"]
     assert "notion left out: per-person connections need Managed Deep Agents" in caplog.text
+
+
+def test_langsmith_managed_tools_take_the_workspace_key_off_mda(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    write_config(
+        tmp_path,
+        '[servers.parallel]\nurl = "https://api.smith.langchain.com/v1/managed-tools/servers/'
+        'parallel/mcp"\n',
+    )
+    keyed = Settings(_env_file=None, langsmith_api_key="lsv2-test")  # type: ignore[call-arg]
+    (local,) = servers_for_runtime(tmp_path, keyed, "local")
+    assert local.headers({}) == {"x-api-key": "lsv2-test"}
+    assert "lsv2-test" not in repr(local)
+
+    (deployed,) = servers_for_runtime(tmp_path, keyed, "mda")
+    assert deployed.api_key is None
+    declared: dict[str, Any] = {}
+    monkeypatch.setattr(
+        "managed_deepagents.define_mcp", lambda **config: declared.update(config) or "declared"
+    )
+    assert mda_declaration([deployed]) == "declared" and "parallel" in declared["servers"]
