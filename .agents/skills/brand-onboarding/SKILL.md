@@ -41,3 +41,9 @@ leave it out and list it as a question for the person.
    always renders the sample brand.
 8. Hand the person the open questions, including rules the guide contradicts itself on; the pack is
    done when they have reviewed it.
+9. Tell them to redeploy. On Managed Deep Agents the pack ships with the deployment, so Slack keeps
+   the old brand until `uv run mda deploy`; local runs pick it up at once.
+10. Offer a Slack app icon in the new brand:
+    `uv run design-agent ask "Our Slack app icon: a 1024x1024 PNG, the logo mark centred on the brand ground, no text"`.
+    The person uploads it in the Slack app's settings (Basic Information, Display Information).
+    Slack has no API for an app's icon, so neither MDA nor this repo can set it for them.

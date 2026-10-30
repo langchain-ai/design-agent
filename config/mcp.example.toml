@@ -11,6 +11,13 @@
 # Locally and self-hosted, a server sends headers read from the host environment (`headers_env`)
 # instead, and per-person servers are left out. Header values never enter the sandbox.
 
+# --- LangSmith managed tools ---------------------------------------------------------------------
+
+# Web search (Parallel), run by LangSmith. No credentials to set: MDA authenticates it, and locally
+# and self-hosted it is sent your LANGSMITH_API_KEY. Outside GCP US, use your region's API host.
+# [servers.parallel]
+# url = "https://api.smith.langchain.com/v1/managed-tools/servers/parallel/mcp"
+
 # --- Hosted integrations (official MCP servers, OAuth) ------------------------------------------
 
 # Notion: pages, databases and comments (briefs, launch docs, content calendars).

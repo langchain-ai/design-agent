@@ -69,6 +69,12 @@ headers_env = { Authorization = "GITHUB_MCP_AUTHORIZATION" }
 
 with `GITHUB_MCP_AUTHORIZATION="Bearer <token>"` in `.env`. Header values never reach the sandbox.
 
+## Web search
+
+LangSmith runs a managed web search server (Parallel). Uncomment its entry at the top of
+`config/mcp.example.toml`: on MDA it needs nothing more, and locally and self-hosted it is sent your
+`LANGSMITH_API_KEY` as `x-api-key`, so there is no header to set.
+
 ## Your own server
 
 Any HTTP or SSE MCP server works the same way; `config/mcp.example.toml` ends with a template. A

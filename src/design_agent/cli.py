@@ -7,6 +7,7 @@ import json
 import shutil
 import subprocess
 import sys
+import time
 import uuid
 from pathlib import Path
 
@@ -527,6 +528,11 @@ def sandbox_publish(fs_gib: int, yes: bool) -> None:
         f"This builds a {fs_gib} GiB snapshot in your LangSmith workspace (sandbox time is billed). Continue?"
     ):
         sys.exit(1)
+    click.echo(
+        "Building the agent's computer. This takes about 10-15 minutes; leave it running. It is "
+        "only the sandbox image, once per workspace: `uv run mda deploy` deploys the agent itself."
+    )
+    started = time.monotonic()
     client = SandboxClient(api_key=settings.langsmith_api_key.get_secret_value())
     try:
         published = publish(client, _root(), fs_gib=fs_gib, say=click.echo)
@@ -534,7 +540,10 @@ def sandbox_publish(fs_gib: int, yes: bool) -> None:
         click.echo(f"Not published: {error}", err=True)
         sys.exit(1)
     declare_snapshot(_root(), published.snapshot_name)
-    click.echo(f"Published {published.snapshot_name}; sandbox/__init__.py now declares it.")
+    minutes = round((time.monotonic() - started) / 60)
+    click.echo(
+        f"Published {published.snapshot_name} in {minutes} min; sandbox/__init__.py now declares it."
+    )
     click.echo(
         f"Local and self-hosted LangSmith sandboxes: DESIGN_AGENT_SANDBOX_SNAPSHOT={published.snapshot_name}"
     )

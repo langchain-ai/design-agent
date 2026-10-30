@@ -34,6 +34,10 @@ owned by the deployment (`owner = "agent"`: one account everyone's requests use)
 connect link, before the run starts). Per-person connections exist only on MDA, so local and
 self-hosted runtimes leave those servers out with a warning. Nothing reaches the sandbox.
 
+LangSmith's managed tool servers (`https://api.smith.langchain.com/v1/managed-tools/...`, such as
+Parallel web search) need no credentials in the config: MDA authenticates them itself, and locally
+and self-hosted they are sent the workspace's `LANGSMITH_API_KEY` as `x-api-key`.
+
 Stdio servers (`transport = "stdio"`, a local app's own CLI) run locally and self-hosted only: MDA's
 `define_mcp` speaks HTTP and SSE, so they are left out of its declaration with a warning. The child
 process gets the MCP SDK's short list of safe variables (home, path, shell, user), not the host's
@@ -48,7 +52,7 @@ import os
 import re
 import tomllib
 from collections.abc import Awaitable, Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -65,6 +69,8 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 SERVER_NAME = re.compile(r"[a-z][a-z0-9]{0,30}")
+#: LangSmith's managed tool servers, in any region (module doc).
+MANAGED_TOOLS = re.compile(r"https://(?:[a-z]+\.)?api\.smith\.langchain\.com/v1/managed-tools/")
 Owner = Literal["agent", "user"]
 CONFIG = Path("config") / "mcp.toml"
 
@@ -89,12 +95,16 @@ class McpServer:
     """A stdio server's executable and arguments (`url` is empty)."""
     bearer: SecretStr | None = field(default=None, repr=False, compare=False)
     """Sent as `Authorization: Bearer …` locally and self-hosted; MDA uses `connection` instead."""
+    api_key: SecretStr | None = field(default=None, repr=False, compare=False)
+    """Sent as `x-api-key` locally and self-hosted: the LangSmith key, for managed tool servers."""
 
     def headers(self, env: Mapping[str, str]) -> dict[str, str] | None:
         """The headers from the host environment; None when one it names is unset."""
         values = {header: env.get(var, "") for header, var in self.headers_env.items()}
         if self.bearer is not None:
             values["Authorization"] = f"Bearer {self.bearer.get_secret_value()}"
+        if self.api_key is not None:
+            values["x-api-key"] = self.api_key.get_secret_value()
         return None if any(not v for v in values.values()) else values
 
 
@@ -179,6 +189,12 @@ def servers_for_runtime(
                     server.name,
                 )
         servers = [server for server in servers if server.owner != "user"]
+        servers = [
+            replace(server, api_key=settings.langsmith_api_key)
+            if MANAGED_TOOLS.match(server.url) and not server.headers_env
+            else server
+            for server in servers
+        ]
     if any(s.name == SERVER for s in servers):
         raise McpConfigError(
             f"config/mcp.toml declares `{SERVER}`; Paper is configured with PAPER_MODE instead"

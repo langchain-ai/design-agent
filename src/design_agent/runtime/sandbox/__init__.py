@@ -24,6 +24,7 @@ from deepagents.backends.protocol import (
 from design_agent.config import Settings
 from design_agent.middleware.workspace import BackendTarget, StagingTarget
 from design_agent.runtime.sandbox.docker import (
+    ARTIFACTS_ROOT,
     DockerLimits,
     DockerSandboxBackend,
     DockerSandboxRunner,
@@ -83,7 +84,9 @@ class SandboxBinding:
 
 def _with_skills(sandbox: BackendProtocol, project_root: Path) -> CompositeBackend:
     skills = ReadOnlyFilesystemBackend(root_dir=project_root / "skills", virtual_mode=True)
-    return CompositeBackend(default=sandbox, routes={SKILLS_ROUTE: skills})
+    return CompositeBackend(
+        default=sandbox, routes={SKILLS_ROUTE: skills}, artifacts_root=ARTIFACTS_ROOT
+    )
 
 
 def docker_binding(settings: Settings, project_root: Path) -> SandboxBinding:

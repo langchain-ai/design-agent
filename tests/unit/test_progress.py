@@ -304,6 +304,35 @@ async def test_the_fallback_merges_repeats_and_shows_only_the_latest_steps() -> 
     assert "*Done*" in closed and "Read an image" not in closed
 
 
+async def test_a_stream_slack_ended_carries_on_as_an_updated_message(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Slack ends long or idle streams (`message_not_in_streaming_state`, issue 41): the same
+    message keeps showing the work through `chat.update` instead of going dark."""
+    fake = FakeSlack()
+    middleware = lead(fake)
+    stream_min = stream_module.MIN_UPDATE_SECONDS
+    stream_module.MIN_UPDATE_SECONDS = 0.0
+    try:
+        await middleware.abefore_agent({}, RUNTIME)
+        await middleware.awrap_tool_call(call("start_task", call_id="c1"), ran)
+        fake.refuse.update(
+            {
+                "chat.appendStream": "message_not_in_streaming_state",
+                "chat.stopStream": "message_not_in_streaming_state",
+            }
+        )
+        await middleware.awrap_tool_call(call("generate_image", call_id="c2"), ran)
+        await middleware.aafter_agent(ANSWERED, RUNTIME)
+    finally:
+        stream_module.MIN_UPDATE_SECONDS = stream_min
+
+    (message,) = fake.posted.values()
+    assert "chat.update" in fake.methods()
+    assert message.text == "Done" and not message.deleted
+    assert "progress stopped" not in caplog.text
+
+
 async def test_a_run_with_no_slack_thread_says_nothing() -> None:
     """A schedule fire, a CLI ask or a Studio session has no thread to post in, and must not try."""
     fake = FakeSlack()

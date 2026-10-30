@@ -81,7 +81,7 @@ def publish(
     base_name = f"design-agent-base-{sha[:12]}"
     base = _named(client, base_name)
     if base is None:
-        say(f"Base snapshot from {base_image(project_root)} with {fs_gib} GiB of filesystem…")
+        say(f"[1/3] Base snapshot from {base_image(project_root)} with {fs_gib} GiB of filesystem…")
         base = client.create_snapshot(
             base_name, base_image(project_root), fs_gib * GIB, timeout=SNAPSHOT_TIMEOUT_SECONDS
         )
@@ -97,7 +97,10 @@ def publish(
         fs_capacity_bytes=fs_gib * GIB,
     )
     try:
-        say("Running the recipe (installs the browser, ffmpeg, fonts and the render toolchain)…")
+        say(
+            "[2/3] Running the recipe (installs the browser, ffmpeg, fonts and the render "
+            "toolchain; the longest step)…"
+        )
         sandbox.write(SETUP_PATH, setup)
         result = sandbox.run(f"bash {SETUP_PATH}", timeout=SETUP_TIMEOUT_SECONDS)
         if getattr(result, "exit_code", 1) != 0:
@@ -107,7 +110,7 @@ def publish(
         probe = sandbox.run(PROBE, timeout=600)
         if getattr(probe, "exit_code", 1) != 0:
             raise PublishError("the recipe's probe failed after setup")
-        say("Capturing the snapshot…")
+        say("[3/3] Capturing the snapshot…")
         snapshot = client.capture_snapshot(
             builder, name, fs_capacity_bytes=fs_gib * GIB, timeout=SNAPSHOT_TIMEOUT_SECONDS
         )
