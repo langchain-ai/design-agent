@@ -31,7 +31,9 @@ The tool runs on the host, so no key ever enters the sandbox; never call a provi
 script. It writes the files (`_0`, `_1` suffixes when `n` > 1) and returns their paths. `model`,
 `size`, `quality`, `n`, `background`, `output_format` and any extra `params` pass straight through to
 the provider, which validates them and explains a refusal in its own words: read the message and
-adjust rather than guessing from memory what is allowed. Every call spends money: explore at low
+adjust rather than guessing from memory what is allowed. When the deployment makes images with
+Google, `size` becomes the nearest aspect ratio, `quality="high"` asks for 2K, and there is no
+transparent background: generate on a plain ground and cut the subject out. Every call spends money: explore at low
 quality, finish once at high.
 
 The prompt is the leverage: concrete subject, action, medium, light, composition, and "no text, no
