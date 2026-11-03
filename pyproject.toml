@@ -22,7 +22,7 @@ dependencies = [
     "deepagents>=0.7.28,<0.8",
     # `langchain.mcp.MCPAdapter` is the MCP client MDA itself uses; the extra brings FastMCP.
     "langchain[mcp]>=1.4.6,<1.5",
-    "langchain-core>=1.6.12,<1.7",
+    "langchain-core>=1.6.12,<1.8",
     "langgraph>=1.2.16,<1.3",
     "langsmith>=0.14.11,<0.15",
     # MDA builds install core dependencies only, so both default providers live here.
