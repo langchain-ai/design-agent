@@ -16,7 +16,7 @@ import shlex
 import struct
 import zlib
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 from langchain.tools import ToolRuntime
@@ -41,6 +41,11 @@ ELEVENLABS_CAP_MB = 25  # five minutes of 320 kbps mp3 is about 12 MB
 VOICE_ID = re.compile(r"[A-Za-z0-9]{10,40}")
 
 
+GOOGLE_IMAGEN_URL = (
+    "https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict"
+)
+
+
 @dataclass(frozen=True)
 class ImageRoute:
     """Where image generation goes, with the key for it and a name for messages."""
@@ -48,6 +53,7 @@ class ImageRoute:
     url: str
     key: str
     via: str
+    provider: Literal["openai", "google"] = "openai"
 
 
 def _secret(secret: Any) -> str | None:
@@ -55,18 +61,38 @@ def _secret(secret: Any) -> str | None:
 
 
 def image_route(settings: Settings) -> ImageRoute | None:
-    """OpenAI with its own key; else the LangSmith Gateway's OpenAI route when this deployment uses
-    the gateway (a gateway key, or a `langsmith:` lead model), which uses its workspace's OpenAI key."""
+    """Resolve image generation route.
+
+    Prioritizes OpenAI direct key or the LangSmith Gateway's OpenAI route. When Google is
+    configured (direct `google_api_key`, or when the lead model uses Google and a gateway key is
+    set), routes to Google Imagen 3.
+    """
     if openai := _secret(settings.openai_api_key):
-        return ImageRoute(f"{OPENAI_BASE_URL}/images/generations", openai, "OpenAI")
+        return ImageRoute(
+            f"{OPENAI_BASE_URL}/images/generations", openai, "OpenAI", provider="openai"
+        )
+
     uses_gateway = bool(_secret(settings.langsmith_gateway_api_key))
+    lead_uses_google = False
     try:
-        uses_gateway = uses_gateway or settings.lead_model().via_gateway
+        lead = settings.lead_model()
+        uses_gateway = uses_gateway or lead.via_gateway
+        lead_provider = lead.upstream.provider if lead.via_gateway else lead.provider
+        lead_uses_google = lead_provider in ("google", "google_genai")
     except ValueError:
         pass
+
     if uses_gateway and (key := gateway_key(settings)):
+        if lead_uses_google:
+            google_key = _secret(settings.google_api_key) or key
+            via = "Google Imagen" if _secret(settings.google_api_key) else "the LangSmith Gateway"
+            return ImageRoute(GOOGLE_IMAGEN_URL, google_key, via, provider="google")
         url = f"{GATEWAY_ORIGIN}{GATEWAY_NATIVE_ROUTES['openai']}/images/generations"
-        return ImageRoute(url, key, "the LangSmith Gateway")
+        return ImageRoute(url, key, "the LangSmith Gateway", provider="openai")
+
+    if google := _secret(settings.google_api_key):
+        return ImageRoute(GOOGLE_IMAGEN_URL, google, "Google Imagen", provider="google")
+
     return None
 
 
@@ -174,14 +200,88 @@ def _word_timings(alignment: dict[str, list[Any]]) -> list[dict[str, JsonValue]]
 def _reason(response: httpx.Response) -> str:
     """The provider's own reason for a refusal, which is what lets the model correct the call.
 
-    OpenAI answers `{"error": {"message": ...}}`; the message names the bad field or value and
-    carries no credential, so it is safe to hand back. Anything else reads as a bare status.
+    OpenAI answers `{"error": {"message": ...}}`; Google answers `{"error": {"message": ..., "status": ...}}`.
+    The message names the bad field or value and carries no credential, so it is safe to hand back.
+    Anything else reads as a bare status.
     """
     try:
-        message = response.json().get("error", {}).get("message")
+        payload = response.json()
+        error = payload.get("error")
+        message = None
+        if isinstance(error, dict):
+            detail_msgs: list[str] = []
+            if details := error.get("details"):
+                if isinstance(details, list):
+                    for item in details:
+                        if not isinstance(item, dict):
+                            continue
+                        for fv in item.get("fieldViolations", []):
+                            if isinstance(fv, dict) and fv.get("description"):
+                                field_prefix = f"{fv['field']}: " if fv.get("field") else ""
+                                detail_msgs.append(f"{field_prefix}{fv['description']}")
+                        for qv in item.get("violations", []):
+                            if isinstance(qv, dict) and qv.get("description"):
+                                detail_msgs.append(str(qv["description"]))
+                        if item.get("reason") and not detail_msgs:
+                            detail_msgs.append(str(item["reason"]))
+                        if not detail_msgs and (item.get("description") or item.get("message")):
+                            detail_msgs.append(str(item.get("description") or item.get("message")))
+
+            base_msg = error.get("message") or error.get("status")
+            if detail_msgs:
+                if (
+                    base_msg
+                    and base_msg not in detail_msgs
+                    and base_msg != "Request contains an invalid argument."
+                ):
+                    message = f"{base_msg} ({'; '.join(detail_msgs)})"
+                else:
+                    message = "; ".join(detail_msgs)
+            else:
+                message = base_msg
+        elif isinstance(error, str):
+            message = error
+        elif isinstance(payload.get("message"), str):
+            message = payload.get("message")
     except (ValueError, AttributeError):
         return "."
-    return f": {str(message)[:300]}" if message else "."
+    return f": {str(message).strip()[:300]}" if message else "."
+
+
+def _aspect_ratio_from_size(size: str) -> str:
+    """Map a size or aspect ratio string to a supported Google Imagen aspect ratio."""
+    valid_ratios = {"1:1", "3:4", "4:3", "9:16", "16:9"}
+    size_clean = size.strip().lower()
+    if size_clean in valid_ratios:
+        return size_clean
+    if size_clean in {"square"}:
+        return "1:1"
+    if size_clean in {"landscape", "wide"}:
+        return "16:9"
+    if size_clean in {"portrait", "tall"}:
+        return "9:16"
+    size_norm = size_clean.replace("/", ":")
+    if size_norm in valid_ratios:
+        return size_norm
+    for sep in ("x", ":", "/"):
+        if sep in size_clean:
+            parts = size_clean.split(sep)
+            if len(parts) == 2:
+                try:
+                    w, h = float(parts[0].strip()), float(parts[1].strip())
+                    if w > 0 and h > 0:
+                        ratio = w / h
+                        target_ratios = [
+                            (1.0, "1:1"),
+                            (4 / 3, "4:3"),
+                            (16 / 9, "16:9"),
+                            (3 / 4, "3:4"),
+                            (9 / 16, "9:16"),
+                        ]
+                        return min(target_ratios, key=lambda r: abs(r[0] - ratio))[1]
+                except ValueError:
+                    pass
+    return "1:1"
 
 
 _IMAGE_GEN_CAP_MB = 40  # a high-quality 4K PNG can be several MB; bound the downloaded response
@@ -577,7 +677,7 @@ def build_media_tools(settings: Settings, backend_for: BackendFor) -> list[BaseT
         params: dict[str, JsonValue] | None = None,
         model: str | None = None,
     ) -> str:
-        """Generate images with OpenAI's image models and save them under /workspace.
+        """Generate images with OpenAI or Google image models and save them under /workspace.
 
         Read the image-generation skill first. Anything with the logo or exact copy is built in
         HTML on brand, not left to the image model: composite real text and logos afterwards.
@@ -592,55 +692,181 @@ def build_media_tools(settings: Settings, backend_for: BackendFor) -> list[BaseT
             route = keys.image
             if route is None:
                 return (
-                    "image generation unavailable: no OPENAI_API_KEY, and this deployment does not "
-                    "use the LangSmith Gateway."
+                    "image generation unavailable: no OPENAI_API_KEY or GOOGLE_API_KEY, and this "
+                    "deployment does not use the LangSmith Gateway."
                 )
-            body: dict[str, JsonValue] = {
-                "model": model or keys.image_model,
-                "prompt": prompt,
-                "size": size,
-                "quality": quality,
-                "n": n,
-            }
-            if background is not None:
-                body["background"] = background
-            if output_format is not None:
-                body["output_format"] = output_format
-            if params:
-                body.update(params)
-            wants_alpha = str(body.get("background", "")).strip().lower() == "transparent"
-            async with httpx.AsyncClient(timeout=240, follow_redirects=False) as client:
-                response = await client.post(
-                    route.url, headers={"Authorization": f"Bearer {route.key}"}, json=body
+            bg = (
+                background
+                if background is not None
+                else (params.get("background") if params else None)
+            )
+            wants_alpha = str(bg or "").strip().lower() == "transparent"
+            raw_images: list[bytes] = []
+
+            if route.provider == "google":
+                aspect_ratio = _aspect_ratio_from_size(size)
+                if wants_alpha:
+                    output_mime_type = "image/png"
+                elif output_format:
+                    fmt = output_format.strip().lower()
+                    if fmt == "png":
+                        output_mime_type = "image/png"
+                    elif fmt in ("jpeg", "jpg"):
+                        output_mime_type = "image/jpeg"
+                    elif "/" in fmt:
+                        output_mime_type = fmt
+                    else:
+                        output_mime_type = f"image/{fmt}"
+                elif path.lower().endswith(".png"):
+                    output_mime_type = "image/png"
+                elif path.lower().endswith((".jpg", ".jpeg")):
+                    output_mime_type = "image/jpeg"
+                elif path.lower().endswith(".webp"):
+                    output_mime_type = "image/webp"
+                else:
+                    output_mime_type = "image/png"
+
+                parameters: dict[str, JsonValue] = {
+                    "sampleCount": n,
+                    "aspectRatio": aspect_ratio,
+                    "outputMimeType": output_mime_type,
+                }
+                if params:
+                    param_aliases = {
+                        "aspect_ratio": "aspectRatio",
+                        "aspectRatio": "aspectRatio",
+                        "output_mime_type": "outputMimeType",
+                        "outputMimeType": "outputMimeType",
+                        "sample_count": "sampleCount",
+                        "sampleCount": "sampleCount",
+                        "person_generation": "personGeneration",
+                        "personGeneration": "personGeneration",
+                        "safety_setting": "safetySetting",
+                        "safetySetting": "safetySetting",
+                        "add_watermark": "addWatermark",
+                        "addWatermark": "addWatermark",
+                    }
+                    for k, v in params.items():
+                        if k == "background":
+                            continue
+                        mapped_key = param_aliases.get(k, k)
+                        parameters[mapped_key] = v
+
+                target_url = route.url
+                chosen_model = model or (
+                    keys.image_model if keys.image_model.startswith("imagen-") else None
                 )
-            if response.status_code != 200:
-                hint = (
-                    " (the gateway's workspace has no OpenAI key; add one there or set "
-                    "OPENAI_API_KEY)"
-                    if response.status_code == 424
-                    else ""
-                )
-                return (
-                    f"image generation failed: {route.via} HTTP {response.status_code}"
-                    f"{_reason(response)}{hint}"
-                )
-            items = response.json().get("data") or []
+                if chosen_model:
+                    clean_model = (
+                        chosen_model.removeprefix("models/")
+                        .removeprefix("google/")
+                        .removeprefix("google_genai/")
+                    )
+                    target_url = (
+                        f"https://generativelanguage.googleapis.com/v1beta/models/"
+                        f"{clean_model}:predict"
+                    )
+
+                google_body: dict[str, JsonValue] = {
+                    "instances": [{"prompt": prompt}],
+                    "parameters": parameters,
+                }
+                async with httpx.AsyncClient(timeout=240, follow_redirects=False) as client:
+                    response = await client.post(
+                        target_url,
+                        headers={"x-goog-api-key": route.key},
+                        json=google_body,
+                    )
+                if response.status_code != 200:
+                    return (
+                        f"image generation failed: {route.via} HTTP {response.status_code}"
+                        f"{_reason(response)}"
+                    )
+                payload = response.json()
+                filter_reasons: list[str] = []
+                if isinstance(payload, dict):
+                    if prompt_feedback := payload.get("promptFeedback"):
+                        if isinstance(prompt_feedback, dict) and prompt_feedback.get("blockReason"):
+                            filter_reasons.append(
+                                f"prompt blocked: {prompt_feedback['blockReason']}"
+                            )
+                    predictions = payload.get("predictions") or []
+                else:
+                    predictions = []
+                for item in predictions:
+                    if not isinstance(item, dict):
+                        continue
+                    if filter_reason := item.get("raiFilteredReason"):
+                        filter_reasons.append(str(filter_reason))
+                    if safety := item.get("safetyAttributes"):
+                        if isinstance(safety, dict) and safety.get("blocked"):
+                            reasons = safety.get("reasons") or ["blocked"]
+                            filter_reasons.extend(str(r) for r in reasons)
+                    encoded = (
+                        item.get("bytesBase64Encoded")
+                        or (
+                            item.get("image", {}).get("imageBytes")
+                            if isinstance(item.get("image"), dict)
+                            else None
+                        )
+                        or item.get("b64_json")
+                    )
+                    if encoded:
+                        if len(encoded) > (_IMAGE_GEN_CAP_MB * 1024 * 1024 + 2) // 3 * 4:
+                            return f"generated image too large: limit {_IMAGE_GEN_CAP_MB} MB."
+                        raw_images.append(base64.b64decode(encoded, validate=True))
+                if not raw_images and filter_reasons:
+                    return f"image generation refused: safety filter ({', '.join(filter_reasons)})."
+            else:
+                body: dict[str, JsonValue] = {
+                    "model": model or keys.image_model,
+                    "prompt": prompt,
+                    "size": size,
+                    "quality": quality,
+                    "n": n,
+                }
+                if background is not None:
+                    body["background"] = background
+                if output_format is not None:
+                    body["output_format"] = output_format
+                if params:
+                    body.update(params)
+                async with httpx.AsyncClient(timeout=240, follow_redirects=False) as client:
+                    response = await client.post(
+                        route.url, headers={"Authorization": f"Bearer {route.key}"}, json=body
+                    )
+                if response.status_code != 200:
+                    hint = (
+                        " (the gateway's workspace has no OpenAI key; add one there or set "
+                        "OPENAI_API_KEY)"
+                        if response.status_code == 424
+                        else ""
+                    )
+                    return (
+                        f"image generation failed: {route.via} HTTP {response.status_code}"
+                        f"{_reason(response)}{hint}"
+                    )
+                items = response.json().get("data") or []
+                for item in items:
+                    if not isinstance(item, dict):
+                        continue
+                    if item.get("b64_json"):
+                        encoded = item["b64_json"]
+                        if len(encoded) > (_IMAGE_GEN_CAP_MB * 1024 * 1024 + 2) // 3 * 4:
+                            return f"generated image too large: limit {_IMAGE_GEN_CAP_MB} MB."
+                        raw_images.append(base64.b64decode(encoded, validate=True))
+                    elif item.get("url"):
+                        raw_images.append(
+                            await _download(
+                                item["url"], cap_mb=_IMAGE_GEN_CAP_MB, provider="OpenAI image"
+                            )
+                        )
+
             written: list[str] = []
             reports: list[str] = []
-            for index, item in enumerate(items):
-                if item.get("b64_json"):
-                    encoded = item["b64_json"]
-                    if len(encoded) > (_IMAGE_GEN_CAP_MB * 1024 * 1024 + 2) // 3 * 4:
-                        return f"generated image too large: limit {_IMAGE_GEN_CAP_MB} MB."
-                    data = base64.b64decode(encoded, validate=True)
-                elif item.get("url"):
-                    data = await _download(
-                        item["url"], cap_mb=_IMAGE_GEN_CAP_MB, provider="OpenAI image"
-                    )
-                else:
-                    continue
+            for index, data in enumerate(raw_images):
                 stem, extension = posixpath.splitext(path)
-                target = f"{stem}_{index}{extension}" if len(items) > 1 else path
+                target = f"{stem}_{index}{extension}" if len(raw_images) > 1 else path
                 written.append(await write_bytes(backend, target, data))
                 if wants_alpha:
                     reports.append(_alpha_receipt(target, *_png_alpha_report(data)))

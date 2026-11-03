@@ -14,7 +14,12 @@ from deepagents.backends.protocol import FileDownloadResponse, FileUploadRespons
 
 from design_agent.config import Settings
 from design_agent.tools.fetch import FetchRefused, build_fetch_tool, check_url, public_address
-from design_agent.tools.media import _png_alpha_report, build_media_tools, image_route
+from design_agent.tools.media import (
+    GOOGLE_IMAGEN_URL,
+    _png_alpha_report,
+    build_media_tools,
+    image_route,
+)
 
 
 class MemoryBackend:
@@ -231,3 +236,252 @@ async def test_a_gateway_without_an_openai_key_says_where_to_add_one(
     )  # type: ignore[misc]
     assert "LangSmith Gateway HTTP 424" in result and "no OpenAI key" in result
     assert not backend.files
+
+
+def test_images_route_to_google_imagen() -> None:
+    direct = image_route(_settings(google_api_key="aiza-direct"))
+    assert direct is not None
+    assert direct.provider == "google"
+    assert direct.url == GOOGLE_IMAGEN_URL
+    assert direct.key == "aiza-direct"
+    assert direct.via == "Google Imagen"
+
+    # OpenAI direct key is prioritized over Google
+    prioritized = image_route(_settings(openai_api_key="sk-test", google_api_key="aiza-direct"))
+    assert prioritized is not None
+    assert prioritized.provider == "openai"
+    assert prioritized.key == "sk-test"
+
+    # Lead model uses google and gateway key is set
+    gateway_lead = image_route(
+        _settings(model="langsmith:google_genai/gemini-2.5-flash", langsmith_api_key="lsv2-l")
+    )
+    assert gateway_lead is not None
+    assert gateway_lead.provider == "google"
+    assert gateway_lead.key == "lsv2-l"
+    assert gateway_lead.url == GOOGLE_IMAGEN_URL
+
+    direct_lead_gateway_key = image_route(
+        _settings(model="google_genai:gemini-2.5-flash", langsmith_gateway_api_key="lsv2-g")
+    )
+    assert direct_lead_gateway_key is not None
+    assert direct_lead_gateway_key.provider == "google"
+    assert direct_lead_gateway_key.key == "lsv2-g"
+
+
+async def test_generate_image_google_imagen_success_and_alpha(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = {"predictions": [{"bytesBase64Encoded": base64.b64encode(_png(2, 2, 0)).decode()}]}
+    seen: dict[str, Any] = {}
+
+    async def fake_post(self: httpx.AsyncClient, url: str, **kwargs: Any) -> httpx.Response:
+        seen.update(url=url, headers=kwargs.get("headers"), body=kwargs.get("json"))
+        return httpx.Response(
+            200, content=json.dumps(payload).encode(), request=httpx.Request("POST", url)
+        )
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+    backend = MemoryBackend()
+    tools = {
+        t.name: t
+        for t in build_media_tools(
+            Settings(_env_file=None, google_api_key="aiza-test"), lambda _rt: backend
+        )
+    }  # type: ignore[call-arg,arg-type,return-value]
+    result = await tools["generate_image"].coroutine(
+        prompt="a glowing lamp",
+        sandbox_path="/workspace/projects/p/lamp.png",
+        runtime=None,
+        size="1792x1024",
+        background="transparent",
+        output_format="png",
+    )  # type: ignore[misc]
+    assert "wrote /workspace/projects/p/lamp.png" in result and "alpha verified" in result
+    assert seen["url"] == GOOGLE_IMAGEN_URL
+    assert seen["headers"].get("x-goog-api-key") == "aiza-test"
+    assert seen["body"]["instances"] == [{"prompt": "a glowing lamp"}]
+    assert seen["body"]["parameters"]["sampleCount"] == 1
+    assert seen["body"]["parameters"]["aspectRatio"] == "16:9"
+    assert seen["body"]["parameters"]["outputMimeType"] == "image/png"
+
+
+async def test_generate_image_google_imagen_multiple_samples(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    img_b64 = base64.b64encode(_png(2, 2, 255)).decode()
+    payload = {
+        "predictions": [
+            {"bytesBase64Encoded": img_b64},
+            {"bytesBase64Encoded": img_b64},
+        ]
+    }
+    seen: dict[str, Any] = {}
+
+    async def fake_post(self: httpx.AsyncClient, url: str, **kwargs: Any) -> httpx.Response:
+        seen.update(url=url, body=kwargs.get("json"))
+        return httpx.Response(
+            200, content=json.dumps(payload).encode(), request=httpx.Request("POST", url)
+        )
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+    backend = MemoryBackend()
+    tools = {
+        t.name: t
+        for t in build_media_tools(
+            Settings(_env_file=None, google_api_key="aiza-test"), lambda _rt: backend
+        )
+    }  # type: ignore[call-arg,arg-type,return-value]
+    result = await tools["generate_image"].coroutine(
+        prompt="two lamps",
+        sandbox_path="/workspace/projects/p/lamp.png",
+        runtime=None,
+        n=2,
+    )  # type: ignore[misc]
+    assert "wrote /workspace/projects/p/lamp_0.png, /workspace/projects/p/lamp_1.png" in result
+    assert "/workspace/projects/p/lamp_0.png" in backend.files
+    assert "/workspace/projects/p/lamp_1.png" in backend.files
+    assert seen["body"]["parameters"]["sampleCount"] == 2
+
+
+async def test_generate_image_google_imagen_error_handling(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    backend = MemoryBackend()
+    tools = {
+        t.name: t
+        for t in build_media_tools(
+            Settings(_env_file=None, google_api_key="aiza-test"), lambda _rt: backend
+        )
+    }  # type: ignore[call-arg,arg-type,return-value]
+
+    async def fake_error_post(self: httpx.AsyncClient, url: str, **kwargs: Any) -> httpx.Response:
+        err = {
+            "error": {
+                "code": 400,
+                "message": "Invalid aspectRatio: must be one of [1:1, 3:4, 4:3, 9:16, 16:9]",
+                "status": "INVALID_ARGUMENT",
+            }
+        }
+        return httpx.Response(
+            400, content=json.dumps(err).encode(), request=httpx.Request("POST", url)
+        )
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_error_post)
+    result = await tools["generate_image"].coroutine(
+        prompt="lamp", sandbox_path="/workspace/projects/p/lamp.png", runtime=None
+    )  # type: ignore[misc]
+    assert "Google Imagen HTTP 400" in result
+    assert "Invalid aspectRatio" in result
+
+    # Test safety refusal
+    async def fake_safety_post(self: httpx.AsyncClient, url: str, **kwargs: Any) -> httpx.Response:
+        safety = {"predictions": [{"raiFilteredReason": "SAFETY_BLOCKED"}]}
+        return httpx.Response(
+            200, content=json.dumps(safety).encode(), request=httpx.Request("POST", url)
+        )
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_safety_post)
+    safety_result = await tools["generate_image"].coroutine(
+        prompt="lamp", sandbox_path="/workspace/projects/p/lamp.png", runtime=None
+    )  # type: ignore[misc]
+    assert "safety filter (SAFETY_BLOCKED)" in safety_result
+
+
+async def test_generate_image_google_imagen_field_violations_and_safety_feedback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    backend = MemoryBackend()
+    tools = {
+        t.name: t
+        for t in build_media_tools(
+            Settings(_env_file=None, google_api_key="aiza-test"), lambda _rt: backend
+        )
+    }  # type: ignore[call-arg,arg-type,return-value]
+
+    # Test Google RPC fieldViolations parsing in _reason
+    async def fake_violation_post(
+        self: httpx.AsyncClient, url: str, **kwargs: Any
+    ) -> httpx.Response:
+        err = {
+            "error": {
+                "code": 400,
+                "message": "Request contains an invalid argument.",
+                "status": "INVALID_ARGUMENT",
+                "details": [
+                    {
+                        "@type": "type.googleapis.com/google.rpc.BadRequest",
+                        "fieldViolations": [
+                            {
+                                "field": "parameters.sampleCount",
+                                "description": "sampleCount must be between 1 and 4",
+                            }
+                        ],
+                    }
+                ],
+            }
+        }
+        return httpx.Response(
+            400, content=json.dumps(err).encode(), request=httpx.Request("POST", url)
+        )
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_violation_post)
+    violation_result = await tools["generate_image"].coroutine(
+        prompt="lamp", sandbox_path="/workspace/projects/p/lamp.png", runtime=None
+    )  # type: ignore[misc]
+    assert "parameters.sampleCount: sampleCount must be between 1 and 4" in violation_result
+
+    # Test promptFeedback safety block
+    async def fake_prompt_blocked(
+        self: httpx.AsyncClient, url: str, **kwargs: Any
+    ) -> httpx.Response:
+        blocked = {"promptFeedback": {"blockReason": "SAFETY"}}
+        return httpx.Response(
+            200, content=json.dumps(blocked).encode(), request=httpx.Request("POST", url)
+        )
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_prompt_blocked)
+    blocked_result = await tools["generate_image"].coroutine(
+        prompt="lamp", sandbox_path="/workspace/projects/p/lamp.png", runtime=None
+    )  # type: ignore[misc]
+    assert "safety filter (prompt blocked: SAFETY)" in blocked_result
+
+
+async def test_generate_image_google_imagen_parameters_and_model_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen: dict[str, Any] = {}
+    payload = {"predictions": [{"bytesBase64Encoded": base64.b64encode(_png(2, 2, 0)).decode()}]}
+
+    async def fake_post(self: httpx.AsyncClient, url: str, **kwargs: Any) -> httpx.Response:
+        seen.update(url=url, body=kwargs.get("json"))
+        return httpx.Response(
+            200, content=json.dumps(payload).encode(), request=httpx.Request("POST", url)
+        )
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+    backend = MemoryBackend()
+    tools = {
+        t.name: t
+        for t in build_media_tools(
+            Settings(_env_file=None, google_api_key="aiza-test"), lambda _rt: backend
+        )
+    }  # type: ignore[call-arg,arg-type,return-value]
+
+    # Test model override, colon size ratio, and snake_case parameter normalization
+    await tools["generate_image"].coroutine(
+        prompt="lamp",
+        sandbox_path="/workspace/projects/p/lamp.png",
+        runtime=None,
+        model="imagen-3.0-fast-generate-001",
+        size="1920:1080",
+        background="transparent",
+        output_format="jpeg",  # transparent must force png
+        params={"sample_count": 1, "person_generation": "ALLOW_ADULT"},
+    )  # type: ignore[misc]
+
+    assert "imagen-3.0-fast-generate-001:predict" in seen["url"]
+    assert seen["body"]["parameters"]["aspectRatio"] == "16:9"
+    assert seen["body"]["parameters"]["outputMimeType"] == "image/png"
+    assert seen["body"]["parameters"]["sampleCount"] == 1
+    assert seen["body"]["parameters"]["personGeneration"] == "ALLOW_ADULT"
