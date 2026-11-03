@@ -205,7 +205,7 @@ what Content Studio reads while it works. [Customization](docs/customization.md)
 | Want | Add | Guide |
 | --- | --- | --- |
 | Your brand | `workspace/brand/` (until then, a neutral sample brand), then redeploy | [brand-onboarding skill](.agents/skills/brand-onboarding/SKILL.md) |
-| Generated images | `OPENAI_API_KEY`, or the LangSmith Gateway | [Models](docs/models.md) |
+| Generated images | `OPENAI_API_KEY`, `GOOGLE_API_KEY`, or the LangSmith Gateway | [Models](docs/models.md) |
 | Voice, music, sound effects | `ELEVENLABS_API_KEY` | [sound skill](skills/sound/SKILL.md) |
 | The Paper canvas | `PAPER_MODE=local` with Paper Desktop, or `bridged` when deployed | [Paper](docs/partners/paper.md) |
 | Web search, your docs, other tools | MCP servers in `config/mcp.toml` | [Customization](docs/customization.md) |

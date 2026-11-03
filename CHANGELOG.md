@@ -4,6 +4,10 @@
 
 ### Added
 
+- Images from Google's Gemini image models (from #50): with `GOOGLE_API_KEY`, or through the
+  LangSmith Gateway's Google path when the lead model is Google. `DESIGN_AGENT_IMAGE_MODEL=gemini-…`
+  picks Google whenever it is reachable. A key only goes to its own provider or the gateway, and
+  only a well-formed Gemini model id reaches the request URL.
 - Image generation goes through the LangSmith Gateway when there is no `OPENAI_API_KEY` and the
   deployment uses the gateway (a `langsmith:` model or `LANGSMITH_GATEWAY_API_KEY`); a gateway
   workspace with no OpenAI key says so.
