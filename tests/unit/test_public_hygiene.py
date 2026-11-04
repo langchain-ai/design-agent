@@ -56,6 +56,7 @@ RULES: tuple[Rule, ...] = (
         "AGENTS.md",
         "NOTICE.md",
         "README.md",
+        "README.*.md",
         "docs/assets/readme/*",
         "src/design_agent/config.py",
         ".env.example",

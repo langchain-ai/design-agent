@@ -4,6 +4,8 @@
 
 ### Added
 
+- The README in Simplified Chinese (`README.zh-CN.md`) and Japanese (`README.ja.md`), with a
+  language switcher at the top of each. The English README stays the source of truth.
 - Images from Google's Gemini image models (from #50): with `GOOGLE_API_KEY`, or through the
   LangSmith Gateway's Google path when the lead model is Google. `DESIGN_AGENT_IMAGE_MODEL=gemini-…`
   picks Google whenever it is reachable. A key only goes to its own provider or the gateway, and

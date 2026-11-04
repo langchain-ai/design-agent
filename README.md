@@ -18,6 +18,9 @@
     <a href="https://www.langchain.com/blog/design-agent?utm_source=github&utm_medium=readme&utm_campaign=design-agent">How we built it</a> ·
     <a href="docs/README.md">Docs</a>
   </p>
+  <p>
+    <b>English</b> · <a href="README.zh-CN.md">简体中文</a> · <a href="README.ja.md">日本語</a>
+  </p>
 </div>
 
 **Content Studio is the design agent LangChain runs, now open source.** Add your brand and deploy it
