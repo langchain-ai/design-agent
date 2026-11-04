@@ -71,6 +71,7 @@ person before starting more work; nothing is stopped in code.
 | Graph step limit near | The turn wraps up with tools off: what is finished, with paths, and the next step, marked partial in `response_metadata`. |
 | A synchronous `task` subagent raises | The lead gets a tool error naming the exception class, and can do the step itself. |
 | `upload_files` raises | A tool error saying the files were not sent; never claimed as sent. |
+| A host media tool raises | A tool error naming the tool and exception class; other tools keep working. |
 | An MCP server fails to load | Left out with a warning; the rest load (`throw_on_load_error=False` on MDA). |
 | An MCP call raises | A tool error naming the server; other tools keep working. |
 | History names a tool that is gone | References are dropped per call; if the provider still refuses, one deeper repair folds the old calls into text notes and retries once. |

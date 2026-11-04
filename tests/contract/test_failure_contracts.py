@@ -184,3 +184,205 @@ async def test_the_housekeeping_run_never_calls_the_model_or_stages_the_sandbox(
     assert model.call_count == 0
     assert str(added[-1].content).startswith("Housekeeping:")
     assert not (tmp_path / "sb" / "workspace" / ".design-agent-ready").exists()
+
+
+async def test_host_media_timeout_returns_tool_error_and_allows_graph_to_proceed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from design_agent.tools.media import ImageRoute
+
+    monkeypatch.setattr(
+        "design_agent.tools.media.image_route",
+        lambda _: ImageRoute(
+            url="https://api.openai.com/v1/images/generations",
+            key="fake-key",
+            via="OpenAI",
+            provider="openai",
+        ),
+    )
+
+    async def timeout_post(*args: object, **kwargs: object) -> httpx.Response:
+        raise TimeoutError("external socket timed out")
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", timeout_post)
+
+    lead = ScriptedChatModel(
+        steps=[
+            lambda _m: tool_call(
+                "generate_image", {"prompt": "A modern poster", "sandbox_path": "poster.png"}
+            ),
+            lambda m: reply(
+                "fallback: carried on"
+                if isinstance(m[-1], ToolMessage) and m[-1].status == "error"
+                else "unexpected"
+            ),
+        ]
+    )
+
+    added = await runtime(tmp_path, lead).ask("Generate the poster.", thread_id="f_img")
+    errors = [m for m in added if isinstance(m, ToolMessage) and m.name == "generate_image"]
+    assert len(errors) == 1
+    assert errors[0].status == "error"
+    assert "The generate_image call failed (TimeoutError)" in str(errors[0].content)
+    assert "socket timed out" not in str(errors[0].content)
+    assert added[-1].content == "fallback: carried on"
+
+
+async def test_fetch_asset_ssl_error_returns_tool_error_and_allows_graph_to_proceed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import ssl
+
+    async def failing_fetch(*args: object, **kwargs: object) -> tuple[bytes, str]:
+        raise ssl.SSLError("handshake failure")
+
+    monkeypatch.setattr("design_agent.tools.fetch.fetch", failing_fetch)
+
+    lead = ScriptedChatModel(
+        steps=[
+            lambda _m: tool_call(
+                "fetch_asset",
+                {"url": "https://assets.example.com/logo.png", "sandbox_path": "logo.png"},
+            ),
+            lambda m: reply(
+                "fallback: asset skipped"
+                if isinstance(m[-1], ToolMessage) and m[-1].status == "error"
+                else "unexpected"
+            ),
+        ]
+    )
+
+    added = await runtime(tmp_path, lead).ask("Fetch the logo.", thread_id="f_fetch")
+    errors = [m for m in added if isinstance(m, ToolMessage) and m.name == "fetch_asset"]
+    assert len(errors) == 1
+    assert errors[0].status == "error"
+    assert "The fetch_asset call failed (SSLError)" in str(errors[0].content)
+    assert "handshake failure" not in str(errors[0].content)
+    assert added[-1].content == "fallback: asset skipped"
+
+
+async def test_host_media_boundary_reraises_graph_bubble_up(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from langgraph.errors import GraphBubbleUp
+
+    async def bubble_fetch(*args: object, **kwargs: object) -> tuple[bytes, str]:
+        raise GraphBubbleUp()
+
+    monkeypatch.setattr("design_agent.tools.fetch.fetch", bubble_fetch)
+
+    lead = ScriptedChatModel(
+        steps=[
+            lambda _m: tool_call(
+                "fetch_asset",
+                {"url": "https://assets.example.com/font.ttf", "sandbox_path": "font.ttf"},
+            ),
+        ]
+    )
+
+    with pytest.raises(GraphBubbleUp):
+        await runtime(tmp_path, lead).ask("Fetch font.", thread_id="f_bubble")
+
+
+async def test_concurrent_media_tool_calls_preserve_success_and_tool_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from design_agent.testing.scripted_model import tool_calls
+    from design_agent.tools.media import ImageRoute
+
+    monkeypatch.setattr(
+        "design_agent.tools.media.image_route",
+        lambda _: ImageRoute(
+            url="https://api.openai.com/v1/images/generations",
+            key="fake-key",
+            via="OpenAI",
+            provider="openai",
+        ),
+    )
+
+    async def timeout_post(*args: object, **kwargs: object) -> httpx.Response:
+        raise TimeoutError("connection timed out")
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", timeout_post)
+
+    async def fake_fetch(*args: object, **kwargs: object) -> tuple[bytes, str]:
+        return b"fake-png-bytes", "image/png"
+
+    monkeypatch.setattr("design_agent.tools.fetch.fetch", fake_fetch)
+
+    lead = ScriptedChatModel(
+        steps=[
+            lambda _m: tool_calls(
+                ("generate_image", {"prompt": "Poster", "sandbox_path": "poster.png"}),
+                (
+                    "fetch_asset",
+                    {"url": "https://assets.example.com/logo.png", "sandbox_path": "logo.png"},
+                ),
+            ),
+            lambda m: reply(
+                "finished both"
+                if any(isinstance(x, ToolMessage) and x.status == "error" for x in m)
+                and any(isinstance(x, ToolMessage) and x.name == "fetch_asset" for x in m)
+                else "unexpected"
+            ),
+        ]
+    )
+
+    added = await runtime(tmp_path, lead).ask("Do both.", thread_id="f_concurrent")
+    tool_messages = [m for m in added if isinstance(m, ToolMessage)]
+    assert len(tool_messages) == 2
+
+    img_msg = next(m for m in tool_messages if m.name == "generate_image")
+    assert img_msg.status == "error"
+    assert "The generate_image call failed (TimeoutError)" in str(img_msg.content)
+
+    fetch_msg = next(m for m in tool_messages if m.name == "fetch_asset")
+    assert fetch_msg.status == "success"
+    assert "wrote 0 KB (image/png)" in str(fetch_msg.content)
+
+    assert added[-1].content == "finished both"
+    assert (tmp_path / "sb" / "workspace" / "logo.png").exists()
+
+
+async def test_delegated_subagent_media_tool_timeout_handled_within_subagent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from design_agent.tools.media import ImageRoute
+
+    monkeypatch.setattr(
+        "design_agent.tools.media.image_route",
+        lambda _: ImageRoute(
+            url="https://api.openai.com/v1/images/generations",
+            key="fake-key",
+            via="OpenAI",
+            provider="openai",
+        ),
+    )
+
+    async def timeout_post(*args: object, **kwargs: object) -> httpx.Response:
+        raise TimeoutError("external socket timed out")
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", timeout_post)
+
+    def step(messages: Sequence[BaseMessage]) -> AIMessage:
+        prompt = latest_human(messages)
+        if prompt == "Subagent: generate backdrop":
+            last = messages[-1]
+            if isinstance(last, ToolMessage) and last.name == "generate_image":
+                return reply(f"subagent recovered from {last.status}: {last.name}")
+            return tool_call(
+                "generate_image", {"prompt": "backdrop", "sandbox_path": "backdrop.png"}
+            )
+
+        last = messages[-1]
+        if isinstance(last, ToolMessage) and last.name == "task":
+            return reply(f"lead received: {last.content}")
+        return tool_call(
+            "task",
+            {"description": "Subagent: generate backdrop", "subagent_type": "general-purpose"},
+        )
+
+    model = RespondingChatModel(respond=step)
+    rt = runtime(tmp_path, model)
+    added = await rt.ask("Delegate backdrop generation.", thread_id="f_subagent_media")
+    assert added[-1].content == "lead received: subagent recovered from error: generate_image"
