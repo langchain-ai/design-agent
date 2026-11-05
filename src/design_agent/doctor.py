@@ -175,8 +175,10 @@ def _check_sandbox(settings: Settings) -> Check:
     available, reason = DockerSandboxRunner(image=settings.sandbox_image).available()
     return Check(
         "sandbox",
-        "ok" if available else "fail",
-        f"Docker image {settings.sandbox_image}" if available else reason,
+        "ok" if available else "warn",
+        f"Docker image {settings.sandbox_image}"
+        if available
+        else f"{reason} (only local runs need it; an MDA deploy does not)",
     )
 
 
@@ -197,25 +199,38 @@ def _check_mda_project(root: Path) -> Check:
     missing = [p for p in MDA_FILES if not (root / p).is_file()]
     if missing:
         return Check("mda-project", "warn", "missing " + ", ".join(missing))
-    if declared_base(root) == "docker_image":
-        return Check(
-            "mda-project",
-            "warn",
-            "declarations present; publish the sandbox snapshot before an MDA deploy (`sandbox publish`)",
-        )
+    published = declared_base(root) != "docker_image"
     return Check(
-        "mda-project", "ok", "declarations present; sandbox declares the published snapshot"
+        "mda-project",
+        "ok",
+        "declarations present" + ("; sandbox declares the published snapshot" if published else ""),
     )
 
 
-def _check_mda_deploy(root: Path) -> Check:
-    """What would make a plain `mda deploy` of this checkout fail or ship the wrong thing."""
+def deploy_model_key(settings: Settings) -> str | None:
+    """The `.env` key the deployed lead model needs, or None when it goes through the gateway."""
+    spec = settings.lead_model()
+    if spec.via_gateway:
+        return None
+    field = PROVIDER_KEYS.get(spec.provider)
+    return field.upper() if field else None
+
+
+def _check_mda_deploy(root: Path, settings: Settings | None = None) -> Check:
+    """What would make a plain `mda deploy` of this checkout fail or ship the wrong thing.
+
+    "Ready" means a deploy works as it stands: the snapshot is published and the lead model's key
+    is in `.env` (a deploy ships `.env`, never the shell). Until then the check says what to do
+    first, as a warning, since a checkout that only runs the local demo needs neither.
+    """
     from dotenv import dotenv_values
 
+    from design_agent.runtime.sandbox.publish import declared_base
     from design_agent.skills_lock import is_text, verify
 
     problems: list[str] = []
     warnings: list[str] = []
+    first: list[str] = []
     binary = [
         path.relative_to(root).as_posix()
         for path in sorted((root / "skills").rglob("*"))
@@ -229,6 +244,13 @@ def _check_mda_deploy(root: Path) -> Check:
         warnings.append("vendored skills differ from skills-lock.json (`skills verify`)")
     env_file = root / ".env"
     env = dotenv_values(env_file) if env_file.is_file() else {}
+    if (root / "sandbox" / "__init__.py").is_file() and declared_base(root) == "docker_image":
+        if settings is not None and settings.langsmith_api_key is None:
+            first.append("put LANGSMITH_API_KEY in .env (`config set LANGSMITH_API_KEY`)")
+        first.append("publish the sandbox snapshot (`sandbox publish`)")
+    key = deploy_model_key(settings) if settings is not None else None
+    if key and not (env.get(key) or "").strip():
+        first.append(f"put {key} in .env (`config set {key}`); a deploy ships .env, not your shell")
     forwarded = [key for key in SELF_HOSTED_KEYS if (env.get(key) or "").strip()]
     if forwarded:
         warnings.append(
@@ -242,6 +264,8 @@ def _check_mda_deploy(root: Path) -> Check:
             f"workspace/out holds {size // (1024 * 1024)} MB of renders, which `mda deploy` "
             "archives (200 MB limit): clear old ones"
         )
+    if first:
+        warnings.insert(0, "before `mda deploy`: " + ", then ".join(first))
     status: Status = "fail" if problems else "warn" if warnings else "ok"
     detail = "; ".join(problems + warnings) or "ready for `mda deploy`"
     return Check("mda-deploy", status, detail)
@@ -287,7 +311,7 @@ def run_checks(settings: Settings, root: Path) -> list[Check]:
         _check_sandbox(settings),
         _check_node(),
         _check_mda_project(root),
-        _check_mda_deploy(root),
+        _check_mda_deploy(root, settings),
         _check_mcp(root),
         _check_paper(settings),
     ]

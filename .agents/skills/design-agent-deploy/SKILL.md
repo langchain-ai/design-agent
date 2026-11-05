@@ -7,8 +7,9 @@ description: Put Design Agent in a team's Slack. Deploy it to Managed Deep Agent
 
 A deployment is what the team uses. Ask before `mda deploy`, before connecting Slack, and before
 anything that bills (publishing a snapshot, hosting). Never print a key; name missing settings.
-Setup comes first: `uv run design-agent doctor` should pass and the brand pack should validate
-(`design-agent-onboarding`, `brand-onboarding`).
+Setup comes first: `uv run design-agent doctor` should show no `FAIL` line and the brand pack should
+validate (`design-agent-onboarding`, `brand-onboarding`). A first deploy can use the sample brand
+and needs no local Docker; `doctor`'s `mda-deploy` line lists what the deploy still needs.
 
 | | Managed Deep Agents (recommended) | Self-hosted |
 | --- | --- | --- |
@@ -18,8 +19,24 @@ Setup comes first: `uv run design-agent doctor` should pass and the brand pack s
 
 ## Managed Deep Agents
 
+**Ask first, in one message:** do they have a LangSmith Cloud account with Managed Deep Agents (US,
+public beta), which model (Anthropic by default, or the LangSmith Gateway), whether to start with the
+sample brand (fine for a first deploy) or theirs, and whether to deploy a test copy first. Say what
+bills: the snapshot build, hosting and model spend ([pricing](https://www.langchain.com/pricing)).
+
+**Keys never pass through you.** Name the keys (`LANGSMITH_API_KEY`, needs deployment permission,
+and the model's key) and have the person run `uv run design-agent config set LANGSMITH_API_KEY
+ANTHROPIC_API_KEY` in their own terminal: each value is typed hidden. Without a terminal the command
+refuses rather than asking you for the value. Never ask for a key in chat.
+
+**Long and interactive steps.** `sandbox publish` takes 10 to 15 minutes and asks to confirm: after
+their yes, run `sandbox publish --yes` in the background. The first `mda deploy` sets up the Slack
+app and waits for a person: a browser sign-in (no `LANGSMITH_API_KEY` in `.env`), an authorization
+link, and Enter in a real terminal. Have the person run it in their own terminal. Later deploys
+need no Slack step; run them after a yes (`--yes` overwrites same-name resources).
+
 1. **Publish the computer once.** `uv run design-agent sandbox build && uv run design-agent sandbox test`
-   proves the recipe locally; `uv run design-agent sandbox publish --fs-gib 16` builds the snapshot
+   proves the recipe locally; `uv run design-agent sandbox publish` builds the 16 GiB snapshot
    in their workspace (sandbox time is billed). Publish again whenever `sandbox/setup.sh` changes.
 2. **Check the keys.** `mda deploy` forwards every `.env` key except LangSmith's as a deployment
    secret. List the key *names* in `.env` and confirm they are only what the deployed agent uses
@@ -29,10 +46,15 @@ Setup comes first: `uv run design-agent doctor` should pass and the brand pack s
    (`mda-deploy`), and `uv run mda build` compiles what would ship into `.mda/build/`.
 3. **Try a copy first.** `uv run mda deploy --name design-agent-test` is a separate deployment; the
    team's agent is untouched.
-4. **Deploy** with `uv run mda deploy` after a yes. The first deploy provisions the Slack app; the
-   person authorizes it in their Slack workspace. Without a `LANGSMITH_API_KEY`, `mda deploy`
-   offers a browser sign-in.
-5. **Verify with real requests:** a quick still, then a short storyboarded teaser. In Slack you
+4. **Deploy** with `uv run mda deploy` after a yes. The first deploy provisions the Slack app
+   (its name is `DESIGN_AGENT_SLACK_NAME` in `.env`). If LangSmith isn't authorized
+   for their Slack workspace, the CLI prints an HTTPS link: they open it, pick the workspace and
+   approve (a workspace admin may have to), then press Enter. Rerun the deploy if the link was
+   missed. Without a `LANGSMITH_API_KEY`, `mda deploy` offers a browser sign-in. The Slack app is
+   managed: there is no manifest or `SLACK_*` key to set, whatever a generic MDA skill says.
+5. **Verify with real requests.** Once live, the agent DMs the person who deployed; they reply,
+   or `/invite` it to a channel and mention it. Start with a quick still, then a short storyboarded
+   teaser. In Slack you
    should see live progress, a check-in while it renders, and files attached at the end. Without
    Slack, call the deployment's API ([docs/deploy-mda.md](../../../docs/deploy-mda.md) has the
    snippet); files attach to the run's LangSmith trace. `uv run mda logs` tails the deployment.

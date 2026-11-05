@@ -6,12 +6,25 @@ so `mda deploy` deploys it as it is:
 
 ```bash
 git clone https://github.com/langchain-ai/design-agent.git && cd design-agent
-uv run design-agent config set LANGSMITH_API_KEY=lsv2_… ANTHROPIC_API_KEY=sk-ant-…
+uv run design-agent config set LANGSMITH_API_KEY ANTHROPIC_API_KEY   # type each key; it stays hidden
 uv run design-agent sandbox publish
 uv run mda deploy
 ```
 
 `uv run` uses the `mda` CLI pinned in `uv.lock`, so the CLI matches the SDK the agent is built on.
+
+To have a coding agent do it, paste this into Claude Code, Codex or Cursor:
+
+```text
+Deploy LangChain's open-source design agent to my Slack workspace with Managed Deep Agents.
+
+1. Install it with `curl -fsSL https://raw.githubusercontent.com/langchain-ai/design-agent/main/install.sh | bash`, then work in the `design-agent` folder it creates.
+2. Read `AGENTS.md` and follow the `design-agent-deploy` skill.
+3. Tell me which keys you need. I'll type them myself with `uv run design-agent config set <KEY>` in my terminal; never ask me to paste a key in chat.
+4. Run `uv run design-agent doctor` and fix what it flags. Its `mda-deploy` line lists what a deploy still needs.
+5. Ask me before `uv run design-agent sandbox publish`, which bills. Then have me run the first deploy, `uv run mda deploy`, in my own terminal, since it sets up the Slack app.
+6. When it's live, walk me through messaging the agent in Slack and sending a first request.
+```
 
 ## What you need
 
@@ -55,7 +68,11 @@ uv run mda deploy
 
 MDA compiles the project, syncs `instructions.md` and `skills/` to Context Hub, uploads the source,
 bakes the sandbox recipe on your snapshot and waits until the deployment is live. On the first
-deploy it provisions the Slack app; authorize it in your Slack workspace when prompted. Channels
+deploy it provisions the Slack app, named by `DESIGN_AGENT_SLACK_NAME`. If LangSmith hasn't been authorized for your Slack workspace yet, the CLI prints an HTTPS
+link: open it, pick the workspace, approve the access (a workspace admin may need to approve the
+app first), and press Enter in the terminal to continue. Once it's live, the agent sends you a
+DM; reply to start a thread, or `/invite` it to a channel and mention it there. Run `uv run mda
+deploy` again if you missed the link: it asks again until Slack is authorized. Channels
 require `identity.py` (LangSmith API-key authentication by default; see MDA's identity docs for
 per-person identities).
 

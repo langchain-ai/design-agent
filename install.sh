@@ -39,7 +39,7 @@ cat <<EOF
 Installed in $DIR. To put it in your team's Slack with Managed Deep Agents:
 
   cd $DIR
-  uv run design-agent config set LANGSMITH_API_KEY=lsv2_... ANTHROPIC_API_KEY=sk-ant-...
+  uv run design-agent config set LANGSMITH_API_KEY ANTHROPIC_API_KEY   # type each key; it stays hidden
   uv run design-agent sandbox publish   # once per workspace: the agent's computer
   uv run mda deploy
 

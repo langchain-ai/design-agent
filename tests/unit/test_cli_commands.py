@@ -1,4 +1,4 @@
-"""Small CLI commands: brand init, fonts verify, sandbox use, test db."""
+"""Small CLI commands: brand init, fonts verify, sandbox use, test db, config set."""
 
 from __future__ import annotations
 
@@ -65,3 +65,30 @@ def test_sandbox_use_points_local_runs_at_a_snapshot(project: Path) -> None:
 def test_test_db_writes_and_removes_a_row(project: Path) -> None:
     result = CliRunner().invoke(cli.main, ["test", "db"])
     assert result.exit_code == 0 and "SQLite" in result.output
+
+
+def test_config_set_with_a_bare_key_asks_for_the_value_hidden(
+    project: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(cli, "_can_prompt", lambda: True)
+    result = CliRunner().invoke(
+        cli.main, ["config", "set", "ANTHROPIC_API_KEY"], input="sk-ant-typed\n"
+    )
+    assert result.exit_code == 0, result.output
+    assert "sk-ant-typed" not in result.output
+    assert "ANTHROPIC_API_KEY=sk-ant-typed" in (project / ".env").read_text()
+
+
+def test_config_set_with_a_bare_key_refuses_without_a_terminal(project: Path) -> None:
+    result = CliRunner().invoke(cli.main, ["config", "set", "ANTHROPIC_API_KEY"])
+    assert result.exit_code == 2
+    assert "your own terminal" in result.output
+    assert not (project / ".env").exists()
+
+
+def test_config_set_never_prompts_for_an_unknown_key(
+    project: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(cli, "_can_prompt", lambda: True)
+    result = CliRunner().invoke(cli.main, ["config", "set", "NOT_A_KEY"], input="x\n")
+    assert result.exit_code == 1 and "not a setting" in result.output
