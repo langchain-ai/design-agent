@@ -276,8 +276,7 @@ def config_set(pairs: tuple[str, ...]) -> None:
                 sys.exit(1)
             if not _can_prompt():
                 click.echo(
-                    f"{name}: run this in your own terminal to type the value hidden "
-                    f"(or pass {name}=VALUE)",
+                    f"{name}: run this in your own terminal, where the value is typed hidden",
                     err=True,
                 )
                 sys.exit(2)

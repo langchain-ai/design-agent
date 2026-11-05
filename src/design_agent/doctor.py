@@ -175,8 +175,10 @@ def _check_sandbox(settings: Settings) -> Check:
     available, reason = DockerSandboxRunner(image=settings.sandbox_image).available()
     return Check(
         "sandbox",
-        "ok" if available else "fail",
-        f"Docker image {settings.sandbox_image}" if available else reason,
+        "ok" if available else "warn",
+        f"Docker image {settings.sandbox_image}"
+        if available
+        else f"{reason} (only local runs need it; an MDA deploy does not)",
     )
 
 
@@ -243,6 +245,8 @@ def _check_mda_deploy(root: Path, settings: Settings | None = None) -> Check:
     env_file = root / ".env"
     env = dotenv_values(env_file) if env_file.is_file() else {}
     if (root / "sandbox" / "__init__.py").is_file() and declared_base(root) == "docker_image":
+        if settings is not None and settings.langsmith_api_key is None:
+            first.append("put LANGSMITH_API_KEY in .env (`config set LANGSMITH_API_KEY`)")
         first.append("publish the sandbox snapshot (`sandbox publish`)")
     key = deploy_model_key(settings) if settings is not None else None
     if key and not (env.get(key) or "").strip():

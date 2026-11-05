@@ -7,8 +7,9 @@ description: Put Design Agent in a team's Slack. Deploy it to Managed Deep Agent
 
 A deployment is what the team uses. Ask before `mda deploy`, before connecting Slack, and before
 anything that bills (publishing a snapshot, hosting). Never print a key; name missing settings.
-Setup comes first: `uv run design-agent doctor` should pass and the brand pack should validate
-(`design-agent-onboarding`, `brand-onboarding`).
+Setup comes first: `uv run design-agent doctor` should show no `FAIL` line and the brand pack should
+validate (`design-agent-onboarding`, `brand-onboarding`). A first deploy can use the sample brand
+and needs no local Docker; `doctor`'s `mda-deploy` line lists what the deploy still needs.
 
 | | Managed Deep Agents (recommended) | Self-hosted |
 | --- | --- | --- |
@@ -34,7 +35,7 @@ their yes, run `sandbox publish --yes` in the background. `mda deploy` can open 
 Slack authorization; run it in the background and relay any link it prints, or have them run it.
 
 1. **Publish the computer once.** `uv run design-agent sandbox build && uv run design-agent sandbox test`
-   proves the recipe locally; `uv run design-agent sandbox publish --fs-gib 16` builds the snapshot
+   proves the recipe locally; `uv run design-agent sandbox publish` builds the 16 GiB snapshot
    in their workspace (sandbox time is billed). Publish again whenever `sandbox/setup.sh` changes.
 2. **Check the keys.** `mda deploy` forwards every `.env` key except LangSmith's as a deployment
    secret. List the key *names* in `.env` and confirm they are only what the deployed agent uses

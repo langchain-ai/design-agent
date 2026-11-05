@@ -8,15 +8,17 @@ description: Install and configure Design Agent, add a brand, connect Paper, cho
 Work through these with the person, in order. Never print a key or token; report missing settings
 by name. Do not deploy, connect accounts or publish anything until the person asks.
 
-1. **Install and prove the computer.** `uv sync`, then `uv run design-agent sandbox build` (Docker;
+1. **Install and prove the computer.** Optional before a first MDA deploy, which needs no Docker.
+   `uv sync`, then `uv run design-agent sandbox build` (Docker;
    a cold build downloads about 2 GB and takes several minutes) and `uv run design-agent demo`: a
    scripted run renders the sample brand's launch card in three sizes and a 4-second teaser with no
    keys. If it fails, `uv run design-agent doctor` says what is missing.
-2. **Model.** `uv run design-agent config set DESIGN_AGENT_MODEL=provider:model` and the provider's
-   key (`ANTHROPIC_API_KEY=…`, or `LANGSMITH_GATEWAY_API_KEY` for a `langsmith:` model; typed by the
-   person, or set in `.env` by hand). Defaults and other roles: `docs/models.md`. Re-run `doctor`,
-   then `uv run design-agent test model`: `doctor` only checks that a key is set, the test makes
-   one cheap call with it.
+2. **Model.** `uv run design-agent config set DESIGN_AGENT_MODEL=provider:model`, then the person
+   runs `uv run design-agent config set ANTHROPIC_API_KEY` (or `LANGSMITH_GATEWAY_API_KEY` for a
+   `langsmith:` model) in their own terminal and types the key hidden; never take a key in chat.
+   Defaults and other roles: `docs/models.md`. Re-run `doctor`, then, with their yes,
+   `uv run design-agent test model`: `doctor` only checks that a key is set, the test makes one
+   cheap, billed call with it.
 3. **Media keys (optional).** `OPENAI_API_KEY` (image generation), `ELEVENLABS_API_KEY` (voice,
    music, sound effects), `GROQ_API_KEY` (fast transcription). Each tool says plainly when its key
    is missing.

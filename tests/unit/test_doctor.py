@@ -49,6 +49,7 @@ def test_self_hosting_keys_in_env_are_named_never_printed(tmp_path: Path) -> Non
 def _settings(monkeypatch: pytest.MonkeyPatch, model: str) -> Settings:
     monkeypatch.setenv("DESIGN_AGENT_MODEL", model)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("LANGSMITH_API_KEY", raising=False)
     return Settings(_env_file=None)  # type: ignore[call-arg]
 
 
@@ -61,7 +62,10 @@ def test_an_unpublished_snapshot_and_a_shell_only_key_are_named_first(
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-only-in-the-shell")
     check = _check_mda_deploy(root, settings)
     assert check.status == "warn"
-    assert check.detail.startswith("before `mda deploy`: publish the sandbox snapshot")
+    assert check.detail.startswith(
+        "before `mda deploy`: put LANGSMITH_API_KEY in .env (`config set LANGSMITH_API_KEY`), "
+        "then publish the sandbox snapshot"
+    )
     assert "put ANTHROPIC_API_KEY in .env" in check.detail
     assert "only-in-the-shell" not in check.detail and "ready" not in check.detail
 
