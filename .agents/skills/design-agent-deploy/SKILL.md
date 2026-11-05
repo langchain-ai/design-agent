@@ -30,9 +30,10 @@ ANTHROPIC_API_KEY` in their own terminal: each value is typed hidden. Without a 
 refuses rather than asking you for the value. Never ask for a key in chat.
 
 **Long and interactive steps.** `sandbox publish` takes 10 to 15 minutes and asks to confirm: after
-their yes, run `sandbox publish --yes` in the background. `mda deploy` can open a browser sign-in
-(no `LANGSMITH_API_KEY` in `.env`), ask about same-name resources (`--yes` after a yes) and wait for
-Slack authorization; run it in the background and relay any link it prints, or have them run it.
+their yes, run `sandbox publish --yes` in the background. The first `mda deploy` sets up the Slack
+app and waits for a person: a browser sign-in (no `LANGSMITH_API_KEY` in `.env`), an authorization
+link, and Enter in a real terminal. Have the person run it in their own terminal. Later deploys
+need no Slack step; run them after a yes (`--yes` overwrites same-name resources).
 
 1. **Publish the computer once.** `uv run design-agent sandbox build && uv run design-agent sandbox test`
    proves the recipe locally; `uv run design-agent sandbox publish` builds the 16 GiB snapshot
