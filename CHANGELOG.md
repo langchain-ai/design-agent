@@ -4,6 +4,10 @@
 
 ### Added
 
+- A one-paste prompt for coding agents in the README and `docs/deploy-mda.md`: install, keys, checks
+  and deploy, asking before anything that bills. Tested from an empty folder.
+- `config set` with a bare key (`config set ANTHROPIC_API_KEY`) asks for the value with hidden input,
+  so keys never pass through a coding agent's chat. Without a terminal it refuses instead.
 - The README in Simplified Chinese (`README.zh-CN.md`) and Japanese (`README.ja.md`), with a
   language switcher at the top of each. The English README stays the source of truth.
 - Images from Google's Gemini image models (from #50): with `GOOGLE_API_KEY`, or through the
@@ -42,6 +46,10 @@
 
 ### Changed
 
+- `doctor` says "ready for `mda deploy`" only when a deploy would work: until the snapshot is
+  published and the lead model's key is in `.env` (a deploy ships `.env`, not the shell), its
+  `mda-deploy` line lists what to do first. The deploy skill asks the setup questions up front,
+  runs the long steps in the background, and walks through Slack authorization.
 - Personal memory reaches Slack channel threads through MDA's per-run layer selection: `agent.py`
   is a factory that selects both memory layers for every Slack run, replacing the `allow(context)`
   policy MDA deprecated in 0.9.0. Who gets which layer where is unchanged.

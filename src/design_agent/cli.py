@@ -253,19 +253,36 @@ def config_show(as_json: bool) -> None:
         click.echo(f"{row['name']:40} {state}")
 
 
+def _can_prompt() -> bool:
+    return sys.stdin.isatty()
+
+
 @config.command("set")
 @click.argument("pairs", nargs=-1, required=True)
 def config_set(pairs: tuple[str, ...]) -> None:
-    """Set KEY=VALUE pairs (known keys only; the file stays private to you)."""
-    from design_agent.envfile import EnvFileError, write_env
+    """Set settings in .env: KEY=VALUE, or a bare KEY to type its value hidden (known keys only)."""
+    from design_agent.envfile import EnvFileError, known_keys, write_env
 
+    known = known_keys(_root())
     updates = {}
     for pair in pairs:
         name, sep, value = pair.partition("=")
+        name = name.strip()
         if not sep:
-            click.echo(f"{pair}: use KEY=VALUE", err=True)
-            sys.exit(2)
-        updates[name.strip()] = value
+            if name not in known:
+                click.echo(
+                    f"{name} is not a setting this project documents in .env.example", err=True
+                )
+                sys.exit(1)
+            if not _can_prompt():
+                click.echo(
+                    f"{name}: run this in your own terminal to type the value hidden "
+                    f"(or pass {name}=VALUE)",
+                    err=True,
+                )
+                sys.exit(2)
+            value = click.prompt(name, hide_input=True)
+        updates[name] = value
     try:
         changed = write_env(_root(), updates)
     except EnvFileError as error:

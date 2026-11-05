@@ -13,7 +13,7 @@ durability, and Docker for the sandbox computers. Docker Compose starts all of i
 
 ```bash
 cp .env.example .env
-uv run design-agent config set DESIGN_AGENT_MODEL=anthropic:claude-opus-5-5 ANTHROPIC_API_KEY=…
+uv run design-agent config set DESIGN_AGENT_MODEL=anthropic:claude-opus-5-5 ANTHROPIC_API_KEY
 uv run design-agent config generate DESIGN_AGENT_API_TOKENS POSTGRES_PASSWORD
 docker compose -f deploy/self-host/compose.yaml up -d --build
 curl -s http://127.0.0.1:8080/health

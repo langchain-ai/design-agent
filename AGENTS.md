@@ -36,7 +36,9 @@ The harness under the agent has its own skills, vendored unmodified from LangCha
 | turning traces into evaluation datasets | [langsmith-dataset](.agents/skills/langsmith-dataset/SKILL.md) |
 | LangSmith evaluators and experiments | [langsmith-evaluator](.agents/skills/langsmith-evaluator/SKILL.md) |
 
-They are written for any project, so where they disagree with this file, this file wins.
+They are written for any project, so where they disagree with this file, this file wins. On Managed
+Deep Agents, for example, `channels/slack.py` declares a managed Slack app: there is no Slack
+manifest or `SLACK_*` key to set, whatever a generic skill says.
 
 For anything else, start from the map of every document, [docs/README.md](docs/README.md). Never
 print a key, and ask before deploying, connecting accounts or spending money. The rest of this file

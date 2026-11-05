@@ -145,7 +145,7 @@ LangSmith Cloud) and a model key:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/langchain-ai/design-agent/main/install.sh | bash
 cd design-agent
-uv run design-agent config set LANGSMITH_API_KEY=lsv2_… ANTHROPIC_API_KEY=sk-ant-…
+uv run design-agent config set LANGSMITH_API_KEY ANTHROPIC_API_KEY   # type each key; it stays hidden
 uv run design-agent sandbox publish   # once per workspace, 10-15 min: the agent's computer
 uv run mda deploy                     # the agent itself, and its Slack app
 ```
@@ -164,15 +164,29 @@ then uses `LANGSMITH_GATEWAY_API_KEY`, else `LANGSMITH_API_KEY`, and image gener
 the gateway too when there is no `OPENAI_API_KEY`. For any other OpenAI-compatible endpoint, set
 `DESIGN_AGENT_MODEL_BASE_URL` and `DESIGN_AGENT_MODEL_API_KEY_ENV` ([Models](docs/models.md)).
 
-The first deploy sets up the agent's Slack app. Authorize it in your workspace, then mention the
-agent in a channel. It's how we run ours at LangChain. Try changes on a separate copy with
+The first deploy sets up the agent's Slack app: `mda deploy` prints a Slack link, you approve the
+app for your workspace (an admin may need to), and press Enter. The agent then sends you a DM;
+reply to it, or `/invite` it to a channel and mention it. It's how we run ours at LangChain. Try changes on a separate copy with
 `uv run mda deploy --name design-agent-test`. In a workspace with agent mode,
 `uv run mda deploy --agent-environment production` (or `staging`, `development`) deploys into that
 environment of the agent, and each environment keeps its own traces: open the agent in LangSmith
 and pick the environment. `uv run mda dev` traces to its Local environment.
 [Deploy with MDA](docs/deploy-mda.md) covers keys, what ships and checking it works.
 
-**Or ask your coding agent.** Open the repo in Claude Code, Codex or Cursor and say what you want.
+**Or ask your coding agent.** Paste this into Claude Code, Codex or Cursor, from any folder:
+
+```text
+Deploy LangChain's open-source design agent to my Slack workspace with Managed Deep Agents.
+
+1. Install it with `curl -fsSL https://raw.githubusercontent.com/langchain-ai/design-agent/main/install.sh | bash`, then work in the `design-agent` folder it creates.
+2. Read `AGENTS.md` and follow the `design-agent-deploy` skill.
+3. Tell me which keys you need. I'll type them myself with `uv run design-agent config set <KEY>` in my terminal; never ask me to paste a key in chat.
+4. Run `uv run design-agent doctor` and fix what it flags. Its `mda-deploy` line lists what a deploy still needs.
+5. Ask me before each step that bills or deploys: `uv run design-agent sandbox publish`, then `uv run mda deploy`.
+6. When it's live, walk me through authorizing the Slack app and sending a first request.
+```
+
+Once the repo is open, say what you want.
 [AGENTS.md](AGENTS.md) routes each request to a step-by-step [skill](.agents/skills/):
 
 | Say | It will |

@@ -5,6 +5,9 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
+import pytest
+
+from design_agent.config import Settings
 from design_agent.doctor import _check_mda_deploy
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -41,3 +44,36 @@ def test_self_hosting_keys_in_env_are_named_never_printed(tmp_path: Path) -> Non
     assert check.status == "warn"
     assert "SLACK_APP_TOKEN" in check.detail and "DATABASE_URL" not in check.detail
     assert "secret" not in check.detail.replace("deployment secrets", "")
+
+
+def _settings(monkeypatch: pytest.MonkeyPatch, model: str) -> Settings:
+    monkeypatch.setenv("DESIGN_AGENT_MODEL", model)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    return Settings(_env_file=None)  # type: ignore[call-arg]
+
+
+def test_an_unpublished_snapshot_and_a_shell_only_key_are_named_first(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _project(tmp_path)
+    shutil.copytree(ROOT / "sandbox", root / "sandbox")
+    settings = _settings(monkeypatch, "anthropic:claude-opus-5-5")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-only-in-the-shell")
+    check = _check_mda_deploy(root, settings)
+    assert check.status == "warn"
+    assert check.detail.startswith("before `mda deploy`: publish the sandbox snapshot")
+    assert "put ANTHROPIC_API_KEY in .env" in check.detail
+    assert "only-in-the-shell" not in check.detail and "ready" not in check.detail
+
+
+def test_the_model_key_in_env_or_a_gateway_model_needs_nothing_more(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _project(tmp_path)
+    (root / ".env").write_text("ANTHROPIC_API_KEY=sk-ant-secret\n")
+    assert (
+        _check_mda_deploy(root, _settings(monkeypatch, "anthropic:claude-opus-5-5")).status == "ok"
+    )
+    (root / ".env").unlink()
+    gateway = _settings(monkeypatch, "langsmith:anthropic/claude-opus-5-5")
+    assert _check_mda_deploy(root, gateway).status == "ok"
