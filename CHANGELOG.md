@@ -42,6 +42,9 @@
 
 ### Changed
 
+- Personal memory reaches Slack channel threads through MDA's per-run layer selection: `agent.py`
+  is a factory that selects both memory layers for every Slack run, replacing the `allow(context)`
+  policy MDA deprecated in 0.9.0. Who gets which layer where is unchanged.
 - A plain `mda deploy` deploys the project, and `mda dev` runs it: vendored skills' binary files
   (fonts) live in `skill-binaries/`, so `skills/` syncs to Context Hub as it is. The `deploy` and
   `dev` wrappers are gone; `doctor` checks what would make `mda deploy` fail or ship the wrong

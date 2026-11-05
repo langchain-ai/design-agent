@@ -2,7 +2,7 @@
 
 `agent.py` hands these components to `define_deep_agent`. Only public `managed_deepagents`
 names are used anywhere in this package. MCP servers declared in `config/mcp.toml` reach MDA through
-`tools/mcp.py` (MDA's convention for a static agent); MDA loads their tools at runtime, so the
+`tools/mcp.py` (MDA's project declaration, which the `agent.py` factory leaves unselected); MDA loads their tools at runtime, so the
 components only need the server names (for disclosure and the call-time boundary).
 """
 

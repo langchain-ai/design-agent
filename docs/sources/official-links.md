@@ -48,8 +48,10 @@ Verified against the installed 0.9.3 package while building (its README ships in
 `managed_deepagents-0.9.3.dist-info/METADATA`): `mda build` reads declarations statically, so
 `sandbox/__init__.py` and `schedules/*.py` hold literals or top-level constants; a static agent
 declares MCP servers in `tools/mcp.py` as a module-level `mcp` (passing `mcp=` to
-`define_deep_agent` is refused); connector tools are named `{server}_{tool}`; schedule delivery is
-an `after_agent` hook installed ahead of authored middleware.
+`define_deep_agent` is refused); an `agent` factory may select `mcp`, `memory` and the other managed
+resources per run (0.9.4), keeps the project's declaration for any it leaves out, and cannot give a
+selected memory layer the `allow(context)` policy (deprecated in 0.9.0); connector tools are named
+`{server}_{tool}`; schedule delivery is an `after_agent` hook installed ahead of authored middleware.
 
 Confirm each URL still resolves when you move a pin forward; the docs site renames pages.
 

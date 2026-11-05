@@ -16,12 +16,18 @@ from design_agent.middleware.tracing import RunTagsMiddleware, template_marker
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def mda_definition() -> ModuleType:
+def mda_definition(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
+    monkeypatch.syspath_prepend(str(ROOT))
     spec = importlib.util.spec_from_file_location("mda_agent", ROOT / "agent.py")
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def root_metadata(module: ModuleType) -> object:
+    """What the factory gives a run with no channel (Studio, the API, inspection)."""
+    return module.agent(SimpleNamespace(channel=None)).config.get("metadata")
 
 
 async def tags_on_a_run(middleware: RunTagsMiddleware, monkeypatch: pytest.MonkeyPatch) -> RunTree:
@@ -42,8 +48,8 @@ async def test_the_mda_root_run_and_every_run_carry_the_marker(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("DESIGN_AGENT_TEMPLATE_TELEMETRY", "1")
-    module = mda_definition()
-    assert module.agent.config["metadata"] == template_marker()
+    module = mda_definition(monkeypatch)
+    assert root_metadata(module) == template_marker()
     tags = next(m for m in module._components.middleware if isinstance(m, RunTagsMiddleware))
     run = await tags_on_a_run(tags, monkeypatch)
     assert "template:langchain-ai/design-agent" in run.tags
@@ -52,8 +58,8 @@ async def test_the_mda_root_run_and_every_run_carry_the_marker(
 
 async def test_the_operator_can_turn_it_off(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("DESIGN_AGENT_TEMPLATE_TELEMETRY", "0")
-    module = mda_definition()
-    assert module.agent.config.get("metadata") is None
+    module = mda_definition(monkeypatch)
+    assert root_metadata(module) is None
     tags = next(m for m in module._components.middleware if isinstance(m, RunTagsMiddleware))
     run = await tags_on_a_run(tags, monkeypatch)
     assert not any(tag.startswith("template:") for tag in run.tags)

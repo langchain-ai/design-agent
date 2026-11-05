@@ -419,8 +419,9 @@ default when a store exists.
 
 ### 7.13 Memory (on for MDA)
 
-`memory.py` declares MDA native memory: a team layer for every caller and a personal layer per person,
-mounted anywhere in Slack (MDA's default is the person's DM only). Every lesson has one owner (craft →
+`memory.py` declares MDA native memory: a team layer for every caller and a personal layer per person.
+The `agent.py` factory selects both layers for every Slack run, so the personal layer mounts anywhere
+in Slack (MDA's default is the person's DM and Studio only). Every lesson has one owner (craft →
 a skill, a fact → a check, a team rule → the team layer, a person's taste → their own layer); the hot
 file is kept a short index by instruction; writes to a person's files must read first; the user layer is private to that person and never quoted into shared threads. Memory is not a
 primary value driver for design work; observations (§7.12) carry most of the learning.
