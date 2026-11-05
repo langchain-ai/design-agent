@@ -123,9 +123,11 @@ follow-ups while a job runs ([surfaces](architecture/surfaces.md)).
   and tidies expired schedules, with no model call.
 - **Memory.** `memory.py` turns on two layers. `/memories/agent/` is the team's: anyone who
   mentions the agent can add a rule to it, so it never holds private data. `/memories/user/`
-  belongs to the person asking and follows them anywhere in Slack; MDA mounts it only when a
-  verified person is behind the run. Each layer's `AGENTS.md` loads on every turn. To keep personal
-  memory to DMs (MDA's default), drop the `allow` policy; to turn memory off, delete the file.
+  belongs to the person asking; MDA mounts it only when a verified person is behind the run. By
+  MDA's default that is their DM and Studio; `agent.py` is a factory that selects both layers for
+  every Slack run, so personal memory follows people into channel threads. Each layer's `AGENTS.md`
+  loads on every turn. To keep personal memory to DMs, return the definition without `memory` on
+  Slack runs too; to turn memory off, delete `memory.py` and that selection.
 - **MCP servers** come from `config/mcp.toml` through `tools/mcp.py`. A server that needs
   credentials names an agent-owned workspace connection (`connection = "slug"`); header values are
   never compiled into the deployment.

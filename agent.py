@@ -1,24 +1,43 @@
-"""Managed Deep Agents entry. Thin: it only hands the shared components to `define_deep_agent`."""
+"""Managed Deep Agents entry. Thin: it hands the shared components to `define_deep_agent`.
+
+`agent` is a factory MDA calls at the start of each run, so a Slack run can select both memory
+layers (`memory.py`); every other run keeps the declaration. The components are built once, here.
+"""
 
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TypedDict
 
-from managed_deepagents import define_deep_agent
+from managed_deepagents import (
+    DeepAgentDefinition,
+    ManagedServerRuntime,
+    MemoryDefinition,
+    define_deep_agent,
+)
 
 from design_agent.config import Settings
 from design_agent.middleware.tracing import template_marker
 from design_agent.runtime.mda import build_mda_components
+from memory import memory, slack_run
 
 _settings = Settings()
 _components = build_mda_components(_settings, project_root=Path(__file__).parent)
 
-agent = define_deep_agent(
-    name="design-agent",
-    model=_components.model,
-    tools=list(_components.tools),
-    middleware=list(_components.middleware),
-    subagents=list(_components.subagents) or None,
-    interrupt_on=dict(_components.interrupt_on) or None,
-    metadata=template_marker() if _settings.template_telemetry else None,
-)
+
+class _Selection(TypedDict, total=False):
+    memory: MemoryDefinition
+
+
+def agent(runtime: ManagedServerRuntime) -> DeepAgentDefinition:
+    selection: _Selection = {"memory": memory} if slack_run(runtime) else {}
+    return define_deep_agent(
+        name="design-agent",
+        model=_components.model,
+        tools=list(_components.tools),
+        middleware=list(_components.middleware),
+        subagents=list(_components.subagents) or None,
+        interrupt_on=dict(_components.interrupt_on) or None,
+        metadata=template_marker() if _settings.template_telemetry else None,
+        **selection,
+    )
