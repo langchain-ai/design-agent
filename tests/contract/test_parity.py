@@ -69,6 +69,9 @@ def test_mda_local_and_self_hosted_assemble_the_same_agent(tmp_path: Path) -> No
     local_shape = shape(local)
     local_shape["middleware"].remove("LeadSteeringMiddleware")
     assert "LeadSteeringMiddleware" not in mda_shape["middleware"]
+    # ...and runs background helpers as its async subagents, on the model the lead picks.
+    mda_shape["middleware"].remove("AsyncHelpersMiddleware")
+    assert local.worker is None and mda.worker is not None
     assert local_shape == mda_shape
     assert "upload_files" in {t.name for t in local.tools}, "local and self-hosted bring delivery"
     assert "upload_files" not in {t.name for t in mda.tools}, "MDA's Slack channel brings its own"

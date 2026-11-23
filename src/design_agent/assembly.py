@@ -22,6 +22,14 @@ from design_agent.config import ModelSpec, Settings
 from design_agent.harness.cache import StaggerGate
 from design_agent.harness.durable import TranscriptCheckpointMiddleware
 from design_agent.harness.tasks import running
+from design_agent.middleware.async_helpers import (
+    WORKER,
+    AsyncHelpersMiddleware,
+    WorkerDisclosure,
+    WorkerModelMiddleware,
+    build_helper_model,
+    choose,
+)
 from design_agent.middleware.background import (
     BackgroundHelpers,
     BackgroundTaskMiddleware,
@@ -55,7 +63,8 @@ from design_agent.models.registry import ToolDisclosure, capabilities_for
 from design_agent.pipelines import PIPELINES
 from design_agent.runtime.profiles import RuntimeProfile
 from design_agent.runtime.sandbox.docker import current_thread_id
-from design_agent.subagents import build_subagents
+from design_agent.subagents import SKILLS as HELPER_SKILLS
+from design_agent.subagents import WORKER_PROMPT, build_subagents
 from design_agent.surfaces.slack.phrasebook import services
 from design_agent.tools.delivery import (
     DeliveryLedgerMiddleware,
@@ -87,6 +96,9 @@ class AgentComponents:
     manifest: Manifest
     pipelines: Mapping[str, Any] = field(default_factory=dict)
     mcp_servers: tuple[McpServer, ...] = ()
+    #: The async subagent every background task runs on, where the runtime has them
+    #: (`RuntimeProfile.async_helpers`); `agent.py` declares it inline for MDA's build.
+    worker: Mapping[str, Any] | None = None
 
 
 def _disclosure(settings: Settings, role: Any, injected: BaseChatModel | None) -> ToolDisclosure:
@@ -178,9 +190,9 @@ def build_agent_components(
                 role=role,
                 lead=lead_agent,
                 summaries=summaries,
-                disclosure=disclosure_for(
-                    disclosure, mcp_servers, selector, settings.mcp_max_tools
-                ),
+                disclosure=disclosure
+                if isinstance(disclosure, AgentMiddleware)
+                else disclosure_for(disclosure, mcp_servers, selector, settings.mcp_max_tools),
                 servers=mcp_servers,
             ),
         ]
@@ -214,6 +226,19 @@ def build_agent_components(
             template=template_marker() if settings.template_telemetry else None,
         ),
     ]
+
+    def helper_build(model: str, effort: str) -> BaseChatModel:
+        override = overrides.get(effort) or overrides.get("helper")
+        if override is not None:
+            return override
+        return build_helper_model(settings, model, effort, project_root=root)
+
+    if runtime.async_helpers:
+        middleware.append(
+            AsyncHelpersMiddleware(
+                settings, lambda model, effort: choose(settings, helper_build, model, effort)
+            )
+        )
     slack = runtime.slack
     servers = services([s.name for s in mcp_servers])
     if slack is not None:
@@ -232,8 +257,9 @@ def build_agent_components(
                 ReplyFooterMiddleware(slack, footers=Footers(traces=traces, inbox=inbox))
             )
     subagents: list[SubAgent] = []
+    worker: dict[str, Any] | None = None
     if runtime.services is not None:
-        background = BackgroundTaskMiddleware(runtime.services)
+        background = BackgroundTaskMiddleware(runtime.services, async_helpers=runtime.async_helpers)
 
         def helpers(call_runtime: Any) -> BackgroundHelpers:
             return BackgroundHelpers(background, call_runtime)
@@ -288,6 +314,29 @@ def build_agent_components(
         subagents = build_subagents(
             settings, middleware=helper_middleware, build_model=helper_model
         )
+        if runtime.async_helpers:
+            worker = {
+                "name": WORKER,
+                "description": "A helper on the model and effort you pick for each task.",
+                "system_prompt": WORKER_PROMPT,
+                "model": helper_model(settings, "helper", streaming=True),
+                "skills": list(HELPER_SKILLS),
+                "middleware": [
+                    WorkerModelMiddleware(helper_build),
+                    TodayMiddleware(),
+                    StaggerMiddleware(stagger),
+                    *guards(
+                        WORKER,
+                        lead_agent=False,
+                        disclosure=WorkerDisclosure(
+                            str(settings.role_model("helper")),
+                            lambda chosen: disclosure_for(
+                                chosen, mcp_servers, selector, settings.mcp_max_tools
+                            ),
+                        ),
+                    ),
+                ],
+            }
     if settings.job_budget_usd is not None:
         middleware.append(JobBudgetMiddleware(settings.job_budget_usd))
     middleware += guards("lead", lead_agent=True, disclosure=_disclosure(settings, "lead", model))
@@ -304,4 +353,5 @@ def build_agent_components(
         manifest=manifest,
         pipelines=dict(PIPELINES),
         mcp_servers=tuple(mcp_servers),
+        worker=worker,
     )

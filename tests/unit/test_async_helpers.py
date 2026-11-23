@@ -1,0 +1,135 @@
+"""Background helpers on MDA: the lead picks any model and effort per task, and the task runs on it."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from deepagents.middleware.async_subagents import ASYNC_TASK_TOOL_DESCRIPTION
+from langchain.agents import create_agent
+from langchain.agents.middleware.types import ToolCallRequest
+from langchain.tools import ToolRuntime
+from langchain_core.messages import HumanMessage, ToolMessage
+from langchain_core.tools import StructuredTool
+from langgraph.types import Command
+
+from design_agent.config import Settings
+from design_agent.middleware.async_helpers import (
+    CHOICE_KEY,
+    WORKER,
+    AsyncHelpersMiddleware,
+    WorkerModelMiddleware,
+    choose,
+)
+from design_agent.testing.scripted_model import ScriptedChatModel, reply
+
+SETTINGS = Settings(_env_file=None, model="anthropic:claude-opus-5-5")  # type: ignore[call-arg]
+CHOSEN = {"model": "openai:gpt-5.5", "effort": "high"}
+
+
+def built(spec: str, effort: str) -> Any:
+    if spec.startswith("nope:"):
+        raise ImportError("no package for nope")
+    return object()
+
+
+def test_any_model_that_builds_is_taken_and_anything_else_says_what_to_fix() -> None:
+    assert choose(SETTINGS, built, "openai:gpt-5.5", "high") == ("openai:gpt-5.5", "high")
+    assert choose(SETTINGS, built, "", "")[0] == "anthropic:claude-opus-5-5"
+    assert "provider:model" in str(choose(SETTINGS, built, "gpt-5.5", ""))
+    assert "effort is one of" in str(choose(SETTINGS, built, "openai:gpt-5.5", "ultra"))
+    assert "does not build here" in str(choose(SETTINGS, built, "nope:model", ""))
+
+
+def test_the_deployment_cap_lowers_an_effort() -> None:
+    capped = Settings(_env_file=None, model="anthropic:claude-opus-5-5", helper_effort_cap="high")  # type: ignore[call-arg]
+    assert choose(capped, built, "", "max") == ("anthropic:claude-opus-5-5", "high")
+
+
+def start_tool() -> StructuredTool:
+    async def start(description: str, subagent_type: str) -> str:
+        return ""
+
+    text = ASYNC_TASK_TOOL_DESCRIPTION.format(available_agents="- worker: a helper")
+    return StructuredTool.from_function(coroutine=start, name="start_async_task", description=text)
+
+
+def test_the_lead_is_shown_model_and_effort_instead_of_a_type() -> None:
+    shown = AsyncHelpersMiddleware(SETTINGS, lambda m, e: (m, e))._shown(start_tool())
+    fields = shown.args_schema.model_json_schema()["properties"]  # type: ignore[union-attr]
+    assert {"description", "model", "effort"} <= fields.keys() and "subagent_type" not in fields
+    assert "any LangChain `provider:model`" in shown.description
+    assert "Available async agent types" not in shown.description
+
+
+def call(
+    name: str, args: dict[str, Any], *, tasks: dict[str, Any] | None = None
+) -> ToolCallRequest:
+    state = {"messages": [], "async_tasks": tasks or {}}
+    runtime = ToolRuntime(
+        state=state,
+        context={"brand": "acme", "mda_channel": {"provider": "slack"}, CHOICE_KEY: {"old": 1}},
+        config={},
+        stream_writer=lambda _: None,
+        tool_call_id="c1",
+        store=None,
+    )
+    tool_call = {"name": name, "args": args, "id": "c1", "type": "tool_call"}
+    return ToolCallRequest(tool_call=tool_call, tool=None, state=state, runtime=runtime)  # type: ignore[arg-type]
+
+
+async def test_a_started_task_runs_on_the_worker_with_the_choice_and_without_slack_routing() -> (
+    None
+):
+    seen: list[ToolCallRequest] = []
+
+    async def handler(request: ToolCallRequest) -> Command[Any]:
+        seen.append(request)
+        task = {"task_id": "t1", "agent_name": WORKER, "status": "running"}
+        message = ToolMessage("Launched async subagent. task_id: t1", tool_call_id="c1")
+        return Command(update={"messages": [message], "async_tasks": {"t1": task}})
+
+    lead = AsyncHelpersMiddleware(SETTINGS, lambda m, e: (m, e))
+    args = {"description": "Cut the 15s.", "model": "openai:gpt-5.5", "effort": "high"}
+    result = await lead.awrap_tool_call(call("start_async_task", args), handler)
+    (sent,) = seen
+    assert sent.tool_call["args"] == {"description": "Cut the 15s.", "subagent_type": WORKER}
+    assert sent.runtime.context == {"brand": "acme", CHOICE_KEY: CHOSEN}
+    assert isinstance(result, Command) and result.update["async_tasks"]["t1"][CHOICE_KEY] == CHOSEN
+
+
+async def test_a_choice_that_does_not_build_starts_nothing() -> None:
+    async def handler(_request: ToolCallRequest) -> Any:
+        raise AssertionError("not started")
+
+    lead = AsyncHelpersMiddleware(SETTINGS, lambda m, e: "Not started: no such model.")
+    result = await lead.awrap_tool_call(call("start_async_task", {"description": "x"}), handler)
+    assert isinstance(result, ToolMessage) and result.status == "error"
+
+
+async def test_a_follow_up_runs_on_the_choice_its_task_started_with() -> None:
+    seen: list[ToolCallRequest] = []
+
+    async def handler(request: ToolCallRequest) -> str:
+        seen.append(request)
+        return "updated"
+
+    tasks = {"t1": {"task_id": "t1", CHOICE_KEY: CHOSEN}}
+    lead = AsyncHelpersMiddleware(SETTINGS, lambda m, e: (m, e))
+    await lead.awrap_tool_call(call("update_async_task", {"task_id": "t1"}, tasks=tasks), handler)
+    assert seen[0].runtime.context == {"brand": "acme", CHOICE_KEY: CHOSEN}
+
+
+async def test_the_worker_answers_on_the_stamped_model_and_its_own_without_one() -> None:
+    default = ScriptedChatModel(steps=[lambda _m: reply("default"), lambda _m: reply("default")])
+    picked = ScriptedChatModel(steps=[lambda _m: reply("picked")])
+    asked: list[tuple[str, str]] = []
+
+    def build(model: str, effort: str) -> Any:
+        asked.append((model, effort))
+        return picked
+
+    worker = create_agent(default, tools=[], middleware=[WorkerModelMiddleware(build)])
+    stamped = await worker.ainvoke({"messages": [HumanMessage("go")]}, context={CHOICE_KEY: CHOSEN})
+    plain = await worker.ainvoke({"messages": [HumanMessage("go")]}, context={})
+    assert stamped["messages"][-1].text == "picked" and asked == [("openai:gpt-5.5", "high")]
+    assert plain["messages"][-1].text == "default"

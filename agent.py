@@ -23,6 +23,9 @@ from memory import memory, slack_run
 
 _settings = Settings()
 _components = build_mda_components(_settings, project_root=Path(__file__).parent)
+if _components.worker is None:
+    raise RuntimeError("the MDA runtime declares background helpers: its worker is missing")
+_worker = dict(_components.worker)
 
 
 class _Selection(TypedDict, total=False):
@@ -36,7 +39,9 @@ def agent(runtime: ManagedServerRuntime) -> DeepAgentDefinition:
         model=_components.model,
         tools=list(_components.tools),
         middleware=list(_components.middleware),
-        subagents=list(_components.subagents) or None,
+        # MDA's build finds an async subagent by its literal `name` and `"async": True` here and
+        # builds it as its own graph: every background task runs on it (async_helpers.py).
+        subagents=[*_components.subagents, {**_worker, "name": "worker", "async": True}],
         interrupt_on=dict(_components.interrupt_on) or None,
         metadata=template_marker() if _settings.template_telemetry else None,
         **selection,

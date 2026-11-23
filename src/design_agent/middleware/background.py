@@ -76,6 +76,11 @@ REFUSED_SYNC = (
     "Workers run in the background, so this was not started. Use start_task with the same "
     "description and effort; it returns at once, and you are woken when the work is done."
 )
+REFUSED_SYNC_ASYNC = (
+    "Workers run in the background, so this was not started. Use start_async_task with the same "
+    "description and the model and effort the work needs; it returns at once, and you are woken "
+    "when the work is done."
+)
 #: How many runs' `task` tools are kept; a finished run's entry is pushed out by newer ones.
 TASK_TOOLS_KEPT = 64
 #: How often a run looks for work a restart killed (housekeeping always does).
@@ -293,9 +298,12 @@ class BackgroundTaskMiddleware(AgentMiddleware[BackgroundState, Any, Any]):
 
     state_schema = BackgroundState
 
-    def __init__(self, services: BackgroundServices) -> None:
+    def __init__(self, services: BackgroundServices, *, async_helpers: bool = False) -> None:
         super().__init__()
         self.services = services
+        # Where the platform's async subagents are the lead's helpers (`middleware/async_helpers`),
+        # `start_task` is not offered and a refused synchronous worker points at theirs.
+        self._async_helpers = async_helpers
         self._task_tools: OrderedDict[str, Any] = OrderedDict()
         self.tools = self._build_tools()
 
@@ -391,7 +399,8 @@ class BackgroundTaskMiddleware(AgentMiddleware[BackgroundState, Any, Any]):
             schedule_wakeup,
             resume_task,
         )
-        return [StructuredTool.from_function(coroutine=f, name=f.__name__) for f in functions]
+        offered = [f for f in functions if not (self._async_helpers and f is start_task)]
+        return [StructuredTool.from_function(coroutine=f, name=f.__name__) for f in offered]
 
     # -- starting helpers -------------------------------------------------------------------
 
@@ -700,7 +709,8 @@ class BackgroundTaskMiddleware(AgentMiddleware[BackgroundState, Any, Any]):
             call.get("name") == "task"
             and (call.get("args") or {}).get("subagent_type") in WORKER_TYPES
         ):
-            return ToolMessage(REFUSED_SYNC, tool_call_id=call["id"], status="error")
+            refusal = REFUSED_SYNC_ASYNC if self._async_helpers else REFUSED_SYNC
+            return ToolMessage(refusal, tool_call_id=call["id"], status="error")
         return await handler(request)
 
 

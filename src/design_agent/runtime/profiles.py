@@ -52,6 +52,9 @@ class RuntimeProfile:
     native_steering: bool = False
     """The platform works a thread's follow-ups into the running turn itself (MDA 0.10's
     `SteeringMiddleware`), so the agent's own lead steering stays off."""
+    async_helpers: bool = False
+    """Background helpers are the platform's async subagents (MDA's `start_async_task` on the
+    `worker` graph: `middleware/async_helpers.py`) rather than `start_task`'s in-process ones."""
     slack: Any = None
     """A `surfaces.slack.SlackSurface` when runs answer in Slack: live progress, footer, steering."""
     surface: str = "cli"
@@ -91,6 +94,7 @@ def mda_profile(project_root: Path, settings: Settings | None = None) -> Runtime
         services=services,
         fallback_delivery=TraceAttachmentAdapter(),
         native_steering=True,
+        async_helpers=True,
         slack=SlackSurface(
             MdaSlackResolver(), mention_required=settings.slack_trigger_mode == "mention"
         ),
