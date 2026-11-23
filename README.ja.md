@@ -31,6 +31,10 @@
 
 ## まずは作例を見てください
 
+<a href="https://www.youtube.com/watch?v=emId9_O2sU8"><img src="https://img.youtube.com/vi/emId9_O2sU8/maxresdefault.jpg" alt="YouTube で見る: We Open Sourced Our Design Brain" width="100%"></a>
+
+<p align="center"><sub>公開時の紹介動画（YouTube）：<a href="https://www.youtube.com/watch?v=emId9_O2sU8">We Open Sourced Our Design Brain</a></sub></p>
+
 Content Studio に自分のローンチ映像を作らせてみたら、『ロッキー』に全振りしてきました。
 
 https://github.com/user-attachments/assets/ee5b98e0-7ec6-4b24-ada6-1f27087947a3
