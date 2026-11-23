@@ -171,6 +171,17 @@ def build_chat_model(
     resolved = resolve_model(
         settings, role, spec=spec, effort=effort, probe=True, project_root=project_root
     )
+    return build_resolved(settings, resolved, project_root=project_root, **overrides)
+
+
+def build_resolved(
+    settings: Settings,
+    resolved: ResolvedModel,
+    *,
+    project_root: Path | None = None,
+    **overrides: Any,
+) -> BaseChatModel:
+    """The chat model for a choice `resolve_model` already validated."""
     kwargs: dict[str, Any] = {
         "timeout": settings.model_timeout_seconds,
         "max_retries": SDK_MAX_RETRIES,
