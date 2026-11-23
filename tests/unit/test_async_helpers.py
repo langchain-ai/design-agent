@@ -131,7 +131,9 @@ class Surface:
 async def test_the_worker_finds_the_slack_thread_its_lead_started_it_from() -> None:
     store = InMemoryStore()
     client = SimpleNamespace(auth_failed=False)
-    target = SlackTarget(channel="C0TEST0CHAN", thread_ts="1700000000.000100", user_id="U0TEST0USER")
+    target = SlackTarget(
+        channel="C0TEST0CHAN", thread_ts="1700000000.000100", user_id="U0TEST0USER"
+    )
     surface = Surface(SlackBinding(target, client))  # type: ignore[arg-type]
 
     async def handler(_request: ToolCallRequest) -> str:
