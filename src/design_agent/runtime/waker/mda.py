@@ -5,7 +5,7 @@ A wake-up is a one-time schedule on the lead's own thread (`runtime.schedules.cr
 Slack thread and `upload_files` works), and counts as delivered only once the woken run reports it
 started: the run's first hook writes the wake key to the deployment store and this waker polls it.
 
-Constraints from managed-deepagents 0.9.3 (docs/architecture/orchestration.md):
+Constraints that still hold in managed-deepagents 0.10.5 (docs/upstream.md):
 
 - `at` is rounded up to the next whole minute and must be at least one minute ahead, so a wake-up
   lands 60-120 s after the event, plus the scheduler's own lag. The harness inbox already

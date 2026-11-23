@@ -11,7 +11,7 @@ HyperFrames and Paper are in [docs/partners/](partners/).
 | A model chosen per async subagent task | MDA builds each async subagent's graph from a static spec, so its model is fixed at deploy | one `worker` graph; `start_async_task` takes `model` and `effort`, stamped on the task's run context and swapped in per call (`middleware/async_helpers.py`) |
 | A way to turn off the automatic async general-purpose subagent | 0.10 builds it as its own graph with no opt-out | the lead's `start_async_task` always runs `worker`, so nothing starts it |
 | Schedules creatable for a thread from outside a run | after a restart, a thread has no route for wake-ups until a run happens on it | a sentinel schedule per busy thread, pushed forward while the process lives |
-| Streaming and message updates on `runtime.channel` | live progress and the footer need updates to one message | the Slack Web API with the reserved `mda/slack-bot-token` connection |
+| Streaming and message updates on a thread's channel (`runtime.thread.origin.channel`) | live progress and the footer need updates to one message | the Slack Web API with the reserved `mda/slack-bot-token` connection |
 | Native steering for every person in the thread, and a way to turn it off | 0.10's `SteeringMiddleware` works in only the same person's queued messages and is always on | on MDA the platform steers; self-hosted, `LeadSteeringMiddleware` reads the thread |
 | Route direct-message follow-ups to the thread already working | a new top-level DM is its own thread and runs in parallel | not handled |
 | Expose a schedule run's Slack conversation and thread | after a restart, wake-up turns cannot find their Slack thread until a message run happens | progress reuses the thread's last known target |

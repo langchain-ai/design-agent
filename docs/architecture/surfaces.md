@@ -33,7 +33,7 @@ the sandbox never sees a token, a Slack URL or a Slack payload.
 
 MDA's channel posts the final reply, reacts to the starting message, transfers attachments to
 `/workspace/attachments/` and provides `upload_files`. Presentation uses the reserved
-`mda/slack-bot-token` connection and the event on `runtime.channel`.
+`mda/slack-bot-token` connection and the thread's channel (`runtime.thread.origin.channel`).
 
 A second message in a busy Slack thread becomes a run queued behind the current one (there is no
 public way to add input to a running run). The steering middleware folds it into the running turn
