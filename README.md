@@ -146,17 +146,17 @@ LangSmith Cloud) and a model key:
 curl -fsSL https://raw.githubusercontent.com/langchain-ai/design-agent/main/install.sh | bash
 cd design-agent
 uv run design-agent config set LANGSMITH_API_KEY ANTHROPIC_API_KEY   # type each key; it stays hidden
-uv run design-agent sandbox publish   # once per workspace, 10-15 min: the agent's computer
-uv run mda deploy                     # the agent itself, and its Slack app
+uv run mda deploy --agent-server-type dedicated   # the agent, its computer and its Slack app
 ```
 
 The installer gets [uv](https://docs.astral.sh/uv/) if you don't have it, clones the repository and
 installs its dependencies; `git clone` and `uv sync` do the same.
 
-The two last commands do different things. `sandbox publish` builds the Linux machine every thread
-works on, as a snapshot in your LangSmith workspace; nothing you can talk to exists yet. `mda deploy`
-deploys the agent, which clones that machine for each thread. Publish again only when
-`sandbox/setup.sh` changes.
+`mda deploy` builds the Linux machine every thread works on from `sandbox/setup.sh` the first time
+(10-15 minutes), then gives each thread its own copy; it rebuilds only when the recipe changes. A
+dedicated Agent Server keeps running between requests, which the agent's background helpers need;
+`mda deploy` would otherwise create a serverless one that can scale to zero. Later deploys keep
+the type.
 
 **On the LangSmith Gateway?** Skip the provider key and run
 `uv run design-agent config set DESIGN_AGENT_MODEL=langsmith:anthropic/claude-opus-5-5`. The agent
@@ -164,8 +164,10 @@ then uses `LANGSMITH_GATEWAY_API_KEY`, else `LANGSMITH_API_KEY`, and image gener
 the gateway too when there is no `OPENAI_API_KEY`. For any other OpenAI-compatible endpoint, set
 `DESIGN_AGENT_MODEL_BASE_URL` and `DESIGN_AGENT_MODEL_API_KEY_ENV` ([Models](docs/models.md)).
 
-The first deploy sets up the agent's Slack app: `mda deploy` prints a Slack link, you approve the
-app for your workspace (an admin may need to), and press Enter. The agent then sends you a DM;
+The first deploy sets up the agent's Slack app, so run it in your own terminal with a personal
+access token (`lsv2_pt_…`; a service key can't set up Slack): `mda deploy` prints a Slack link, you
+approve the app for your workspace (an admin may need to), and it carries on once Slack confirms.
+The agent then sends you a DM;
 reply to it, or `/invite` it to a channel and mention it. It's how we run ours at LangChain. Try changes on a separate copy with
 `uv run mda deploy --name design-agent-test`. In a workspace with agent mode,
 `uv run mda deploy --agent-environment production` (or `staging`, `development`) deploys into that
@@ -182,7 +184,7 @@ Deploy LangChain's open-source design agent to my Slack workspace with Managed D
 2. Read `AGENTS.md` and follow the `design-agent-deploy` skill.
 3. Tell me which keys you need. I'll type them myself with `uv run design-agent config set <KEY>` in my terminal; never ask me to paste a key in chat.
 4. Run `uv run design-agent doctor` and fix what it flags. Its `mda-deploy` line lists what a deploy still needs.
-5. Ask me before `uv run design-agent sandbox publish`, which bills. Then have me run the first deploy, `uv run mda deploy`, in my own terminal, since it sets up the Slack app.
+5. Have me run the first deploy, `uv run mda deploy --agent-server-type dedicated`, in my own terminal: it bills, builds the agent's computer and sets up the Slack app. Ask me before later deploys.
 6. When it's live, walk me through messaging the agent in Slack and sending a first request.
 ```
 

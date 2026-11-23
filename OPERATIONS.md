@@ -28,7 +28,8 @@ goes with it. `DESIGN_AGENT_TEMPLATE_TELEMETRY=0` turns it off.
 ## The sandbox computer
 
 One recipe (`sandbox/setup.sh`) builds every sandbox: the local Docker image
-(`design-agent sandbox build`), the LangSmith snapshot (`sandbox publish`), MDA's bake, and CI. It
+(`design-agent sandbox build`), MDA's bake on `mda deploy`, the LangSmith snapshot for local and
+self-hosted LangSmith sandboxes (`sandbox publish`), and CI. It
 pins Chrome Headless Shell, ffmpeg, HyperFrames, D2, the Node render toolchain and open fonts by
 version and checksum, and ends with a probe (`sandbox test`) that renders a page, a 2-second film
 and a diagram. Change the recipe, rebuild, re-run `sandbox test` and `make render`, then publish
@@ -56,7 +57,7 @@ truth. Set `DESIGN_AGENT_JOB_BUDGET_USD` to make the agent ask before going past
 | Background news arrives a minute or two late on MDA | expected: MDA schedules land on the next minute |
 | "A restart may have stopped…" | a deploy or restart stopped helpers; ask the agent to resume them |
 | Paper "not connected" | Paper Desktop is closed or the bridge is unreachable; boards still render in the sandbox |
-| The sandbox bake runs out of disk on `mda deploy` | publish the snapshot first: `uv run design-agent sandbox publish` |
+| The sandbox bake runs out of disk on `mda deploy` | `managed-deepagents` older than 0.9.5 ignores the declared filesystem: `uv sync` |
 | An MCP server is missing | it failed to load; the startup log names it and the rest keep working |
 
 Logs: `uv run mda logs` for MDA; `docker compose -f deploy/self-host/compose.yaml logs api` for

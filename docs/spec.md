@@ -453,10 +453,10 @@ Rules:
 - Never bake instructions, skills, brand packs, user data, fonts under license, credentials or `.env`
   values (MDA forwards non-reserved `.env` values to the bake builder; the recipe must not persist
   them).
-- Measure the final size. MDA bakes from a `docker_image` base with a fixed small filesystem capacity
-  (1 GiB as of 0.9.3), which a Chromium + ffmpeg + Node image can exceed. If it does, ship
-  `design-agent sandbox publish --fs-gib N` (LangSmith SDK, as the Paid Media Agent does) and declare
-  the published snapshot as the bake base; document both paths.
+- Measure the final size. MDA bakes from a `docker_image` base with the declared `fs_capacity_bytes`
+  (honored since 0.9.5; 1 GiB before), so the 1.3 GiB computer bakes on a plain `mda deploy`.
+  `design-agent sandbox publish --fs-gib N` still builds the same computer as a LangSmith snapshot
+  for local and self-hosted runs on LangSmith sandboxes.
 - Size: default 8 vCPU / 16 GiB for motion (renders take 8–40 s per second of film on CPU); document a
   2–4 vCPU profile for stills-only teams. Sizes pass through `define_sandbox` extra keys (`vcpus`,
   `mem_bytes`, `fs_capacity_bytes`); verify against the installed SDK.
@@ -716,13 +716,14 @@ See [Paper](partners/paper.md). Summary:
   inbound files to `/workspace/attachments/`, and renders approval cards for interrupts.
 - One Trigger channel per agent; Slack channels forbid `deploy --no-wait`; schedules and channels
   require `identity.py`.
-- MDA 0.9.3 offers `runtime.channel.post` (an extra text message) but no streaming or message
+- MDA 0.10 offers `runtime.thread.origin.channel.post` (an extra text message) but no streaming or message
   updates. Live progress, status and the footer therefore call the Slack Web API directly with the
   reserved agent connection `mda/slack-bot-token` and the channel/thread ids from `raw_event` (the
   documented pattern). Use Slack's agent streaming and status APIs where available; fall back to one
   updated message.
-- Track the 0.10 line: `trigger_mode="mention|thread|all"` replaces `trigger_on_all_messages`, and shell
-  environment will take precedence over the project `.env`.
+- On the 0.10 line `trigger_mode="mention|thread|all"` replaces `trigger_on_all_messages`
+  (`DESIGN_AGENT_SLACK_TRIGGER_MODE`), and the shell's `LANGSMITH_*` take precedence over the
+  project `.env` for the deploy.
 
 ### 14.2 Self-hosted Slack and API
 
@@ -835,7 +836,7 @@ uv.lock · Dockerfile · docker-compose.yml · .env.example · skills-lock.json 
 Python 3.12+ (MDA 0.10 needs 3.12; it supports up to 3.14), uv, Pydantic v2, Ruff, mypy (strict for new modules; ported
 harness modules may start in a documented gradual list that shrinks to zero before v0.1), pytest,
 Node only inside the sandbox recipe. One `pyproject.toml`, one lockfile, explicit upper bounds on fast
-pre-1.0 packages (`managed-deepagents>=0.9.3,<0.10`, `deepagents>=0.7.28,<0.8` at the time of writing;
+pre-1.0 packages (`managed-deepagents>=0.10.5,<0.11`, `deepagents>=0.7.30,<0.8` at the time of writing;
 never a `.devN` pin in a release).
 
 ### 18.3 CI

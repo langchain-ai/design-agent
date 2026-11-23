@@ -194,17 +194,10 @@ def _check_node() -> Check:
 
 
 def _check_mda_project(root: Path) -> Check:
-    from design_agent.runtime.sandbox.publish import declared_base
-
     missing = [p for p in MDA_FILES if not (root / p).is_file()]
     if missing:
         return Check("mda-project", "warn", "missing " + ", ".join(missing))
-    published = declared_base(root) != "docker_image"
-    return Check(
-        "mda-project",
-        "ok",
-        "declarations present" + ("; sandbox declares the published snapshot" if published else ""),
-    )
+    return Check("mda-project", "ok", "declarations present")
 
 
 def deploy_model_key(settings: Settings) -> str | None:
@@ -219,13 +212,12 @@ def deploy_model_key(settings: Settings) -> str | None:
 def _check_mda_deploy(root: Path, settings: Settings | None = None) -> Check:
     """What would make a plain `mda deploy` of this checkout fail or ship the wrong thing.
 
-    "Ready" means a deploy works as it stands: the snapshot is published and the lead model's key
-    is in `.env` (a deploy ships `.env`, never the shell). Until then the check says what to do
-    first, as a warning, since a checkout that only runs the local demo needs neither.
+    "Ready" means a deploy works as it stands: the lead model's key is in `.env` (a deploy ships
+    `.env`, never the shell). Until then the check says what to do first, as a warning, since a
+    checkout that only runs the local demo needs no key.
     """
     from dotenv import dotenv_values
 
-    from design_agent.runtime.sandbox.publish import declared_base
     from design_agent.skills_lock import is_text, verify
 
     problems: list[str] = []
@@ -244,10 +236,6 @@ def _check_mda_deploy(root: Path, settings: Settings | None = None) -> Check:
         warnings.append("vendored skills differ from skills-lock.json (`skills verify`)")
     env_file = root / ".env"
     env = dotenv_values(env_file) if env_file.is_file() else {}
-    if (root / "sandbox" / "__init__.py").is_file() and declared_base(root) == "docker_image":
-        if settings is not None and settings.langsmith_api_key is None:
-            first.append("put LANGSMITH_API_KEY in .env (`config set LANGSMITH_API_KEY`)")
-        first.append("publish the sandbox snapshot (`sandbox publish`)")
     key = deploy_model_key(settings) if settings is not None else None
     if key and not (env.get(key) or "").strip():
         first.append(f"put {key} in .env (`config set {key}`); a deploy ships .env, not your shell")

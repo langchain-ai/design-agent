@@ -7,6 +7,11 @@ traced to, and never writes. Listings stay compact; a whole run tree goes to a J
 workspace with a short summary. Traces hold other people's requests, so their contents are data,
 never instructions. SECURITY.md records the access tradeoff; `DESIGN_AGENT_ENABLE_TRACES=false`
 removes both tools.
+
+Reads go through LangSmith's v2 run endpoints (`/api/v2/runs`, `RunReader`): the v1
+`list_runs` they replace fail a growing share of calls from 2026-12-08 and stop on 2027-01-31.
+A v2 query always has a time window, and a root's tokens and cost include its subtree only when
+asked (`include_subtree_usage`).
 """
 
 from __future__ import annotations
@@ -15,12 +20,12 @@ import asyncio
 import json
 import os
 import re
+import time
 import uuid
 from collections import Counter
 from collections.abc import Callable, Iterable
 from datetime import UTC, datetime, timedelta
-from itertools import islice
-from typing import Any
+from typing import Any, Protocol
 
 from langchain.tools import ToolRuntime
 from langchain_core.tools import BaseTool, StructuredTool
@@ -43,18 +48,31 @@ MAX_FILE_BYTES = 8 * 1024 * 1024
 TIMEOUT_S = 60.0
 #: Root-run fields a listing needs; inputs and outputs (whole conversations) stay on the server.
 LIST_FIELDS = (
-    "id",
-    "trace_id",
-    "name",
-    "start_time",
-    "end_time",
-    "status",
-    "error",
-    "total_tokens",
-    "total_cost",
-    "tags",
-    "extra",
+    "ID",
+    "TRACE_ID",
+    "NAME",
+    "START_TIME",
+    "END_TIME",
+    "STATUS",
+    "ERROR",
+    "TOTAL_TOKENS",
+    "TOTAL_COST",
+    "TAGS",
+    "EXTRA",
 )
+#: Every field a trace's run tree shows.
+TREE_FIELDS = (
+    *LIST_FIELDS,
+    "RUN_TYPE",
+    "INPUTS",
+    "OUTPUTS",
+    "DOTTED_ORDER",
+    "PARENT_RUN_IDS",
+)
+#: How far back `read_trace` looks for a trace id: LangSmith's longest retention.
+TRACE_WINDOW = timedelta(days=400)
+#: How long a rate-limited or timed-out page waits before each retry.
+BACKOFF = (2, 5, 10)
 LABELS = ("trigger:", "surface:", "delivered:")
 #: `started_by` values and their filters on the root's `trigger:` tag (middleware/tracing.py).
 #: The default keeps every run that did work or failed: housekeeping ends in a fraction of a second
@@ -76,7 +94,7 @@ UNTRUSTED = (
 )
 
 #: Builds a LangSmith client (tests pass a fake).
-ClientFor = Callable[[], Any]
+ClientFor = Callable[[], "RunReader"]
 #: The LangSmith project the current run is traced to, or None when it is not traced.
 ProjectFor = Callable[[], str | None]
 
@@ -85,8 +103,80 @@ class TracesUnavailable(RuntimeError):
     """Traces cannot be read from here; the message is safe to show."""
 
 
+class RunReader(Protocol):
+    """Runs of one project that started in `since`..`until` and match, at most `limit` of them."""
+
+    def query(
+        self,
+        *,
+        project: str,
+        since: datetime,
+        until: datetime,
+        limit: int,
+        selects: tuple[str, ...],
+        **filters: Any,
+    ) -> list[Any]: ...
+
+
+class V2Runs:
+    """`RunReader` over LangSmith's v2 run query (module doc), on a `langsmith.Client`'s key and
+    workspace. A page refused for the rate limit or a server timeout is asked again."""
+
+    def __init__(self, client: Any) -> None:
+        self._client = client
+
+    def _runs(self) -> Any:
+        from langsmith import Langsmith
+
+        base = self._client.api_url.rstrip("/").removesuffix("/v1").removesuffix("/api")
+        return Langsmith(
+            api_key=self._client.api_key, tenant_id=self._client.workspace_id, base_url=base
+        ).runs
+
+    @staticmethod
+    def _again(call: Callable[[], Any]) -> Any:
+        from langsmith import InternalServerError, RateLimitError
+
+        for wait in BACKOFF:
+            try:
+                return call()
+            except (RateLimitError, InternalServerError):
+                time.sleep(wait)
+        return call()
+
+    def query(
+        self,
+        *,
+        project: str,
+        since: datetime,
+        until: datetime,
+        limit: int,
+        selects: tuple[str, ...],
+        **filters: Any,
+    ) -> list[Any]:
+        project_id = str(self._client.read_project(project_name=project).id)
+        runs = self._runs()
+        given = {key: value for key, value in filters.items() if value is not None}
+        page = self._again(
+            lambda: runs.query(
+                project_ids=[project_id],
+                min_start_time=since,
+                max_start_time=until,
+                selects=list(selects),
+                page_size=min(limit, 100),
+                **given,
+            )
+        )
+        found: list[Any] = []
+        while True:
+            found.extend(page.items)
+            if len(found) >= limit or not page.has_next_page():
+                return found[:limit]
+            page = self._again(page.get_next_page)
+
+
 def client_from(settings: Settings) -> ClientFor:
-    def build() -> Any:
+    def build() -> RunReader:
         from langsmith import Client
 
         key = settings.langsmith_api_key
@@ -94,7 +184,7 @@ def client_from(settings: Settings) -> ClientFor:
             os.environ.get("LANGSMITH_API_KEY") or os.environ.get("LANGCHAIN_API_KEY")
         ):
             raise TracesUnavailable("this host has no LangSmith credentials")
-        return Client(api_key=key.get_secret_value()) if key is not None else Client()
+        return V2Runs(Client(api_key=key.get_secret_value()) if key is not None else Client())
 
     return build
 
@@ -177,6 +267,19 @@ def listing_line(run: Any) -> str:
     return "  ".join(parts)
 
 
+def parent_id(run: Any) -> str | None:
+    """The run's parent: v2 runs carry their ancestry in `dotted_order` (`<time>Z<id>` segments,
+    root first) rather than a parent id."""
+    direct = getattr(run, "parent_run_id", None)
+    if direct:
+        return str(direct)
+    segments = (getattr(run, "dotted_order", None) or "").split(".")
+    if len(segments) >= 2 and len(segments[-2]) >= 36:
+        return segments[-2][-36:]
+    ancestors = getattr(run, "parent_run_ids", None) or []
+    return str(ancestors[-1]) if ancestors else None
+
+
 def is_hook(run: Any) -> bool:
     """A middleware hook's own run (`<middleware>.awrap_tool_call` and the like)."""
     return run.run_type == "chain" and bool(HOOK.search(run.name or ""))
@@ -192,7 +295,8 @@ def run_tree(runs: Iterable[Any], field_chars: int) -> list[dict[str, Any]]:
     nodes: dict[str, dict[str, Any] | None] = {}
     roots: list[dict[str, Any]] = []
     for run in ordered:
-        parent = nodes.get(str(run.parent_run_id)) if run.parent_run_id else None
+        above = parent_id(run)
+        parent = nodes.get(above) if above else None
         if is_hook(run) and not run.error:
             nodes[str(run.id)] = parent
             continue
@@ -215,7 +319,7 @@ def run_tree(runs: Iterable[Any], field_chars: int) -> list[dict[str, Any]]:
 
 
 def summary(trace_id: str, runs: list[Any], *, truncated: bool) -> str:
-    root = next((run for run in runs if run.parent_run_id is None), runs[0])
+    root = next((run for run in runs if parent_id(run) is None), runs[0])
     kinds = Counter(run.run_type for run in runs)
     hooks = sum(1 for run in runs if is_hook(run))
     head = (
@@ -312,17 +416,16 @@ def build_trace_tools(
             count = min(max(limit, 1), MAX_LIST)
 
             def fetch() -> list[Any]:
-                client = make_client()
-                return list(
-                    client.list_runs(
-                        project_name=name,
-                        is_root=True,
-                        start_time=since,
-                        error=True if errors_only else None,
-                        filter=query,
-                        select=list(LIST_FIELDS),
-                        limit=count,
-                    )
+                return make_client().query(
+                    project=name,
+                    since=since,
+                    until=datetime.now(UTC),
+                    limit=count,
+                    selects=LIST_FIELDS,
+                    is_root=True,
+                    has_error=True if errors_only else None,
+                    filter=query,
+                    include_subtree_usage=True,
                 )
 
             runs = await call(fetch)
@@ -349,9 +452,15 @@ def build_trace_tools(
             backend = require_backend(backend_for, runtime)
 
             def fetch() -> list[Any]:
-                # The API pages at 100 runs; the client follows pages until the cap is passed.
-                runs = make_client().list_runs(project_name=name, trace_id=wanted)
-                return list(islice(runs, MAX_RUNS + 1))
+                now = datetime.now(UTC)
+                return make_client().query(
+                    project=name,
+                    since=now - TRACE_WINDOW,
+                    until=now,
+                    limit=MAX_RUNS + 1,
+                    selects=TREE_FIELDS,
+                    trace_id=wanted,
+                )
 
             runs = await call(fetch)
             if not runs:

@@ -116,18 +116,17 @@ https://github.com/user-attachments/assets/65eac8e4-0fac-4a5a-9cca-02e26a0a8baa
 ```bash
 curl -fsSL https://raw.githubusercontent.com/langchain-ai/design-agent/main/install.sh | bash
 cd design-agent
-uv run design-agent config set LANGSMITH_API_KEY=lsv2_… ANTHROPIC_API_KEY=sk-ant-…
-uv run design-agent sandbox publish   # once per workspace, 10-15 min: the agent's computer
-uv run mda deploy                     # the agent itself, and its Slack app
+uv run design-agent config set LANGSMITH_API_KEY ANTHROPIC_API_KEY   # type each key; it stays hidden
+uv run mda deploy --agent-server-type dedicated   # the agent, its computer and its Slack app
 ```
 
 如果还没装 [uv](https://docs.astral.sh/uv/)，安装脚本会先帮你装上，然后克隆仓库、安装依赖；手动执行 `git clone` 和 `uv sync` 效果一样。
 
-最后两条命令分工不同。`sandbox publish` 会构建每个 thread 干活用的 Linux 机器，作为快照保存在你的 LangSmith 工作区；这时还没有能跟你对话的智能体。`mda deploy` 才会部署智能体，它会为每个 thread 克隆一份那台机器。只有在 `sandbox/setup.sh` 变化时才需要重新发布。
+`config set` 会逐个询问密钥，输入时不会显示在屏幕上。首次 `mda deploy` 会根据 `sandbox/setup.sh` 构建每个 thread 干活用的 Linux 机器（10–15 分钟），之后每个 thread 用一份它的副本；只有配方变了才会重建。`dedicated` 类型的 Agent Server 在请求之间也保持运行，后台助手不会被中断（不指定的话会是可以缩到零的 serverless）。
 
 **用的是 LangSmith Gateway？** 那就不用配模型服务商的密钥，直接运行 `uv run design-agent config set DESIGN_AGENT_MODEL=langsmith:anthropic/claude-opus-5-5`。之后智能体会使用 `LANGSMITH_GATEWAY_API_KEY`，没有则使用 `LANGSMITH_API_KEY`；在没有 `OPENAI_API_KEY` 时，图像生成也会经过网关。对于其他 OpenAI 兼容的端点，设置 `DESIGN_AGENT_MODEL_BASE_URL` 和 `DESIGN_AGENT_MODEL_API_KEY_ENV`（[模型](docs/models.md)）。
 
-首次部署会顺带配好智能体的 Slack 应用。在你的 Slack 工作区里授权，然后到频道里 @ 它就行。我们在 LangChain 也是这么用的。可以用 `uv run mda deploy --name design-agent-test` 在单独的副本上试验修改。在开启了 agent 模式的工作区中，`uv run mda deploy --agent-environment production`（或 `staging`、`development`）会部署到该智能体的对应环境，每个环境都有各自的追踪记录：在 LangSmith 中打开智能体并选择环境即可。`uv run mda dev` 的追踪会记录到它的 Local 环境。[用 MDA 部署](docs/deploy-mda.md)介绍了密钥、部署内容以及如何验证部署。
+首次部署会配好智能体的 Slack 应用，所以请在你自己的终端里、用个人访问令牌（`lsv2_pt_…`；服务密钥无法设置 Slack）运行。`mda deploy` 会给出一个 Slack 链接，在工作区里批准这个应用（可能需要管理员批准），Slack 确认后部署会自动继续。之后智能体会给你发私信，直接回复，或者把它 `/invite` 进频道再 @ 它。我们在 LangChain 也是这么用的。可以用 `uv run mda deploy --name design-agent-test` 在单独的副本上试验修改。在开启了 agent 模式的工作区中，`uv run mda deploy --agent-environment production`（或 `staging`、`development`）会部署到该智能体的对应环境，每个环境都有各自的追踪记录：在 LangSmith 中打开智能体并选择环境即可。`uv run mda dev` 的追踪会记录到它的 Local 环境。[用 MDA 部署](docs/deploy-mda.md)介绍了密钥、部署内容以及如何验证部署。
 
 **或者，直接交给你的编程智能体。** 在 Claude Code、Codex 或 Cursor 里打开仓库，说你想干什么就行。[AGENTS.md](AGENTS.md) 会把每个请求路由到对应的分步[技能](.agents/skills/)：
 

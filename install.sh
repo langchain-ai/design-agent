@@ -40,8 +40,7 @@ Installed in $DIR. To put it in your team's Slack with Managed Deep Agents:
 
   cd $DIR
   uv run design-agent config set LANGSMITH_API_KEY ANTHROPIC_API_KEY   # type each key; it stays hidden
-  uv run design-agent sandbox publish   # once per workspace: the agent's computer
-  uv run mda deploy
+  uv run mda deploy --agent-server-type dedicated   # the agent, its computer and its Slack app
 
 Or open $DIR in Claude Code, Codex or Cursor and say "Deploy it to our Slack."
 To try it locally first, with Docker and no keys: uv run design-agent sandbox build && uv run design-agent demo

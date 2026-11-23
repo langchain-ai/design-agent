@@ -7,7 +7,7 @@ from typing import Any
 
 from langchain.agents import create_agent
 from langchain.agents.middleware import AgentMiddleware, AgentState
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import HumanMessage
 from langgraph.runtime import Runtime
 
 from design_agent.harness.notices import should_post
@@ -22,7 +22,7 @@ class AnswerDelivery(AgentMiddleware[AgentState[Any], Any, Any]):
         super().__init__()
         self.posted: list[str] = []
 
-    def after_agent(self, state: AgentState[Any], runtime: Runtime[Any]) -> None:  # noqa: ARG002 - hook signature
+    def after_agent(self, state: AgentState[Any], runtime: Runtime[Any]) -> None:
         text = str(state["messages"][-1].text).strip()
         if should_post(text):
             self.posted.append(text)

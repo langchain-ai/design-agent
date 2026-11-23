@@ -9,7 +9,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from design_agent.config import Settings
-from design_agent.tools.traces import build_trace_tools
+from design_agent.tools.traces import build_trace_tools, parent_id
 from tests.unit.test_host_tools import MemoryBackend
 
 T0 = datetime(2026, 10, 18, 14, 0, tzinfo=UTC)
@@ -39,7 +39,7 @@ class FakeClient:
     def __init__(self, runs: list[FakeRun], error: Exception | None = None) -> None:
         self.runs, self.error, self.calls = runs, error, []  # type: ignore[var-annotated]
 
-    def list_runs(self, **kwargs: Any) -> list[FakeRun]:
+    def query(self, **kwargs: Any) -> list[FakeRun]:
         self.calls.append(kwargs)
         if self.error is not None:
             raise self.error
@@ -80,8 +80,9 @@ async def test_listing_reads_root_runs_of_this_project_only() -> None:
         runtime=None, thread="this", started_by="message", errors_only=True
     )
     call = client.calls[0]
-    assert call["project_name"] == "design-agent-production" and call["is_root"] is True
-    assert call["error"] is True and "inputs" not in call["select"]
+    assert call["project"] == "design-agent-production" and call["is_root"] is True
+    assert call["has_error"] is True and "INPUTS" not in call["selects"]
+    assert call["include_subtree_usage"] is True and call["since"] < call["until"]
     assert call["filter"] == (
         'and(has(tags, "trigger:message"), '
         'and(eq(metadata_key, "thread_id"), eq(metadata_value, "thread-7")))'
@@ -147,7 +148,8 @@ async def test_reading_a_trace_writes_its_tree_and_summarizes_it() -> None:
     client = FakeClient([render, boundary, model, hook, root])
     result = await tools_for(client)["read_trace"](trace_id=str(TRACE), runtime=None)
     assert client.calls[0]["trace_id"] == str(TRACE)
-    assert client.calls[0]["project_name"] == "design-agent-production"
+    assert client.calls[0]["project"] == "design-agent-production"
+    assert "DOTTED_ORDER" in client.calls[0]["selects"]
     assert "ok, 3m00s, 5 runs (1 model call, 1 tool call, 2 middleware steps), 9k tokens" in result
     assert "Errors: tool render_video: ffmpeg exited 1" in result
     assert "Slowest: render_video 1m40s" in result
@@ -169,3 +171,10 @@ async def test_reading_refuses_bad_ids_unknown_traces_and_paths_outside_the_work
     outside = tools_for(FakeClient([FakeRun("design-agent")]))["read_trace"]
     result = await outside(trace_id=str(TRACE), runtime=None, sandbox_path="/etc/trace.json")
     assert result.startswith("not read") and "/workspace" in result
+
+
+def test_a_v2_run_finds_its_parent_in_its_dotted_order() -> None:
+    root, child = uuid.uuid4(), uuid.uuid4()
+    order = f"20261018T140000000000Z{root}.20261018T140001000000Z{child}"
+    assert parent_id(FakeRun("model", id=child, dotted_order=order)) == str(root)
+    assert parent_id(FakeRun("root", id=root, dotted_order=f"20261018T140000000000Z{root}")) is None

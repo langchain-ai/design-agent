@@ -5,14 +5,13 @@ MDA reads this declaration statically, so every value is a literal or a top-leve
 `DESIGN_AGENT_SANDBOX_*` settings size local and self-hosted sandboxes, and these constants size
 MDA's.
 
-The computer unpacks to about 1.3 GiB, more than the 1 GiB filesystem MDA gives a `docker_image`
-bake, so production deploys use a snapshot published from the same recipe with room for renders:
-
-    uv run design-agent sandbox publish --fs-gib 16
-
-`publish` rewrites BASE_IMAGE below into a snapshot declaration; until then `mda deploy` runs out of
-disk baking the recipe, and `doctor` says so. Egress is default-deny; EGRESS_ALLOW lists the hosts
-the sandbox may reach (none by default: host tools fetch, the sandbox does not).
+The computer unpacks to about 1.3 GiB. Since managed-deepagents 0.9.5 a `docker_image` bake gets
+the filesystem declared here (`FS_CAPACITY_BYTES`, room for renders), so `mda deploy` bakes the
+recipe on BASE_IMAGE itself; the first deploy, and the first after `setup.sh` changes, takes longer
+while it does. `design-agent sandbox publish` builds the same computer as a LangSmith snapshot for
+local and self-hosted runs on LangSmith sandboxes, and rewrites BASE_IMAGE into that snapshot;
+an MDA deploy needs neither. Egress is default-deny; EGRESS_ALLOW lists the hosts the sandbox may
+reach (none by default: host tools fetch, the sandbox does not).
 """
 
 from managed_deepagents import define_sandbox

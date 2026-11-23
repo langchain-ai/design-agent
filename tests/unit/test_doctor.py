@@ -53,7 +53,7 @@ def _settings(monkeypatch: pytest.MonkeyPatch, model: str) -> Settings:
     return Settings(_env_file=None)  # type: ignore[call-arg]
 
 
-def test_an_unpublished_snapshot_and_a_shell_only_key_are_named_first(
+def test_a_shell_only_model_key_is_named_first(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     root = _project(tmp_path)
@@ -62,11 +62,8 @@ def test_an_unpublished_snapshot_and_a_shell_only_key_are_named_first(
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-only-in-the-shell")
     check = _check_mda_deploy(root, settings)
     assert check.status == "warn"
-    assert check.detail.startswith(
-        "before `mda deploy`: put LANGSMITH_API_KEY in .env (`config set LANGSMITH_API_KEY`), "
-        "then publish the sandbox snapshot"
-    )
-    assert "put ANTHROPIC_API_KEY in .env" in check.detail
+    assert check.detail.startswith("before `mda deploy`: put ANTHROPIC_API_KEY in .env")
+    assert "sandbox publish" not in check.detail, "MDA bakes the 16 GiB recipe itself (0.9.5+)"
     assert "only-in-the-shell" not in check.detail and "ready" not in check.detail
 
 
