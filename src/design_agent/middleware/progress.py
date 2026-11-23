@@ -42,12 +42,14 @@ import asyncio
 import contextlib
 from collections import OrderedDict
 from collections.abc import Awaitable, Callable, Mapping, Sequence
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import Any
 
 from langchain.agents.middleware import AgentMiddleware, AgentState, ModelRequest, ModelResponse
 from langchain.agents.middleware.types import ToolCallRequest
 from langchain_core.messages import AIMessage, ToolMessage
+from langgraph.config import get_config
 from langgraph.types import Command
 
 from design_agent.harness import tasks
@@ -56,7 +58,12 @@ from design_agent.surfaces.slack.client import SlackError
 from design_agent.surfaces.slack.followups import is_stop
 from design_agent.surfaces.slack.phrasebook import phrase, todo_status
 from design_agent.surfaces.slack.stream import Card, Progress, Silent, SlackProgress, card
-from design_agent.surfaces.slack.target import SlackBinding, SlackSurface, thread_of
+from design_agent.surfaces.slack.target import (
+    SlackBinding,
+    SlackSurface,
+    target_from_event,
+    thread_of,
+)
 
 ANSWER = "answer"
 WRITING, WROTE = "Writing the reply", "Wrote the reply"
@@ -367,3 +374,59 @@ class HelperProgressMiddleware(_Progress):
         if run is not None:
             await run.sink.close(self._settled(True))
         return None
+
+
+#: The label of the async helper whose hook is running (`AsyncHelperProgressMiddleware._where`).
+_ASYNC_LABEL: ContextVar[str] = ContextVar("design_agent_async_helper_label", default="")
+
+
+class AsyncHelperProgressMiddleware(HelperProgressMiddleware):
+    """An MDA async helper's own progress message in its lead's Slack thread.
+
+    The worker runs on a thread of its own, so it has no Slack origin. The lead keeps the Slack
+    thread it started the task from in the store, under its own thread id
+    (`async_helpers.SLACK_TARGETS`), and the worker finds it by its lead's thread. The message is
+    headed by the role the lead named (`async_helpers.helper_label`).
+    """
+
+    def __init__(self, surface: SlackSurface, *, servers: Mapping[str, str] | None = None) -> None:
+        super().__init__(surface, servers=servers)
+        self._bindings: OrderedDict[str, SlackBinding | None] = OrderedDict()
+
+    @property
+    def name(self) -> str:
+        return "DesignAgentAsyncHelperProgress"
+
+    async def _where(self, runtime: Any) -> tuple[tuple[str, ...], SlackBinding | None]:
+        from design_agent.middleware.async_helpers import helper_label, lead_thread
+
+        try:
+            config = get_config()
+        except RuntimeError:
+            return (), None
+        _ASYNC_LABEL.set(helper_label(getattr(runtime, "context", None)))
+        lead, task = lead_thread(config), (config.get("configurable") or {}).get("thread_id")
+        binding = await self._binding(lead, runtime) if lead and task else None
+        return ((*binding.target.key, str(task)), binding) if binding else ((), None)
+
+    async def _binding(self, lead: str, runtime: Any) -> SlackBinding | None:
+        known = self._bindings.get(lead)
+        if known is not None and not known.client.auth_failed:
+            return known
+        from design_agent.middleware.async_helpers import SLACK_TARGETS
+
+        store = getattr(runtime, "store", None)
+        try:
+            item = await store.aget(SLACK_TARGETS, lead) if store is not None else None
+            target = target_from_event(item.value) if item is not None else None
+            client = await self._surface.resolver.client() if target is not None else None
+        except Exception:  # noqa: BLE001 - presentation never costs a run
+            return None
+        binding = SlackBinding(target, client) if target and client else None
+        self._bindings[lead] = binding
+        while len(self._bindings) > RUNS_KEPT:
+            self._bindings.popitem(last=False)
+        return binding
+
+    def _label(self) -> str:
+        return _ASYNC_LABEL.get()

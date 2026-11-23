@@ -16,6 +16,7 @@ Report missing settings by name and never paste a key, token or `.env` line.
 | Symptom | Fix |
 | --- | --- |
 | `demo` needs a sandbox | start Docker, then `uv run design-agent sandbox build` |
+| `mda deploy` says "No LangSmith API key found" though `.env` has one | your shell sets a `LANGSMITH_*` variable (often `LANGSMITH_ENDPOINT`), so the deploy reads LangSmith settings from the shell: set `LANGSMITH_API_KEY` there too, or unset the others |
 | A render is missing a font | `uv run design-agent fonts verify`; `family` in `fonts.toml` must be the name inside the file |
 | Off-brand colours or a failed brand check | `uv run design-agent brand validate`, then `brand css` |
 | "The connection to the model stalled" or "stayed unavailable" | check the provider's status, then reply `continue` in the thread |

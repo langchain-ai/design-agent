@@ -44,7 +44,14 @@ def test_clear_old_tool_results_is_the_api_shape() -> None:
                 "trigger": {"type": "input_tokens", "value": 150_000},
                 "keep": {"type": "tool_uses", "value": 6},
                 "clear_at_least": {"type": "input_tokens", "value": 60_000},
-                "exclude_tools": ["write_todos", "report_progress", "start_task", "check_tasks"],
+                "exclude_tools": [
+                    "write_todos",
+                    "report_progress",
+                    "start_task",
+                    "check_tasks",
+                    "start_async_task",
+                    "check_async_task",
+                ],
             }
         ]
     }
