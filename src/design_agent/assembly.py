@@ -186,13 +186,11 @@ def build_agent_components(
         ]
 
     # Housekeeping first: its run ends in `before_agent`, before staging touches the sandbox.
-    # Quiet next, so its after_agent runs last of ours and rewrites a final `[quiet]` after every
+    # Quiet next, so its after_agent runs last of ours and settles a final `[quiet]` after every
     # other hook has seen the reply (middleware/quiet.py).
     middleware: list[AgentMiddleware[Any, Any, Any]] = [
         HousekeepingMiddleware(runtime.services),
-        QuietReplyMiddleware(
-            lambda thread: bool(running(thread)), current_thread_id, runtime.quiet_status
-        ),
+        QuietReplyMiddleware(lambda thread: bool(running(thread)), current_thread_id),
         WorkspaceStagerMiddleware(manifest, runtime.staging_for),
         DeliveryLedgerMiddleware(runtime.backend_for, thread_id_for=runtime.thread_id_for),
         *(
@@ -221,7 +219,7 @@ def build_agent_components(
     if slack is not None:
         # Steering reads follow-ups before progress draws the turn; both sit outside the model
         # guards, so a retried call shows as one step and a boundary's line counts as the reply.
-        if settings.enable_steering:
+        if settings.enable_steering and not runtime.native_steering:
             middleware.append(LeadSteeringMiddleware(slack, backend_for=runtime.backend_for))
         if settings.enable_progress:
             middleware.append(

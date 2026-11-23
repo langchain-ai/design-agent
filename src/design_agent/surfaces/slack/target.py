@@ -5,7 +5,7 @@ stream is shown to, and the message that started the run) and hands out a `Slack
 bot token. Two are provided:
 
 - `MdaSlackResolver`, on public Managed Deep Agents APIs only: the target comes from
-  `runtime.channel` (a `RuntimeChannel`) when its provider is Slack and its event is a message,
+  `runtime.thread.origin.channel` (a `RuntimeChannel`) when its provider is Slack and its event is a message,
   read from the Slack event MDA verified and passed as `raw_event`; the token comes from the
   reserved agent connection `mda/slack-bot-token`, awaited inside a run.
 - `BoltSlackResolver`, for the self-hosted Slack adapter: a bot token it is given, and the Bolt
@@ -32,6 +32,7 @@ import httpx
 from langgraph.config import get_config
 from pydantic import SecretStr
 
+from design_agent.runtime.origin import origin_channel
 from design_agent.surfaces.slack.client import SlackClient
 from design_agent.surfaces.slack.followups import FollowUpReader
 
@@ -150,7 +151,7 @@ class _TokenClients:
 
 
 class MdaSlackResolver:
-    """Managed Deep Agents: `runtime.channel.raw_event` and the managed bot token (module doc)."""
+    """Managed Deep Agents: the thread origin's `raw_event` and the managed bot token (module doc)."""
 
     def __init__(
         self,
@@ -161,7 +162,7 @@ class MdaSlackResolver:
         self._clients = _TokenClients(token, transport)
 
     async def target(self, runtime: Any) -> SlackTarget | None:
-        channel = getattr(runtime, "channel", None)
+        channel = origin_channel(runtime)
         if channel is None or getattr(channel, "provider", None) != "slack":
             return None
         event = getattr(channel, "event", None)

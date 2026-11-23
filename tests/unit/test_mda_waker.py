@@ -15,7 +15,7 @@ from langchain_core.messages import HumanMessage
 from langgraph.store.memory import InMemoryStore
 
 from design_agent.harness.tasks import REGISTRY, TaskRecord
-from design_agent.middleware.quiet import SENTINEL_MARK, running_status
+from design_agent.middleware.quiet import SENTINEL_MARK
 from design_agent.runtime.waker import wake_marker
 from design_agent.runtime.waker.mda import LEAD_SECONDS, MdaScheduleWaker
 
@@ -47,7 +47,7 @@ def runtime_for(schedules: FakeSchedules, store: Any, *, channel: bool = True) -
     return SimpleNamespace(
         config={"configurable": {"thread_id": "t1"}},
         schedules=schedules,
-        channel=object() if channel else None,
+        thread=SimpleNamespace(origin=SimpleNamespace(channel=object()) if channel else None),
         store=store,
     )
 
@@ -138,25 +138,3 @@ async def test_a_fired_sentinel_re_arms_only_while_work_still_runs() -> None:
     schedules.live.pop(again["id"])
     await waker.on_turn_start(runtime, [HumanMessage(again["prompt"])])
     assert schedules.live == {}
-
-
-def test_the_quiet_status_names_the_running_work() -> None:
-    assert running_status("t1") == "Nothing new since my last message."
-    helper("the final render", minutes=7)
-    assert (
-        running_status("t1") == "Still working: the final render (7 min). I'll post when it lands."
-    )
-
-
-async def test_a_lifecycle_hook_runtime_without_config_uses_the_ambient_thread() -> None:
-    from langchain_core.runnables.config import var_child_runnable_config
-
-    schedules = FakeSchedules()
-    waker = MdaScheduleWaker(clock=lambda: NOW)
-    hook_runtime = SimpleNamespace(schedules=schedules, channel=object(), store=None)  # no `config`
-    token = var_child_runnable_config.set({"configurable": {"thread_id": "t9"}})
-    try:
-        target = await waker.capture(hook_runtime)
-    finally:
-        var_child_runnable_config.reset(token)
-    assert target is not None and target.thread_id == "t9"

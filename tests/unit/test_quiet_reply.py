@@ -1,6 +1,5 @@
-"""A `[quiet]` reply on a real agent graph: no loop, and where the platform posts every scheduled
-run's reply (MDA's schedule delivery, an `after_agent` hook installed ahead of the authored ones),
-what it posts is the status line, never the marker or an earlier reply."""
+"""A `[quiet]` reply on a real agent graph: no loop, and nothing posted where the platform skips a
+reply of exactly `[quiet]` (MDA 0.10's answer delivery, `harness.notices.should_post` locally)."""
 
 from __future__ import annotations
 
@@ -11,63 +10,51 @@ from langchain.agents.middleware import AgentMiddleware, AgentState
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.runtime import Runtime
 
+from design_agent.harness.notices import should_post
 from design_agent.middleware.quiet import SENTINEL_MARK, QuietReplyMiddleware
 from design_agent.testing.scripted_model import ScriptedChatModel, reply
 
 
-class NewestTextDelivery(AgentMiddleware[AgentState[Any], Any, Any]):
-    """Stands in for MDA's schedule delivery: posts the newest non-empty assistant text."""
+class AnswerDelivery(AgentMiddleware[AgentState[Any], Any, Any]):
+    """Stands in for the platform: posts the final assistant text unless it is exactly `[quiet]`."""
 
     def __init__(self) -> None:
         super().__init__()
         self.posted: list[str] = []
 
-    def after_agent(self, state: AgentState[Any], runtime: Runtime[Any]) -> None:
-        for message in reversed(state["messages"]):
-            if isinstance(message, AIMessage) and str(message.text).strip():
-                self.posted.append(str(message.text).strip())
-                return
+    def after_agent(self, state: AgentState[Any], runtime: Runtime[Any]) -> None:  # noqa: ARG002 - hook signature
+        text = str(state["messages"][-1].text).strip()
+        if should_post(text):
+            self.posted.append(text)
 
 
-def graph(
-    model: ScriptedChatModel, *, running: bool, status: Any
-) -> tuple[Any, NewestTextDelivery]:
-    delivery = NewestTextDelivery()
-    quiet = QuietReplyMiddleware(lambda _t: running, lambda: "t1", status)
+def graph(model: ScriptedChatModel, *, running: bool) -> tuple[Any, AnswerDelivery]:
+    delivery = AnswerDelivery()
+    quiet = QuietReplyMiddleware(lambda _t: running, lambda: "t1")
     return create_agent(model, tools=[], middleware=[delivery, quiet]), delivery
 
 
-async def test_a_quiet_reply_is_posted_as_the_status_line() -> None:
+async def test_a_quiet_line_among_chatter_settles_to_the_marker_and_posts_nothing() -> None:
     agent, delivery = graph(
-        ScriptedChatModel(steps=[lambda _m: reply("[quiet]")]),
-        running=True,
-        status=lambda _t: "Still working: act 2 (4 min).",
+        ScriptedChatModel(steps=[lambda _m: reply("Checked the render.\n[quiet]")]), running=True
     )
-    result = await agent.ainvoke(
-        {
-            "messages": [
-                AIMessage("The earlier reply."),
-                HumanMessage("<check-in>Look at the render."),
-            ]
-        }
-    )
-    assert delivery.posted == ["Still working: act 2 (4 min)."]
-    assert result["messages"][-1].text == "Still working: act 2 (4 min)."
-
-
-async def test_without_a_status_a_quiet_reply_stays_for_the_poster_to_drop() -> None:
-    agent, delivery = graph(
-        ScriptedChatModel(steps=[lambda _m: reply("[quiet]")]), running=False, status=None
-    )
-    result = await agent.ainvoke({"messages": [HumanMessage("<check-in>Look.")]})
+    result = await agent.ainvoke({"messages": [HumanMessage("<check-in>Look at the render.")]})
     assert result["messages"][-1].text == "[quiet]"
+    assert delivery.posted == []
+
+
+async def test_a_reply_that_only_mentions_the_marker_is_left_alone() -> None:
+    text = "Reply [quiet] when nothing changed; here the render is done."
+    agent, delivery = graph(ScriptedChatModel(steps=[lambda _m: reply(text)]), running=False)
+    await agent.ainvoke({"messages": [HumanMessage("<check-in>Look.")]})
+    assert delivery.posted == [text]
 
 
 async def test_a_watchdog_turn_with_work_running_ends_without_a_model_call() -> None:
     model = ScriptedChatModel(steps=[])
-    agent, delivery = graph(model, running=True, status=lambda _t: "Still working: act 2 (20 min).")
+    agent, delivery = graph(model, running=True)
     await agent.ainvoke(
         {"messages": [HumanMessage(f"{SENTINEL_MARK}>\nA restart may have stopped work.")]}
     )
     assert model.call_count == 0
-    assert delivery.posted == ["Still working: act 2 (20 min)."]
+    assert delivery.posted == []

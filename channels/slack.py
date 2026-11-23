@@ -14,6 +14,6 @@ channel = channels.slack(
     description=_settings.slack_description,
     icon=ICON if Path(__file__).with_name(ICON).is_file() else None,
     background_color=_settings.slack_background_color,
-    trigger_on_all_messages=_settings.slack_trigger_on_all_messages,
+    trigger_mode=_settings.slack_trigger_mode,
     allow_bot_triggers=_settings.slack_allow_bot_triggers,
 )

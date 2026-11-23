@@ -89,7 +89,7 @@ class SlackAdapter:
     client: SlackClient
     team_id: str
     bot_user_id: str
-    trigger_on_all_messages: bool = False
+    trigger_mode: str = "mention"
     runtime: LocalRuntime | None = None
     _seen: OrderedDict[str, float] = field(default_factory=OrderedDict)
     _tasks: set[asyncio.Task[None]] = field(default_factory=set)
@@ -106,7 +106,7 @@ class SlackAdapter:
             return True
         direct = event.get("channel_type") == "im"
         in_thread = bool(event.get("thread_ts"))
-        return direct or (self.trigger_on_all_messages and in_thread)
+        return direct or (self.trigger_mode != "mention" and in_thread)
 
     def first_time(self, event: Mapping[str, Any]) -> bool:
         key = f"{event.get('channel')}:{event.get('ts')}"
@@ -215,9 +215,7 @@ async def serve(project_root: Path, settings: Settings) -> None:
     token = settings.slack_bot_token.get_secret_value()
     client = SlackClient(token)
     identity = await client.identity()
-    adapter = SlackAdapter(
-        client, identity.team_id, identity.user_id, settings.slack_trigger_on_all_messages
-    )
+    adapter = SlackAdapter(client, identity.team_id, identity.user_id, settings.slack_trigger_mode)
     servers = servers_for_runtime(project_root, settings, "self_hosted")
     loaded = await load_mcp_tools(servers)
     servers = [s for s in servers if s.name not in loaded.failed]
@@ -234,7 +232,7 @@ async def serve(project_root: Path, settings: Settings) -> None:
             mcp_tools=tools,
             slack=SlackSurface(
                 BoltSlackResolver(token),
-                mention_required=not settings.slack_trigger_on_all_messages,
+                mention_required=settings.slack_trigger_mode == "mention",
             ),
             surface="slack",
             delivery=SlackFileDelivery(token, LocalOutputAdapter(workspace / "out")),

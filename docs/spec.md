@@ -832,7 +832,7 @@ uv.lock · Dockerfile · docker-compose.yml · .env.example · skills-lock.json 
 
 ### 18.2 Toolchain
 
-Python 3.11+ (MDA supports 3.11–3.14), uv, Pydantic v2, Ruff, mypy (strict for new modules; ported
+Python 3.12+ (MDA 0.10 needs 3.12; it supports up to 3.14), uv, Pydantic v2, Ruff, mypy (strict for new modules; ported
 harness modules may start in a documented gradual list that shrinks to zero before v0.1), pytest,
 Node only inside the sandbox recipe. One `pyproject.toml`, one lockfile, explicit upper bounds on fast
 pre-1.0 packages (`managed-deepagents>=0.9.3,<0.10`, `deepagents>=0.7.28,<0.8` at the time of writing;
@@ -840,7 +840,7 @@ never a `.devN` pin in a release).
 
 ### 18.3 CI
 
-- `ci.yml` (Python 3.11 and 3.13): lockfile install, Ruff, format, mypy, offline tests, scripted demo
+- `ci.yml` (Python 3.12 and 3.13): lockfile install, Ruff, format, mypy, offline tests, scripted demo
   (render steps skipped without Docker, executed in the render job), MDA definition import smoke,
   `skills verify` (vendored checksums), ban-list scan, docs link check.
 - Render job: build `sandbox/Dockerfile`, run the recipe probe and the render smoke tests (§20.2).

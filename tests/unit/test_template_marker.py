@@ -27,7 +27,7 @@ def mda_definition(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
 
 def root_metadata(module: ModuleType) -> object:
     """What the factory gives a run with no channel (Studio, the API, inspection)."""
-    return module.agent(SimpleNamespace(channel=None)).config.get("metadata")
+    return module.agent(SimpleNamespace(thread=None)).config.get("metadata")
 
 
 async def tags_on_a_run(middleware: RunTagsMiddleware, monkeypatch: pytest.MonkeyPatch) -> RunTree:

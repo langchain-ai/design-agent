@@ -149,7 +149,7 @@ def render(thread_id: str, events: Sequence[ev.Event], *, guidance: bool = True)
     if not finished and not kinds & (_WATCH_ALERTS | {ev.WATCH_DONE, ev.JOB_ATTENTION}):
         lines.append(
             "If this changes what the person expects, tell them in a line; otherwise reply with "
-            f"exactly {QUIET}: at most a one-line status of the running work is posted."
+            f"exactly {QUIET}, and nothing is posted."
         )
     elif not ended:
         pass

@@ -61,8 +61,8 @@ class Check:
 
 
 def _check_python() -> Check:
-    ok = sys.version_info >= (3, 11)
-    return Check("python", "ok" if ok else "fail", f"{platform.python_version()} (3.11+ required)")
+    ok = sys.version_info >= (3, 12)
+    return Check("python", "ok" if ok else "fail", f"{platform.python_version()} (3.12+ required)")
 
 
 def _check_packages() -> Check:

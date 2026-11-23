@@ -184,7 +184,10 @@ class Settings(BaseSettings):
         default="On-brand design and motion from a chat thread.", max_length=139
     )
     slack_background_color: str | None = None
-    slack_trigger_on_all_messages: bool = False
+    slack_trigger_mode: Literal["mention", "thread", "all"] = "mention"
+    """Which channel messages start a run (DMs always do): an @mention; an @mention, then every
+    reply in its thread; or every message. Self-hosted, `thread` and `all` both take every thread
+    reply."""
     slack_allow_bot_triggers: bool = False
 
     # Self-hosted

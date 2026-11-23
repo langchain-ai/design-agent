@@ -49,8 +49,9 @@ class RuntimeProfile:
     """Where files go on runs the platform's `upload_files` is missing from (MDA without Slack)."""
     services: BackgroundServices | None = None
     """The process's wake-up plumbing; None turns background work off (a one-shot run)."""
-    quiet_status: Callable[[str], str] | None = None
-    """Set where the platform posts every scheduled run's reply: what a `[quiet]` becomes."""
+    native_steering: bool = False
+    """The platform works a thread's follow-ups into the running turn itself (MDA 0.10's
+    `SteeringMiddleware`), so the agent's own lead steering stays off."""
     slack: Any = None
     """A `surfaces.slack.SlackSurface` when runs answer in Slack: live progress, footer, steering."""
     surface: str = "cli"
@@ -60,7 +61,6 @@ class RuntimeProfile:
 def mda_profile(project_root: Path, settings: Settings | None = None) -> RuntimeProfile:
     """Managed Deep Agents: the sandbox and delivery tool come from the managed runtime; wake-ups
     are runtime schedules on the thread."""
-    from design_agent.middleware.quiet import running_status
     from design_agent.runtime.waker.mda import MdaScheduleWaker
     from design_agent.surfaces.slack import MdaSlackResolver, SlackSurface
     from design_agent.tools.delivery import TraceAttachmentAdapter
@@ -89,10 +89,10 @@ def mda_profile(project_root: Path, settings: Settings | None = None) -> Runtime
         backend_for=backend_for,
         staging_for=staging_for,
         services=services,
-        quiet_status=running_status,
         fallback_delivery=TraceAttachmentAdapter(),
+        native_steering=True,
         slack=SlackSurface(
-            MdaSlackResolver(), mention_required=not settings.slack_trigger_on_all_messages
+            MdaSlackResolver(), mention_required=settings.slack_trigger_mode == "mention"
         ),
         surface="studio",
     )

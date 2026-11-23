@@ -27,7 +27,10 @@ def load(name: str, monkeypatch: pytest.MonkeyPatch) -> ModuleType:
 
 def run_from(provider: str | None) -> Any:
     """The part of MDA's factory runtime the selection reads: the channel a run arrived on."""
-    return SimpleNamespace(channel=None if provider is None else SimpleNamespace(provider=provider))
+    channel = None if provider is None else SimpleNamespace(provider=provider)
+    return SimpleNamespace(
+        thread=SimpleNamespace(origin=channel and SimpleNamespace(channel=channel))
+    )
 
 
 def layer_types(memory: Any) -> list[str]:

@@ -39,6 +39,7 @@ from langgraph.config import get_config
 from design_agent.harness.protocols import WakeReceipt, WakeTarget
 from design_agent.harness.tasks import running
 from design_agent.middleware.quiet import SENTINEL_MARK, latest_human
+from design_agent.runtime.origin import origin_channel
 from design_agent.runtime.waker import wake_key, wake_marker
 
 _LOGGER = logging.getLogger(__name__)
@@ -90,9 +91,7 @@ class MdaScheduleWaker:
         schedules = getattr(runtime, "schedules", None)
         if not thread_id or schedules is None:
             return None
-        owner = (
-            {"type": "agent"} if getattr(runtime, "channel", None) is not None else {"type": "user"}
-        )
+        owner = {"type": "agent"} if origin_channel(runtime) is not None else {"type": "user"}
         previous = self._routes.get(thread_id)
         route = _Route(schedules, owner, getattr(runtime, "store", None))
         if previous is not None:
