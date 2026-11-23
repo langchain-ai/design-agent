@@ -51,7 +51,8 @@ snapshot for local and self-hosted runs on LangSmith sandboxes; an MDA deploy do
 (`LANGSMITH_API_KEY` signs the deploy and stays home). It never reads keys from your shell for
 the deployment, with one exception: `LANGSMITH_API_KEY`, `LANGSMITH_ENDPOINT` and
 `LANGSMITH_WORKSPACE_ID` in your shell win over `.env` for the deploy itself, so unset a stale
-one if the deploy targets the wrong workspace. Use a personal access token (`lsv2_pt_…`): a service
+one if the deploy targets the wrong workspace. A shell that sets any of them, even only
+`LANGSMITH_ENDPOINT`, needs `LANGSMITH_API_KEY` there too, or the deploy says it found no key. Use a personal access token (`lsv2_pt_…`): a service
 key can't set up the Slack channel. So keep `.env` to what the deployed agent uses: the model key, and optionally
 `OPENAI_API_KEY` (images, unless you use the LangSmith Gateway), `ELEVENLABS_API_KEY` (voice and music), `DESIGN_AGENT_*` and `PAPER_*`
 settings. Self-hosting keys (`SLACK_*`, `DATABASE_URL`, `DESIGN_AGENT_API_TOKENS`) don't belong in
@@ -65,8 +66,8 @@ uv run mda deploy --agent-server-type dedicated
 
 MDA compiles the project, syncs `instructions.md` and `skills/` to Context Hub, uploads the source,
 bakes the sandbox recipe when it changed and waits until the deployment is live. A dedicated Agent
-Server keeps running between requests, which the in-process background helpers and their wake-ups
-need; without the flag a new deployment is serverless and can scale to zero. The type is set when
+Server keeps running between requests, which the agent's in-process work (looks, pipelines,
+watched renders) and its check-ins need; without the flag a new deployment is serverless and can scale to zero. The type is set when
 the deployment is created; later deploys keep it.
 
 Run the first deploy in your own terminal: it provisions the Slack app, named by
