@@ -2,8 +2,10 @@
 
 ## Resume a failed or interrupted task
 
-A running helper cannot be messaged. A task that failed, stopped early, or was interrupted by a
-restart (`check_tasks` and the notice say which) continues in one of two ways:
+On Managed Deep Agents a task keeps its own thread: `update_async_task(task_id, message)` continues
+it on its history, with this preamble as the message. Self-hosted, a running helper cannot be
+messaged, and a task that failed, stopped early, or was interrupted by a restart (`check_tasks` and
+the notice say which) continues in one of two ways:
 
 - **`resume_task(task_id)`** when the notice says its transcript was saved: same id, effort and label,
   picking up where it stopped. The pipeline resumes a run the same way, with the run's id.

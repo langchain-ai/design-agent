@@ -18,7 +18,7 @@ each rule prevents: [orchestration.md](orchestration.md). The board: [references
 
 ## Two ways to run production
 
-| | `run_pipeline` with `launch_film` | By hand (`start_task` per job) |
+| | `run_pipeline` with `launch_film` | By hand (one helper per job) |
 | --- | --- | --- |
 | Use when | The approvals in sections 1-4 are done: BRIEF.md, the approved board and animatic, a frozen `timeline.js` | The concept and board phases; a short film; a recreation's breakdown; anything that does not fit the pipeline's shape |
 | What it runs | Plan (`max`) → lead act (`max`) → the other acts built in parallel (`xhigh` or `max`, at most `builders_at_once`, default 3), every act reviewed (`xhigh`) as it lands and given one fix pass (`xhigh`) if its review does not pass → assembly (`xhigh`) → final review (`max`) → asks "Render the final?" → final render (`low`) | Whatever you launch |
@@ -30,7 +30,7 @@ Either way, delivery is yours: helpers never upload (section 8, step 2).
 ## 0. Size the job, then say the plan
 
 Your first reply is the plan, sent with the first phase already running: write the brief, start the
-concept and board work in the background (`start_task`), then reply with the plan and when the board
+concept and board work in the background (`start_async_task`, or `start_task` self-hosted), then reply with the plan and when the board
 will arrive. A reply that promises a next step nothing has started is a stall. Starting estimates
 (re-measure them; `PLAN.md` keeps the actuals):
 
@@ -129,7 +129,7 @@ Decomposition rules (the failures behind them are in [orchestration.md](orchestr
 
 At most three builders at once on an 8 vCPU sandbox; builders render snapshots and short drafts with
 `--workers 2`, and full-quality renders go to one `low` helper ([briefs/helper.md](briefs/helper.md))
-behind the render lock. By hand: one `start_task` per act with the same `wave`, all in one message;
+behind the render lock. By hand: one helper per act, all in one message (self-hosted, the same `wave`);
 say what runs and when the first cut lands, and end your turn. Each brief gives a stop time in minutes
 from its start, and builders check `date` at each render.
 

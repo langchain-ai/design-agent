@@ -8,9 +8,11 @@ or orchestrate by hand.
 
 ## Effort per job; the brief is the role
 
-Every helper is the same worker, in the background, in this thread's computer (`start_task`). Its
-`description` is its whole prompt and its `effort` is the one other thing you choose, so the role is
-written into the brief ([briefs/](briefs/README.md)) and the effort is picked per job:
+Every helper is the same worker, in the background, in this thread's computer: `start_async_task`
+on Managed Deep Agents, `start_task` when self-hosted. Its `description` is its whole prompt and its
+`effort` is the other thing you choose (on MDA its `model` too: any `provider:model`, empty for the
+default), so the role is written into the brief ([briefs/](briefs/README.md)) and the effort is
+picked per job:
 
 | Job (brief) | `effort` | Typical time (estimate) |
 | --- | --- | --- |
@@ -77,9 +79,9 @@ Failures this table prevents:
 
 ## Waves
 
-- **One `start_task` per act, all sharing a `wave` name, in one message.** They run in parallel; you
-  end your turn. Each task wakes you when it lands, fails or is interrupted; set `wake_on_progress`
-  only when you must hear every note. The person's messages reach you as new turns while they build.
+- **One start per act, all in one message** (self-hosted, `start_task` with a shared `wave` name).
+  They run in parallel; you end your turn. Each task wakes you when it lands, fails or is
+  interrupted; self-hosted, set `wake_on_progress` only when you must hear every note. The person's messages reach you as new turns while they build.
 - **Check-ins.** Between those wake-ups, `schedule_wakeup` keeps the person posted, about every 10-15
   minutes on a long wave.
 - **Pipeline, not barrier.** A landed act's critic starts while the others build; an `xhigh` type act
@@ -95,10 +97,11 @@ Failures this table prevents:
 - **Between waves**: critics review each act as it lands; merge requests and write change notices;
   render the integration as a draft; update `write_todos`, `PLAN.md` and `run.json`; tell the person
   in a line if the phase changed.
-- **A helper cannot be messaged while it runs.** Everything it needs is in its brief and the files the
-  brief names, so resumability lives on disk: the builder updates its progress file every ~10 minutes,
-  and a failed or interrupted task is resumed (`resume_task`) or re-issued under the resume preamble
-  ([briefs/resume.md](briefs/resume.md)).
+- **Everything a helper needs is in its brief and the files the brief names**, so resumability lives
+  on disk: the builder updates its progress file every ~10 minutes. On MDA, `update_async_task` sends
+  a task new instructions, running or ended, on its own history; self-hosted, a running helper cannot
+  be messaged, and a failed or interrupted one is resumed (`resume_task`) or re-issued under the
+  resume preamble ([briefs/resume.md](briefs/resume.md)).
 
 ## Review: independent, at every gate
 

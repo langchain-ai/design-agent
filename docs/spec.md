@@ -273,13 +273,15 @@ APIs, the self-hosted implementation, and its upstream status.
 
 ### 7.2 Background tasks
 
-Lead tools: `start_task(description, effort, label, wave?, wake_on_progress?)`, `check_tasks`,
-`cancel_task`, `resume_task`, `schedule_wakeup(minutes 1–1440, prompt, reason)`. Helper tool:
+Lead tools on Managed Deep Agents: `start_async_task(description, model?, effort?)`,
+`check_async_task`, `update_async_task`, `cancel_async_task`, `list_async_tasks`; self-hosted:
+`start_task(description, effort, label, wave?, wake_on_progress?)`, `resume_task`. Both: `check_tasks`,
+`cancel_task`, `schedule_wakeup(minutes 1–1440, prompt, reason)`. Helper tool:
 `report_progress(note, urgent?)`. A helper's final message and progress notes are all the lead sees.
 
 Contract:
 
-- `start_task` returns immediately with a task id; the lead tells the person what is running and when
+- Starting a helper returns immediately with a task id; the lead tells the person what is running and when
   to expect it, then ends its turn. A turn never ends on a promise that nothing has started.
 - Progress notes wait for the lead's next turn unless urgent or the lead asked to follow closely.
 - The lead is woken (a new turn on the same thread) when a task finishes, fails, stops early or is
@@ -287,14 +289,18 @@ Contract:
   notice lists what is still running. Replying `[quiet]` posts nothing.
 - A silent crash must surface: restarts produce "interrupted" notices, not silence.
 
-MDA implementation (managed-deepagents 0.9.3): MDA builds one graph per deployment and does not yet
-run async subagents that share the lead's sandbox (open upstream work: one graph per async subagent,
-background general-purpose subagent, lead-sandbox sharing, subagent posting into the lead's Slack
-thread, Slack approvals reaching subagent runs). Therefore v0.1 runs helpers in-process as asyncio
-tasks invoking the declared subagent graphs with the lead's sandbox backend, exactly like the internal
-reference, behind a `HelperRunner` protocol.
+MDA implementation (managed-deepagents 0.10.5): helpers the lead starts are MDA async subagents.
+`agent.py` declares one, `worker`, which MDA builds as its own graph; each task runs on its own thread
+on the Agent Server and shares the lead's sandbox. The lead picks the task's model (any
+`provider:model`) and effort; the choice is checked by building the model, travels on the task's run
+context, and is swapped in on every call (`middleware/async_helpers.py`). Deep Agents wakes an idle
+lead when a task ends, and `update_async_task` continues a task on its own history. Progress notes are
+kept in the deployment store and reach the lead at its next turn; an urgent one does not wake it, and a
+helper's live progress line in the Slack thread is not shown yet. Looks, pipeline steps and the
+post-job review still run in-process behind `HelperRunner`.
 
-Self-hosted implementation: the same in-process runner inside the API process, with helper records,
+Self-hosted implementation: an in-process runner (`start_task`) inside the API process, since there is
+no Agent Server, with helper records,
 transcripts, wake-ups and watches persisted in Postgres.
 
 ### 7.3 Durable helpers

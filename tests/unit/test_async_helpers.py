@@ -10,6 +10,7 @@ from langchain.agents.middleware.types import ToolCallRequest
 from langchain.tools import ToolRuntime
 from langchain_core.messages import HumanMessage, ToolMessage
 from langchain_core.tools import StructuredTool
+from langgraph.store.memory import InMemoryStore
 from langgraph.types import Command
 
 from design_agent.config import Settings
@@ -18,31 +19,28 @@ from design_agent.middleware.async_helpers import (
     WORKER,
     AsyncHelpersMiddleware,
     WorkerModelMiddleware,
+    WorkerNotesMiddleware,
     choose,
 )
-from design_agent.testing.scripted_model import ScriptedChatModel, reply
+from design_agent.models.helpers import HelperChoice
+from design_agent.models.registry import ToolDisclosure
+from design_agent.testing.scripted_model import ScriptedChatModel, reply, tool_call
 
-SETTINGS = Settings(_env_file=None, model="anthropic:claude-opus-5-5")  # type: ignore[call-arg]
-CHOSEN = {"model": "openai:gpt-5.5", "effort": "high"}
-
-
-def built(spec: str, effort: str) -> Any:
-    if spec.startswith("nope:"):
-        raise ImportError("no package for nope")
-    return object()
+SETTINGS = Settings(  # type: ignore[call-arg]
+    _env_file=None, model="anthropic:claude-opus-5-5", anthropic_api_key="a", openai_api_key="o"
+)
+PICKED = HelperChoice("openai:gpt-5.5", "high", ToolDisclosure.PROVIDER_NATIVE)
+CHOSEN = {"model": "openai:gpt-5.5", "effort": "high", "disclosure": "provider_native"}
 
 
 def test_any_model_that_builds_is_taken_and_anything_else_says_what_to_fix() -> None:
-    assert choose(SETTINGS, built, "openai:gpt-5.5", "high") == ("openai:gpt-5.5", "high")
-    assert choose(SETTINGS, built, "", "")[0] == "anthropic:claude-opus-5-5"
-    assert "provider:model" in str(choose(SETTINGS, built, "gpt-5.5", ""))
-    assert "effort is one of" in str(choose(SETTINGS, built, "openai:gpt-5.5", "ultra"))
-    assert "does not build here" in str(choose(SETTINGS, built, "nope:model", ""))
-
-
-def test_the_deployment_cap_lowers_an_effort() -> None:
-    capped = Settings(_env_file=None, model="anthropic:claude-opus-5-5", helper_effort_cap="high")  # type: ignore[call-arg]
-    assert choose(capped, built, "", "max") == ("anthropic:claude-opus-5-5", "high")
+    picked = choose(SETTINGS, "openai:gpt-5.5", "high")
+    assert isinstance(picked, HelperChoice)
+    assert (picked.model, picked.effort) == ("openai:gpt-5.5", "high")
+    assert getattr(choose(SETTINGS, "", ""), "model", None) == "anthropic:claude-opus-5-5"
+    for model, effort in (("gpt-5.5", ""), ("openai:gpt-5.5", "ultra"), ("nope:model", "")):
+        refused = choose(SETTINGS, model, effort)
+        assert isinstance(refused, str) and refused.startswith("Not started: "), refused
 
 
 def start_tool() -> StructuredTool:
@@ -54,7 +52,7 @@ def start_tool() -> StructuredTool:
 
 
 def test_the_lead_is_shown_model_and_effort_instead_of_a_type() -> None:
-    shown = AsyncHelpersMiddleware(SETTINGS, lambda m, e: (m, e))._shown(start_tool())
+    shown = AsyncHelpersMiddleware(SETTINGS, lambda m, e: PICKED)._shown(start_tool())
     fields = shown.args_schema.model_json_schema()["properties"]  # type: ignore[union-attr]
     assert {"description", "model", "effort"} <= fields.keys() and "subagent_type" not in fields
     assert "any LangChain `provider:model`" in shown.description
@@ -88,7 +86,7 @@ async def test_a_started_task_runs_on_the_worker_with_the_choice_and_without_sla
         message = ToolMessage("Launched async subagent. task_id: t1", tool_call_id="c1")
         return Command(update={"messages": [message], "async_tasks": {"t1": task}})
 
-    lead = AsyncHelpersMiddleware(SETTINGS, lambda m, e: (m, e))
+    lead = AsyncHelpersMiddleware(SETTINGS, lambda m, e: PICKED)
     args = {"description": "Cut the 15s.", "model": "openai:gpt-5.5", "effort": "high"}
     result = await lead.awrap_tool_call(call("start_async_task", args), handler)
     (sent,) = seen
@@ -114,7 +112,7 @@ async def test_a_follow_up_runs_on_the_choice_its_task_started_with() -> None:
         return "updated"
 
     tasks = {"t1": {"task_id": "t1", CHOICE_KEY: CHOSEN}}
-    lead = AsyncHelpersMiddleware(SETTINGS, lambda m, e: (m, e))
+    lead = AsyncHelpersMiddleware(SETTINGS, lambda m, e: PICKED)
     await lead.awrap_tool_call(call("update_async_task", {"task_id": "t1"}, tasks=tasks), handler)
     assert seen[0].runtime.context == {"brand": "acme", CHOICE_KEY: CHOSEN}
 
@@ -133,3 +131,23 @@ async def test_the_worker_answers_on_the_stamped_model_and_its_own_without_one()
     plain = await worker.ainvoke({"messages": [HumanMessage("go")]}, context={})
     assert stamped["messages"][-1].text == "picked" and asked == [("openai:gpt-5.5", "high")]
     assert plain["messages"][-1].text == "default"
+
+
+async def test_a_workers_progress_note_reaches_its_lead_at_the_next_turn() -> None:
+    store = InMemoryStore()
+    note = "Act 2 is done; act 3 lands by 14:10."
+    worker_model = ScriptedChatModel(
+        steps=[lambda _m: tool_call("report_progress", {"note": note}), lambda _m: reply("ok")]
+    )
+    worker = create_agent(worker_model, tools=[], middleware=[WorkerNotesMiddleware()], store=store)
+    task = {"configurable": {"thread_id": "task-1"}, "metadata": {"parent_thread_id": "lead-1"}}
+    await worker.ainvoke({"messages": [HumanMessage("build act 2")]}, config=task)  # type: ignore[arg-type]
+
+    lead_model = ScriptedChatModel(steps=[lambda _m: reply("noted")])
+    middleware = [AsyncHelpersMiddleware(SETTINGS, lambda m, e: PICKED)]
+    lead = create_agent(lead_model, tools=[], middleware=middleware, store=store)
+    turn = {"configurable": {"thread_id": "lead-1"}}
+    result = await lead.ainvoke({"messages": [HumanMessage("how is it going?")]}, config=turn)  # type: ignore[arg-type]
+    notes = [m.text for m in result["messages"] if "<helper-notes>" in m.text]
+    assert len(notes) == 1 and "task-1: " + note in notes[0]
+    assert not await store.asearch(("design_agent", "helper_notes", "lead-1"))

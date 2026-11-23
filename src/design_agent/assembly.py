@@ -27,7 +27,7 @@ from design_agent.middleware.async_helpers import (
     AsyncHelpersMiddleware,
     WorkerDisclosure,
     WorkerModelMiddleware,
-    build_helper_model,
+    WorkerNotesMiddleware,
     choose,
 )
 from design_agent.middleware.background import (
@@ -59,6 +59,7 @@ from design_agent.middleware.tracing import RunTagsMiddleware, TraceLinks, templ
 from design_agent.middleware.watch_tools import WatchToolsMiddleware
 from design_agent.middleware.workspace import WorkspaceStagerMiddleware
 from design_agent.models.factory import Role, build_chat_model, resolve_model
+from design_agent.models.helpers import build_helper_model
 from design_agent.models.registry import ToolDisclosure, capabilities_for
 from design_agent.pipelines import PIPELINES
 from design_agent.runtime.profiles import RuntimeProfile
@@ -231,12 +232,13 @@ def build_agent_components(
         override = overrides.get(effort) or overrides.get("helper")
         if override is not None:
             return override
-        return build_helper_model(settings, model, effort, project_root=root)
+        return build_helper_model(settings, model, effort or None, project_root=root)
 
     if runtime.async_helpers:
         middleware.append(
             AsyncHelpersMiddleware(
-                settings, lambda model, effort: choose(settings, helper_build, model, effort)
+                settings,
+                lambda model, effort: choose(settings, model, effort, project_root=root),
             )
         )
     slack = runtime.slack
@@ -323,13 +325,14 @@ def build_agent_components(
                 "skills": list(HELPER_SKILLS),
                 "middleware": [
                     WorkerModelMiddleware(helper_build),
+                    WorkerNotesMiddleware(),
                     TodayMiddleware(),
                     StaggerMiddleware(stagger),
                     *guards(
                         WORKER,
                         lead_agent=False,
                         disclosure=WorkerDisclosure(
-                            str(settings.role_model("helper")),
+                            helper_disclosure,
                             lambda chosen: disclosure_for(
                                 chosen, mcp_servers, selector, settings.mcp_max_tools
                             ),

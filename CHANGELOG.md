@@ -46,6 +46,21 @@
 
 ### Changed
 
+- Managed Deep Agents 0.10.5, which needs Python 3.12. The channel a run came from is read from its
+  thread (`runtime.thread.origin`), as 0.11 requires. `DESIGN_AGENT_SLACK_TRIGGER_MODE` (`mention`,
+  `thread` or `all`) replaces `DESIGN_AGENT_SLACK_TRIGGER_ON_ALL_MESSAGES`. On MDA the platform
+  works follow-ups into a running turn and drops an exact `[quiet]` reply itself.
+- Background helpers on Managed Deep Agents are MDA's async subagents. The lead starts one with
+  `start_async_task`, choosing any `provider:model` and an effort for that task (checked by
+  building the model), follows it with `check_async_task`, `update_async_task` and
+  `cancel_async_task`, and is woken when it ends. Each task has its own thread on the Agent Server
+  and works in the lead's computer; `update_async_task` continues one on its own history. Progress
+  notes reach the lead at its next turn. Self-hosted keeps `start_task`.
+- `mda deploy` builds the agent's computer itself, so the MDA path no longer runs
+  `sandbox publish` (it stays for local and self-hosted LangSmith sandboxes). Deploy with
+  `--agent-server-type dedicated`; the first deploy waits for Slack approval and needs a personal
+  access token. Shell `LANGSMITH_*` variables win over `.env`.
+- Trace tools read LangSmith's v2 run API, ahead of the v1 brownouts that start on 2026-12-08.
 - Any LangChain chat model runs any role. A model the capability registry does not list is
   described by its LangChain profile (image input, output limit, effort levels); a looking role is
   refused only when that data says the model takes no images, and otherwise runs with a warning
@@ -63,8 +78,8 @@
   id, is an error that says what to set instead of a quiet switch to another model; Google keeps
   the images it made when some of `n` fail and says what failed. `DESIGN_AGENT_IMAGE_MODEL` is
   unset by default and picks the reachable provider's default.
-- `doctor` says "ready for `mda deploy`" only when a deploy would work: until the snapshot is
-  published and the lead model's key is in `.env` (a deploy ships `.env`, not the shell), its
+- `doctor` says "ready for `mda deploy`" only when a deploy would work: until the lead model's key
+  is in `.env` (a deploy ships `.env`, not the shell), its
   `mda-deploy` line lists what to do first. The deploy skill asks the setup questions up front,
   runs the long steps in the background, and walks through Slack authorization.
 - Personal memory reaches Slack channel threads through MDA's per-run layer selection: `agent.py`

@@ -14,6 +14,9 @@ and effort:
   the choice it started with, kept on the task's record in `async_tasks`.
 - `WorkerModelMiddleware` (first in the worker's own stack) swaps the stamped model in on every
   call. A run with no stamp, such as one the lead did not start, keeps the worker's own model.
+- `WorkerNotesMiddleware` gives the worker `report_progress`: a note is kept in the deployment's
+  store under the lead's thread, and `AsyncHelpersMiddleware` hands the lead what came in at the
+  start of its next turn. An urgent note waits for that turn too: nothing here wakes the lead.
 
 MDA builds an async subagent's graph from a static spec, so a model cannot be declared per task;
 the choice travels on the run context instead. Middleware that reads `request.model` per call
@@ -26,6 +29,8 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import time
+import uuid
 from collections.abc import Awaitable, Callable, Mapping
 from pathlib import Path
 from typing import Any
@@ -33,74 +38,49 @@ from typing import Any
 from deepagents.middleware.async_subagents import StartAsyncTaskSchema
 from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResponse
 from langchain.agents.middleware.types import ModelCallResult
+from langchain.tools import ToolRuntime
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import ToolMessage
-from langchain_core.tools import BaseTool
+from langchain_core.messages import HumanMessage, ToolMessage
+from langchain_core.tools import BaseTool, StructuredTool
+from langgraph.config import get_config
 from langgraph.types import Command
 from pydantic import BaseModel, Field
 from pydantic.json_schema import SkipJsonSchema
 
-from design_agent.config import ModelSpec, Settings
-from design_agent.models.factory import build_chat_model, resolve_model
-from design_agent.models.registry import ModelConfigurationError, ToolDisclosure, capabilities_for
-from design_agent.subagents import EFFORT_ORDER, WORKERS, capped
+from design_agent.config import Settings
+from design_agent.models.helpers import HelperChoice, choose_helper_model
+from design_agent.models.registry import ToolDisclosure
+from design_agent.subagents import WORKERS
 
 _LOGGER = logging.getLogger(__name__)
 
 #: The async subagent every task the lead starts runs on (`agent.py` declares it by this name).
 WORKER = "worker"
-#: Where the lead's choice travels on the task's run context: `{"model": ..., "effort": ...}`.
+#: Where the lead's choice travels on the task's run context:
+#: `{"model": ..., "effort": ..., "disclosure": ...}`.
 CHOICE_KEY = "design_agent_helper"
 START, UPDATE = "start_async_task", "update_async_task"
+#: Where a worker's progress notes wait for its lead, under the lead's thread id.
+NOTES = ("design_agent", "helper_notes")
 #: deepagents' key for an async run's parent reference, which it adds itself.
 _PARENT_KEY = "deepagents_parent"
 #: MDA's routing keys on a run context: a Slack binding the worker must not carry.
 _ROUTING_PREFIX = "mda_"
-#: The stall ceiling by effort: a call at xhigh or max may think for a long time before it streams.
-TIMEOUT_BY_EFFORT = {worker.effort: worker.timeout_seconds for worker in WORKERS}
 #: Where deepagents' description lists its agent types, which the lead sees as a choice instead.
 _TYPES_HEAD, _USAGE_HEAD = "Available async agent types:", "## Usage notes:"
 
-Choose = Callable[[str, str], "tuple[str, str] | str"]
+Choose = Callable[[str, str], "HelperChoice | str"]
 BuildModel = Callable[[str, str], BaseChatModel]
 
 
-def build_helper_model(
+def choose(
     settings: Settings, model: str, effort: str, *, project_root: Path | None = None
-) -> BaseChatModel:
-    """The chat model a helper runs on: `model` at `effort` ("" for the model's default), built
-    as the helper role is, so it gets the same provider fixes, gateway routing and keys."""
-    chosen = settings.model_copy(update={"helper_model": model})
-    kwargs: dict[str, Any] = {"streaming": True}
-    if timeout := TIMEOUT_BY_EFFORT.get(effort):
-        kwargs["timeout"] = timeout
-    return build_chat_model(
-        chosen, "helper", effort=effort or None, project_root=project_root, **kwargs
-    )
-
-
-def choose(settings: Settings, build: BuildModel, model: str, effort: str) -> tuple[str, str] | str:
-    """The lead's choice as `(model, effort)`, or what to fix: any `provider:model` LangChain can
-    build here (empty for the helper default), at an effort that model takes, under the
-    deployment's cap. Building it checks the provider package and key, with no network call."""
-    raw = model.strip() or str(settings.role_model("helper"))
-    try:
-        spec = str(ModelSpec.parse(raw, setting="model"))
-    except ValueError as error:
-        return f"Not started: {error}, like anthropic:claude-opus-5-5 or openai:gpt-5.5."
-    asked = effort.strip().lower()
-    if asked and asked not in EFFORT_ORDER:
-        return f"Not started: effort is one of {', '.join(EFFORT_ORDER)}, or empty."
-    try:
-        asked = capped(asked, settings.helper_effort_cap) if asked else ""
-        on = settings.model_copy(update={"helper_model": spec})
-        effort = resolve_model(on, "helper", effort=asked or None).effort or ""
-        build(spec, effort)
-    except ModelConfigurationError as error:
-        return f"Not started: {error}."
-    except Exception as error:  # noqa: BLE001 - a provider package or key may be missing
-        return f"Not started: {spec} does not build here ({type(error).__name__}: {error})."
-    return spec, effort
+) -> HelperChoice | str:
+    """The lead's choice, checked (`models.helpers.choose_helper_model`): any `provider:model`
+    LangChain can build here, empty for the helper default, at an effort that model takes under
+    the deployment's cap. A refusal says what to fix."""
+    picked = choose_helper_model(settings, model or None, effort or None, project_root=project_root)
+    return f"Not started: {picked}" if isinstance(picked, str) else picked
 
 
 def stamped(context: object) -> tuple[str, str] | None:
@@ -169,6 +149,25 @@ class AsyncHelpersMiddleware(AgentMiddleware[Any, Any, Any]):
         self._listing = listing(settings)
         self._choose = choose_for
 
+    async def abefore_agent(self, state: Any, runtime: Any) -> dict[str, Any] | None:  # noqa: ARG002
+        """Hand the lead the progress notes its tasks sent since its last turn."""
+        store = getattr(runtime, "store", None)
+        thread = (get_config().get("configurable") or {}).get("thread_id")
+        if store is None or not thread:
+            return None
+        items = await store.asearch((*NOTES, str(thread)), limit=50)
+        if not items:
+            return None
+        for item in items:
+            await store.adelete(item.namespace, item.key)
+        notes = sorted((item.value for item in items), key=lambda note: note.get("at", 0))
+        lines = "\n".join(
+            f"- {note.get('task', '?')}{' (urgent)' if note.get('urgent') else ''}: {note.get('note')}"
+            for note in notes
+        )
+        text = f"<helper-notes>\nProgress notes from your background tasks, not from a person:\n{lines}"
+        return {"messages": [HumanMessage(text + "\n</helper-notes>")]}
+
     def _shown(self, tool: Any) -> Any:
         if not isinstance(tool, BaseTool) or tool.name != START:
             return tool
@@ -206,7 +205,11 @@ class AsyncHelpersMiddleware(AgentMiddleware[Any, Any, Any]):
             )
             if isinstance(picked, str):
                 return ToolMessage(picked, tool_call_id=call["id"], status="error")
-            chosen: Mapping[str, str] | None = {"model": picked[0], "effort": picked[1]}
+            chosen: Mapping[str, str] | None = {
+                "model": picked.model,
+                "effort": picked.effort or "",
+                "disclosure": picked.disclosure.value,
+            }
             request = request.override(
                 tool_call={**call, "args": {**args, "subagent_type": WORKER}}
             )
@@ -236,8 +239,9 @@ def _chosen_for(request: Any, task_id: str) -> Mapping[str, str] | None:
     state = getattr(request, "state", None)
     tasks = state.get("async_tasks") if isinstance(state, Mapping) else None
     task = tasks.get(task_id) if isinstance(tasks, Mapping) else None
-    chosen = stamped(task)
-    return {"model": chosen[0], "effort": chosen[1]} if chosen is not None else None
+    data = _as_mapping(task)
+    chosen = data.get(CHOICE_KEY) if data is not None else None
+    return dict(chosen) if isinstance(chosen, Mapping) else None
 
 
 def _marked(result: Any, chosen: Mapping[str, str]) -> Any:
@@ -290,11 +294,11 @@ class WorkerModelMiddleware(AgentMiddleware[Any, Any, Any]):
 class WorkerDisclosure(AgentMiddleware[Any, Any, Any]):
     """MCP tool disclosure for the model each call runs on. The worker's model changes per task,
     and provider-native tool search fails on a model without it (`middleware/tool_disclosure.py`),
-    so the disclosure is picked per call, by the stamped model or else the worker's default."""
+    so it is picked per call: the disclosure checked with the task's choice, else the default's."""
 
     def __init__(
         self,
-        default: str,
+        default: ToolDisclosure,
         for_disclosure: Callable[[ToolDisclosure], AgentMiddleware[Any, Any, Any] | None],
     ) -> None:
         super().__init__()
@@ -303,9 +307,10 @@ class WorkerDisclosure(AgentMiddleware[Any, Any, Any]):
         self._made: dict[ToolDisclosure, AgentMiddleware[Any, Any, Any] | None] = {}
 
     def _pick(self, request: ModelRequest[Any]) -> AgentMiddleware[Any, Any, Any] | None:
-        chosen = stamped(getattr(request.runtime, "context", None))
-        spec = ModelSpec.parse(chosen[0] if chosen is not None else self._default, setting="model")
-        disclosure = capabilities_for(spec).disclosure
+        data = _as_mapping(getattr(request.runtime, "context", None)) or {}
+        chosen = data.get(CHOICE_KEY)
+        raw = chosen.get("disclosure") if isinstance(chosen, Mapping) else None
+        disclosure = ToolDisclosure(raw) if raw in set(ToolDisclosure) else self._default
         if disclosure not in self._made:
             self._made[disclosure] = self._for(disclosure)
         return self._made[disclosure]
@@ -325,3 +330,39 @@ class WorkerDisclosure(AgentMiddleware[Any, Any, Any]):
         if inner is None:
             return await handler(request)
         return await inner.awrap_model_call(request, handler)
+
+
+def _lead_thread(config: Mapping[str, Any]) -> str | None:
+    """The lead's thread, from deepagents' parent reference or the task thread's metadata."""
+    reference = (config.get("configurable") or {}).get(_PARENT_KEY)
+    thread = reference.get("thread_id") if isinstance(reference, Mapping) else None
+    thread = thread or (config.get("metadata") or {}).get("parent_thread_id")
+    return str(thread) if thread else None
+
+
+async def report_progress(note: str, runtime: ToolRuntime, urgent: bool = False) -> str:
+    """Tell the lead how this task is going.
+
+    Send one when a section is done, when something blocks you or moves your ETA, and before you
+    stop early: one or two sentences on what happened and what comes next, with a time. The lead
+    reads it at the start of its next turn. Set `urgent` when the lead must act: you are blocked on
+    a decision, or the plan no longer works.
+    """
+    config = runtime.config or {}
+    lead, store = _lead_thread(config), runtime.store
+    if lead is None or store is None:
+        return "This task has no lead to tell; put it in your final report instead."
+    task = str((config.get("configurable") or {}).get("thread_id") or "task")
+    value = {"task": task, "note": note.strip()[:600], "urgent": urgent, "at": time.time()}
+    await store.aput((*NOTES, lead), uuid.uuid4().hex, value)
+    return "Sent; the lead reads it at the start of its next turn."
+
+
+class WorkerNotesMiddleware(AgentMiddleware[Any, Any, Any]):
+    """Gives the worker `report_progress` (module doc)."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.tools = [
+            StructuredTool.from_function(coroutine=report_progress, name="report_progress")
+        ]

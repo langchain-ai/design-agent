@@ -8,7 +8,8 @@ HyperFrames and Paper are in [docs/partners/](partners/).
 | Ask | Why | Today |
 | --- | --- | --- |
 | A public "start a run on this thread now" API | waking the lead after background work lands in 60–120 s through one-time schedules, which round to the next minute | `runtime.schedules.create(at=now+61s, new_thread=False)` ([orchestration](architecture/orchestration.md)) |
-| A way to turn off the automatic background general-purpose subagent | 0.10 gives every agent `start_async_task` and its siblings next to this agent's own `start_task`, with no opt-out | `PlatformTasksMiddleware` keeps them out of the lead's model calls |
+| A model chosen per async subagent task | MDA builds each async subagent's graph from a static spec, so its model is fixed at deploy | one `worker` graph; `start_async_task` takes `model` and `effort`, stamped on the task's run context and swapped in per call (`middleware/async_helpers.py`) |
+| A way to turn off the automatic async general-purpose subagent | 0.10 builds it as its own graph with no opt-out | the lead's `start_async_task` always runs `worker`, so nothing starts it |
 | Schedules creatable for a thread from outside a run | after a restart, a thread has no route for wake-ups until a run happens on it | a sentinel schedule per busy thread, pushed forward while the process lives |
 | Streaming and message updates on `runtime.channel` | live progress and the footer need updates to one message | the Slack Web API with the reserved `mda/slack-bot-token` connection |
 | Native steering for every person in the thread, and a way to turn it off | 0.10's `SteeringMiddleware` works in only the same person's queued messages and is always on | on MDA the platform steers; self-hosted, `LeadSteeringMiddleware` reads the thread |
