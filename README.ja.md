@@ -111,6 +111,8 @@ https://github.com/user-attachments/assets/65eac8e4-0fac-4a5a-9cca-02e26a0a8baa
 | デザイン依頼がキューで順番待ち | 誰でも Slack で依頼でき、グラフィックなら数分、長めのスライド資料も一晩で |
 | どのチームも同じミスを直している | スキルを一度直せば、以降のすべてのアセットに反映 |
 
+動画で見たい方は、[5 分のウォークスルー](https://www.youtube.com/watch?v=emId9_O2sU8)（英語）をどうぞ。3 ステップでデプロイし、Slack でローンチカードとローンチ映像を作るところまで紹介しています。
+
 このリポジトリは [Managed Deep Agents](https://docs.langchain.com/langsmith/python/managed-deep-agents-overview?utm_source=github&utm_medium=readme&utm_campaign=design-agent) プロジェクトなので、そのまま LangSmith ワークスペースにデプロイできます。必要なのは LangSmith アカウント（Managed Deep Agents は LangSmith Cloud でパブリックベータ提供中）とモデルの API キーです：
 
 ```bash

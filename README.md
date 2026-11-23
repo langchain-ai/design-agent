@@ -138,6 +138,9 @@ Read the [architecture](docs/architecture/README.md), or start changing it:
 | Design requests wait in a queue | Anyone asks in Slack: a graphic in minutes, a long deck overnight |
 | Every team fixes the same mistakes | Fix a skill once, and every asset after it follows |
 
+Prefer to watch? [The 5-minute walkthrough](https://www.youtube.com/watch?v=emId9_O2sU8) deploys it in three steps, then makes a
+launch card and a launch film in Slack.
+
 This repository is a [Managed Deep Agents](https://docs.langchain.com/langsmith/python/managed-deep-agents-overview?utm_source=github&utm_medium=readme&utm_campaign=design-agent) project, so it deploys to your LangSmith
 workspace as it is. You need a LangSmith account (Managed Deep Agents is in public beta on
 LangSmith Cloud) and a model key:

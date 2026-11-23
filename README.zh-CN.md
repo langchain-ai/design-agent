@@ -111,6 +111,8 @@ https://github.com/user-attachments/assets/65eac8e4-0fac-4a5a-9cca-02e26a0a8baa
 | 设计需求排长队 | 任何人都能在 Slack 里提需求：几分钟出图，长篇幻灯片一夜完成 |
 | 每个团队都在填同样的坑 | 技能改一次，之后的每份物料都照着来 |
 
+想看视频？[5 分钟演示](https://www.youtube.com/watch?v=emId9_O2sU8)（英文）会三步完成部署，再在 Slack 里做出发布卡片和发布宣传片。
+
 本仓库是一个 [Managed Deep Agents](https://docs.langchain.com/langsmith/python/managed-deep-agents-overview?utm_source=github&utm_medium=readme&utm_campaign=design-agent) 项目，不用改就能直接部署到你的 LangSmith 工作区。你需要一个 LangSmith 账号（Managed Deep Agents 目前在 LangSmith Cloud 上公测）和一个模型密钥：
 
 ```bash
