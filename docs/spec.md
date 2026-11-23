@@ -295,9 +295,11 @@ on the Agent Server and shares the lead's sandbox. The lead picks the task's mod
 `provider:model`) and effort; the choice is checked by building the model, travels on the task's run
 context, and is swapped in on every call (`middleware/async_helpers.py`). Deep Agents wakes an idle
 lead when a task ends, and `update_async_task` continues a task on its own history. Progress notes are
-kept in the deployment store and reach the lead at its next turn; an urgent one does not wake it, and a
-helper's live progress line in the Slack thread is not shown yet. Looks, pipeline steps and the
-post-job review still run in-process behind `HelperRunner`.
+kept in the deployment store and reach the lead before its next model call; an urgent one also wakes
+an idle lead. The lead names each task (`name`), and the helper draws its own progress line in the
+lead's Slack thread, which the lead keeps in the store under its thread id. Looks, pipeline steps and
+the post-job review still run in-process behind `HelperRunner`: a pipeline outlives the run that
+started it, and starting a worker run with no run behind it needs MDA's private ingress.
 
 Self-hosted implementation: an in-process runner (`start_task`) inside the API process, since there is
 no Agent Server, with helper records,

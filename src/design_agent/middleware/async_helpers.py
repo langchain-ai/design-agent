@@ -15,8 +15,13 @@ and effort:
 - `WorkerModelMiddleware` (first in the worker's own stack) swaps the stamped model in on every
   call. A run with no stamp, such as one the lead did not start, keeps the worker's own model.
 - `WorkerNotesMiddleware` gives the worker `report_progress`: a note is kept in the deployment's
-  store under the lead's thread, and `AsyncHelpersMiddleware` hands the lead what came in at the
-  start of its next turn. An urgent note waits for that turn too: nothing here wakes the lead.
+  store under the lead's thread, and `AsyncHelpersMiddleware` hands the lead what came in before
+  its next model call. An urgent note also wakes an idle lead, the way deepagents does when a task
+  ends (a run on the lead's thread through the Agent Server's own client).
+- The lead names each task (`name`, a role such as "Act 3 builder"). When it starts one from a
+  Slack thread it keeps that thread in the store (`SLACK_TARGETS`), and the worker draws its own
+  progress line there (`progress.AsyncHelperProgressMiddleware`), found by its lead's thread: the
+  thread id a caller cannot reach without owning the lead's thread.
 
 MDA builds an async subagent's graph from a static spec, so a model cannot be declared per task;
 the choice travels on the run context instead. Middleware that reads `request.model` per call
@@ -44,6 +49,7 @@ from langchain_core.messages import HumanMessage, ToolMessage
 from langchain_core.tools import BaseTool, StructuredTool
 from langgraph.config import get_config
 from langgraph.types import Command
+from langgraph_sdk import get_client
 from pydantic import BaseModel, Field
 from pydantic.json_schema import SkipJsonSchema
 
@@ -62,6 +68,10 @@ CHOICE_KEY = "design_agent_helper"
 START, UPDATE = "start_async_task", "update_async_task"
 #: Where a worker's progress notes wait for its lead, under the lead's thread id.
 NOTES = ("design_agent", "helper_notes")
+#: Where the lead keeps the Slack thread it started tasks from, under its own thread id.
+SLACK_TARGETS = ("design_agent", "slack_target")
+#: Lead thread statuses a wake-up run can start on: neither running nor waiting for a person.
+_WAKEABLE = frozenset({"idle", "error"})
 #: deepagents' key for an async run's parent reference, which it adds itself.
 _PARENT_KEY = "deepagents_parent"
 #: MDA's routing keys on a run context: a Slack binding the worker must not carry.
@@ -91,6 +101,18 @@ def stamped(context: object) -> tuple[str, str] | None:
         return None
     model, effort = chosen.get("model"), chosen.get("effort")
     return (model, effort) if isinstance(model, str) and isinstance(effort, str) else None
+
+
+def helper_label(context: object) -> str:
+    """How people are told which helper this is: the role the lead named, else its model."""
+    data = _as_mapping(context)
+    chosen = data.get(CHOICE_KEY) if data is not None else None
+    if not isinstance(chosen, Mapping):
+        return ""
+    name, model = chosen.get("name"), chosen.get("model")
+    if isinstance(name, str) and name:
+        return name
+    return f"Helper on {str(model).rpartition('/')[2].rpartition(':')[2]}" if model else ""
 
 
 def forwarded(context: object) -> dict[str, Any]:
@@ -128,6 +150,13 @@ class _StartSchema(StartAsyncTaskSchema):
             "for the model's default."
         ),
     )
+    name: str = Field(
+        default="",
+        description=(
+            'A short role name, 2 to 4 words, like "Act 3 builder" or "Critic". It heads the '
+            "helper's progress line in the thread."
+        ),
+    )
 
 
 def listing(settings: Settings) -> str:
@@ -137,20 +166,21 @@ def listing(settings: Settings) -> str:
         "Every task runs on a helper with the same tools and skills as you. Pick its `model`: any "
         f"LangChain `provider:model` (default {settings.role_model('helper')}), and its "
         f"`effort`, matched to the work:\n{uses}\nIts whole prompt is your `description`: send a "
-        "complete brief."
+        "complete brief. Give it a `name`, the role people see in the thread."
     )
 
 
 class AsyncHelpersMiddleware(AgentMiddleware[Any, Any, Any]):
     """The lead's side: `start_async_task` with `model` and `effort` (module doc)."""
 
-    def __init__(self, settings: Settings, choose_for: Choose) -> None:
+    def __init__(self, settings: Settings, choose_for: Choose, *, slack: Any = None) -> None:
         super().__init__()
         self._listing = listing(settings)
         self._choose = choose_for
+        self._slack = slack
 
-    async def abefore_agent(self, state: Any, runtime: Any) -> dict[str, Any] | None:  # noqa: ARG002
-        """Hand the lead the progress notes its tasks sent since its last turn."""
+    async def abefore_model(self, state: Any, runtime: Any) -> dict[str, Any] | None:  # noqa: ARG002
+        """Hand the lead the progress notes its tasks sent since its last model call."""
         store = getattr(runtime, "store", None)
         thread = (get_config().get("configurable") or {}).get("thread_id")
         if store is None or not thread:
@@ -161,12 +191,20 @@ class AsyncHelpersMiddleware(AgentMiddleware[Any, Any, Any]):
         for item in items:
             await store.adelete(item.namespace, item.key)
         notes = sorted((item.value for item in items), key=lambda note: note.get("at", 0))
-        lines = "\n".join(
-            f"- {note.get('task', '?')}{' (urgent)' if note.get('urgent') else ''}: {note.get('note')}"
-            for note in notes
-        )
-        text = f"<helper-notes>\nProgress notes from your background tasks, not from a person:\n{lines}"
-        return {"messages": [HumanMessage(text + "\n</helper-notes>")]}
+        return {"messages": [notes_message(notes)]}
+
+    async def _keep_slack_thread(self, runtime: Any) -> None:
+        """Keep the Slack thread this lead answers, for its tasks' progress lines (module doc)."""
+        config = getattr(runtime, "config", None) or {}
+        thread = (config.get("configurable") or {}).get("thread_id")
+        binding = self._slack.bound(str(thread)) if self._slack is not None and thread else None
+        store = getattr(runtime, "store", None)
+        if binding is None or store is None:
+            return
+        target = binding.target
+        event = {"channel": target.channel, "ts": target.thread_ts, "thread_ts": target.thread_ts}
+        event |= {"team": target.team_id, "user": target.user_id}
+        await store.aput(SLACK_TARGETS, str(thread), event)
 
     def _shown(self, tool: Any) -> Any:
         if not isinstance(tool, BaseTool) or tool.name != START:
@@ -209,10 +247,12 @@ class AsyncHelpersMiddleware(AgentMiddleware[Any, Any, Any]):
                 "model": picked.model,
                 "effort": picked.effort or "",
                 "disclosure": picked.disclosure.value,
+                "name": " ".join(str(args.pop("name", "") or "").split())[:40],
             }
             request = request.override(
                 tool_call={**call, "args": {**args, "subagent_type": WORKER}}
             )
+            await self._keep_slack_thread(getattr(request, "runtime", None))
         elif name == UPDATE:
             chosen = _chosen_for(request, str((call.get("args") or {}).get("task_id") or ""))
         else:
@@ -332,7 +372,53 @@ class WorkerDisclosure(AgentMiddleware[Any, Any, Any]):
         return await inner.awrap_model_call(request, handler)
 
 
-def _lead_thread(config: Mapping[str, Any]) -> str | None:
+def notes_message(notes: list[Mapping[str, Any]]) -> HumanMessage:
+    """Progress notes as one message to the lead, marked as not from a person."""
+    lines = "\n".join(
+        f"- {note.get('task', '?')}{' (urgent)' if note.get('urgent') else ''}: {note.get('note')}"
+        for note in notes
+    )
+    return HumanMessage(
+        "<helper-notes>\nProgress notes from your background tasks, not from a person:\n"
+        f"{lines}\n</helper-notes>"
+    )
+
+
+def _lead_assistant(config: Mapping[str, Any]) -> str | None:
+    reference = (config.get("configurable") or {}).get(_PARENT_KEY)
+    assistant = reference.get("assistant_id") if isinstance(reference, Mapping) else None
+    assistant = assistant or (config.get("metadata") or {}).get("parent_assistant_id")
+    return str(assistant) if assistant else None
+
+
+async def _wake_lead(config: Mapping[str, Any], context: object, note: Mapping[str, Any]) -> bool:
+    """Start a run on an idle lead's thread with `note`; False when it is busy or out of reach,
+    and it then reads the note before its next model call. Never raises."""
+    lead, assistant = lead_thread(config), _lead_assistant(config)
+    if lead is None or assistant is None:
+        return False
+    try:
+        client = get_client()
+        if (await client.threads.get(thread_id=lead)).get("status") not in _WAKEABLE:
+            return False
+        payload: dict[str, Any] = {
+            "messages": [{"role": "user", "content": notes_message([note]).text}]
+        }
+        kept: dict[str, Any] | None = forwarded(context) or None
+        await client.runs.create(
+            thread_id=lead,
+            assistant_id=assistant,
+            input=payload,
+            multitask_strategy="reject",
+            context=kept,
+        )
+    except Exception as error:  # noqa: BLE001 - the note still waits in the store
+        _LOGGER.info("[worker] lead not woken for an urgent note: %s", type(error).__name__)
+        return False
+    return True
+
+
+def lead_thread(config: Mapping[str, Any]) -> str | None:
     """The lead's thread, from deepagents' parent reference or the task thread's metadata."""
     reference = (config.get("configurable") or {}).get(_PARENT_KEY)
     thread = reference.get("thread_id") if isinstance(reference, Mapping) else None
@@ -345,17 +431,21 @@ async def report_progress(note: str, runtime: ToolRuntime, urgent: bool = False)
 
     Send one when a section is done, when something blocks you or moves your ETA, and before you
     stop early: one or two sentences on what happened and what comes next, with a time. The lead
-    reads it at the start of its next turn. Set `urgent` when the lead must act: you are blocked on
-    a decision, or the plan no longer works.
+    reads it before its next step. Set `urgent` when the lead must act: you are blocked on a
+    decision, or the plan no longer works; an idle lead is then woken for it.
     """
     config = runtime.config or {}
-    lead, store = _lead_thread(config), runtime.store
+    lead, store = lead_thread(config), runtime.store
     if lead is None or store is None:
         return "This task has no lead to tell; put it in your final report instead."
-    task = str((config.get("configurable") or {}).get("thread_id") or "task")
+    task = helper_label(runtime.context) or str(
+        (config.get("configurable") or {}).get("thread_id") or "task"
+    )
     value = {"task": task, "note": note.strip()[:600], "urgent": urgent, "at": time.time()}
+    if urgent and await _wake_lead(config, runtime.context, value):
+        return "Sent; the lead was woken for it."
     await store.aput((*NOTES, lead), uuid.uuid4().hex, value)
-    return "Sent; the lead reads it at the start of its next turn."
+    return "Sent; the lead reads it before its next step."
 
 
 class WorkerNotesMiddleware(AgentMiddleware[Any, Any, Any]):

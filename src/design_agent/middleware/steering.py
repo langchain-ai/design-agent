@@ -140,7 +140,10 @@ class SteeringToolsMiddleware(AgentMiddleware[AgentState[Any], Any, Any]):
     def steer(self, task_id: str, note: str, thread_id: str) -> str:
         task_id = task_id.strip()
         if not task_id.startswith("t-"):
-            return f"{task_id} is not a helper; only start_task helpers (t-...) take notes."
+            return (
+                f"{task_id} is not a helper here; only start_task helpers (t-...) take notes. "
+                "A start_async_task helper takes new instructions with update_async_task."
+            )
         record = tasks.REGISTRY.get(task_id)
         if record is None or record.thread_id != thread_id:
             return f"No running task {task_id} on this thread; check_tasks lists what runs."

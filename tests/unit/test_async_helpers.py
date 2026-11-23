@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import Any
+from unittest.mock import patch
 
 from deepagents.middleware.async_subagents import ASYNC_TASK_TOOL_DESCRIPTION
 from langchain.agents import create_agent
@@ -21,16 +23,20 @@ from design_agent.middleware.async_helpers import (
     WorkerModelMiddleware,
     WorkerNotesMiddleware,
     choose,
+    helper_label,
+    report_progress,
 )
+from design_agent.middleware.progress import AsyncHelperProgressMiddleware
 from design_agent.models.helpers import HelperChoice
 from design_agent.models.registry import ToolDisclosure
+from design_agent.surfaces.slack.target import SlackBinding, SlackTarget
 from design_agent.testing.scripted_model import ScriptedChatModel, reply, tool_call
 
 SETTINGS = Settings(  # type: ignore[call-arg]
     _env_file=None, model="anthropic:claude-opus-5-5", anthropic_api_key="a", openai_api_key="o"
 )
 PICKED = HelperChoice("openai:gpt-5.5", "high", ToolDisclosure.PROVIDER_NATIVE)
-CHOSEN = {"model": "openai:gpt-5.5", "effort": "high", "disclosure": "provider_native"}
+CHOSEN = {"model": "openai:gpt-5.5", "effort": "high", "disclosure": "provider_native", "name": ""}
 
 
 def test_any_model_that_builds_is_taken_and_anything_else_says_what_to_fix() -> None:
@@ -60,16 +66,21 @@ def test_the_lead_is_shown_model_and_effort_instead_of_a_type() -> None:
 
 
 def call(
-    name: str, args: dict[str, Any], *, tasks: dict[str, Any] | None = None
+    name: str,
+    args: dict[str, Any],
+    *,
+    tasks: dict[str, Any] | None = None,
+    store: Any = None,
+    config: dict[str, Any] | None = None,
 ) -> ToolCallRequest:
     state = {"messages": [], "async_tasks": tasks or {}}
     runtime = ToolRuntime(
         state=state,
         context={"brand": "acme", "mda_channel": {"provider": "slack"}, CHOICE_KEY: {"old": 1}},
-        config={},
+        config=config or {},  # type: ignore[arg-type]
         stream_writer=lambda _: None,
         tool_call_id="c1",
-        store=None,
+        store=store,
     )
     tool_call = {"name": name, "args": args, "id": "c1", "type": "tool_call"}
     return ToolCallRequest(tool_call=tool_call, tool=None, state=state, runtime=runtime)  # type: ignore[arg-type]
@@ -87,12 +98,108 @@ async def test_a_started_task_runs_on_the_worker_with_the_choice_and_without_sla
         return Command(update={"messages": [message], "async_tasks": {"t1": task}})
 
     lead = AsyncHelpersMiddleware(SETTINGS, lambda m, e: PICKED)
-    args = {"description": "Cut the 15s.", "model": "openai:gpt-5.5", "effort": "high"}
+    args = {
+        "description": "Cut the 15s.",
+        "model": "x",
+        "effort": "high",
+        "name": " Act 3  builder",
+    }
     result = await lead.awrap_tool_call(call("start_async_task", args), handler)
     (sent,) = seen
+    named = {**CHOSEN, "name": "Act 3 builder"}
     assert sent.tool_call["args"] == {"description": "Cut the 15s.", "subagent_type": WORKER}
-    assert sent.runtime.context == {"brand": "acme", CHOICE_KEY: CHOSEN}
-    assert isinstance(result, Command) and result.update["async_tasks"]["t1"][CHOICE_KEY] == CHOSEN
+    assert sent.runtime.context == {"brand": "acme", CHOICE_KEY: named}
+    assert isinstance(result, Command) and result.update["async_tasks"]["t1"][CHOICE_KEY] == named
+    assert helper_label(sent.runtime.context) == "Act 3 builder"
+    assert helper_label({CHOICE_KEY: CHOSEN}) == "Helper on gpt-5.5"
+
+
+class Surface:
+    """The part of `SlackSurface` the lead and the worker read."""
+
+    def __init__(self, binding: SlackBinding | None) -> None:
+        self.binding = binding
+        self.resolver = self
+
+    def bound(self, thread_id: str) -> SlackBinding | None:
+        return self.binding if thread_id == "lead-1" else None
+
+    async def client(self) -> Any:
+        return self.binding.client if self.binding else None
+
+
+async def test_the_worker_finds_the_slack_thread_its_lead_started_it_from() -> None:
+    store = InMemoryStore()
+    client = SimpleNamespace(auth_failed=False)
+    target = SlackTarget(channel="C0TEST0CHAN", thread_ts="1700000000.000100", user_id="U0TEST0USER")
+    surface = Surface(SlackBinding(target, client))  # type: ignore[arg-type]
+
+    async def handler(_request: ToolCallRequest) -> str:
+        return "started"
+
+    lead = AsyncHelpersMiddleware(SETTINGS, lambda m, e: PICKED, slack=surface)
+    config = {"configurable": {"thread_id": "lead-1"}}
+    await lead.awrap_tool_call(
+        call("start_async_task", {"description": "x"}, store=store, config=config), handler
+    )
+    progress = AsyncHelperProgressMiddleware(surface)  # type: ignore[arg-type]
+    worker = {"configurable": {"thread_id": "task-1"}, "metadata": {"parent_thread_id": "lead-1"}}
+    context = {CHOICE_KEY: {**CHOSEN, "name": "Critic"}}
+    runtime = SimpleNamespace(store=store, context=context)
+    with patch("design_agent.middleware.progress.get_config", return_value=worker):
+        key, binding = await progress._where(runtime)
+        label = progress._label()
+    assert key == ("C0TEST0CHAN", "1700000000.000100", "task-1") and label == "Critic"
+    assert binding is not None and binding.target.channel == "C0TEST0CHAN"
+    stranger = {"configurable": {"thread_id": "task-2"}, "metadata": {"parent_thread_id": "other"}}
+    with patch("design_agent.middleware.progress.get_config", return_value=stranger):
+        assert await progress._where(runtime) == ((), None)
+
+
+class FakeServer:
+    def __init__(self, status: str) -> None:
+        self.status, self.created = status, []  # type: ignore[var-annotated]
+        self.threads, self.runs = self, self
+
+    async def get(self, thread_id: str) -> dict[str, str]:
+        return {"thread_id": thread_id, "status": self.status}
+
+    async def create(self, **kwargs: Any) -> dict[str, str]:
+        self.created.append(kwargs)
+        return {"run_id": "r1"}
+
+
+async def urgent(status: str, store: InMemoryStore) -> tuple[str, FakeServer]:
+    server = FakeServer(status)
+    config = {
+        "configurable": {"thread_id": "task-1"},
+        "metadata": {"parent_thread_id": "lead-1", "parent_assistant_id": "a-lead"},
+    }
+    runtime = ToolRuntime(
+        state={},
+        context={CHOICE_KEY: {**CHOSEN, "name": "Critic"}, "brand": "acme"},
+        config=config,  # type: ignore[arg-type]
+        stream_writer=lambda _: None,
+        tool_call_id="c1",
+        store=store,
+    )
+    with patch("design_agent.middleware.async_helpers.get_client", return_value=server):
+        said = await report_progress("Blocked: pick a palette.", runtime, urgent=True)
+    return said, server
+
+
+async def test_an_urgent_note_wakes_an_idle_lead_and_waits_for_a_busy_one() -> None:
+    store = InMemoryStore()
+    said, server = await urgent("idle", store)
+    (run,) = server.created
+    assert "woken" in said and run["thread_id"] == "lead-1" and run["assistant_id"] == "a-lead"
+    assert "Critic (urgent): Blocked: pick a palette." in run["input"]["messages"][0]["content"]
+    assert run["context"] == {"brand": "acme"} and run["multitask_strategy"] == "reject"
+    assert not await store.asearch(("design_agent", "helper_notes", "lead-1"))
+
+    said, server = await urgent("busy", store)
+    assert not server.created and "before its next step" in said
+    assert len(await store.asearch(("design_agent", "helper_notes", "lead-1"))) == 1
 
 
 async def test_a_choice_that_does_not_build_starts_nothing() -> None:

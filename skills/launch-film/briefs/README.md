@@ -2,7 +2,7 @@
 
 Fill-in briefs, one per job. The brief is the role: every helper is the same worker, and the brief
 makes it a builder, a critic, an analyst or a sound designer. Start one with
-`start_async_task(description=<the filled brief>, effort=..., model=...)` on Managed Deep Agents, or
+`start_async_task(description=<the filled brief>, effort=..., model=..., name=<role>)` on Managed Deep Agents, or
 `start_task(description=<the filled brief>, effort=...)` self-hosted; it runs in the background. The
 `launch_film` pipeline sends its steps with pointers to these same files, so a brief here is read
 by its sandbox path (`/skills/launch-film/briefs/<file>`) as often as it is pasted.

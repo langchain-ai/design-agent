@@ -54,8 +54,11 @@
   `start_async_task`, choosing any `provider:model` and an effort for that task (checked by
   building the model), follows it with `check_async_task`, `update_async_task` and
   `cancel_async_task`, and is woken when it ends. Each task has its own thread on the Agent Server
-  and works in the lead's computer; `update_async_task` continues one on its own history. Progress
-  notes reach the lead at its next turn. Self-hosted keeps `start_task`.
+  and works in the lead's computer; `update_async_task` continues one on its own history.
+  Self-hosted keeps `start_task`.
+- On Managed Deep Agents the lead names each helper (`name` on `start_async_task`), and the helper
+  shows its own progress line in the Slack thread under that name. Its `report_progress` notes
+  reach the lead before its next model call, and an urgent one wakes an idle lead.
 - `mda deploy` builds the agent's computer itself, so the MDA path no longer runs
   `sandbox publish` (it stays for local and self-hosted LangSmith sandboxes). Deploy with
   `--agent-server-type dedicated`; the first deploy waits for Slack approval and needs a personal

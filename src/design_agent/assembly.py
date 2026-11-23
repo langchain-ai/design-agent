@@ -46,7 +46,11 @@ from design_agent.middleware.looks_tools import LooksToolsMiddleware, sandbox_ex
 from design_agent.middleware.meter import StaggerMiddleware
 from design_agent.middleware.paper_scope import PaperScopeMiddleware
 from design_agent.middleware.pipeline_tools import PipelineToolsMiddleware
-from design_agent.middleware.progress import HelperProgressMiddleware, ThreadProgressMiddleware
+from design_agent.middleware.progress import (
+    AsyncHelperProgressMiddleware,
+    HelperProgressMiddleware,
+    ThreadProgressMiddleware,
+)
 from design_agent.middleware.quiet import QuietReplyMiddleware
 from design_agent.middleware.skill_list import load_summaries
 from design_agent.middleware.steering import (
@@ -239,6 +243,7 @@ def build_agent_components(
             AsyncHelpersMiddleware(
                 settings,
                 lambda model, effort: choose(settings, model, effort, project_root=root),
+                slack=runtime.slack,
             )
         )
     slack = runtime.slack
@@ -328,6 +333,11 @@ def build_agent_components(
                     WorkerNotesMiddleware(),
                     TodayMiddleware(),
                     StaggerMiddleware(stagger),
+                    *(
+                        [AsyncHelperProgressMiddleware(slack, servers=servers)]
+                        if slack is not None and settings.enable_progress
+                        else []
+                    ),
                     *guards(
                         WORKER,
                         lead_agent=False,

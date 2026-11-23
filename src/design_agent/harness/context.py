@@ -37,7 +37,14 @@ CONTEXT_MANAGEMENT_BETA = "context-management-2025-06-27"
 CLEAR_TOOL_USES = "clear_tool_uses_20250919"
 
 #: What never gets cleared by default: the plan, and the lead-helper channel.
-DEFAULT_EXCLUDED_TOOLS = ("write_todos", "report_progress", "start_task", "check_tasks")
+DEFAULT_EXCLUDED_TOOLS = (
+    "write_todos",
+    "report_progress",
+    "start_task",
+    "check_tasks",
+    "start_async_task",
+    "check_async_task",
+)
 
 #: An image is billed in 28 x 28 pixel patches.
 PATCH_PX = 28
