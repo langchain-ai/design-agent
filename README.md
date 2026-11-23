@@ -169,7 +169,7 @@ access token (`lsv2_pt_…`; a service key can't set up Slack): `mda deploy` pri
 approve the app for your workspace (an admin may need to), and it carries on once Slack confirms.
 The agent then sends you a DM;
 reply to it, or `/invite` it to a channel and mention it. It's how we run ours at LangChain. Try changes on a separate copy with
-`uv run mda deploy --name design-agent-test`. In a workspace with agent mode,
+`uv run mda deploy --name design-agent-test --agent-server-type dedicated`. In a workspace with agent mode,
 `uv run mda deploy --agent-environment production` (or `staging`, `development`) deploys into that
 environment of the agent, and each environment keeps its own traces: open the agent in LangSmith
 and pick the environment. `uv run mda dev` traces to its Local environment.
