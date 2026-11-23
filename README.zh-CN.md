@@ -31,10 +31,6 @@
 
 ## 看看效果
 
-<a href="https://www.youtube.com/watch?v=emId9_O2sU8"><img src="https://img.youtube.com/vi/emId9_O2sU8/maxresdefault.jpg" alt="在 YouTube 观看：We Open Sourced Our Design Brain" width="100%"></a>
-
-<p align="center"><sub>开源发布视频（YouTube）：<a href="https://www.youtube.com/watch?v=emId9_O2sU8">We Open Sourced Our Design Brain</a></sub></p>
-
 我们让 Content Studio 给自己做一部发布宣传片，结果它直接《洛奇》附体。
 
 https://github.com/user-attachments/assets/ee5b98e0-7ec6-4b24-ada6-1f27087947a3

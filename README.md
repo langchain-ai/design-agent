@@ -33,10 +33,6 @@ into each part.
 
 ## See it work
 
-<a href="https://www.youtube.com/watch?v=emId9_O2sU8"><img src="https://img.youtube.com/vi/emId9_O2sU8/maxresdefault.jpg" alt="Watch on YouTube: We Open Sourced Our Design Brain" width="100%"></a>
-
-<p align="center"><sub>The launch video, on YouTube: <a href="https://www.youtube.com/watch?v=emId9_O2sU8">We Open Sourced Our Design Brain</a>.</sub></p>
-
 We asked Content Studio for its own launch film. It went full Rocky.
 
 https://github.com/user-attachments/assets/ee5b98e0-7ec6-4b24-ada6-1f27087947a3
