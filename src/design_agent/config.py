@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
@@ -15,6 +16,15 @@ SlackTransport = Literal["socket_mode", "http"]
 CacheTtl = Literal["5m", "1h", "off"]
 
 DEFAULT_MODEL_SPEC = "anthropic:claude-opus-5-5"
+ModelRole = Literal["lead", "helper", "look", "tool_selector", "learning"]
+#: Each role's settings are `DESIGN_AGENT_<PREFIX>MODEL...`: the lead's are `DESIGN_AGENT_MODEL...`.
+ROLE_PREFIX: dict[ModelRole, str] = {
+    "lead": "",
+    "helper": "helper_",
+    "look": "look_",
+    "tool_selector": "tool_selector_",
+    "learning": "learning_",
+}
 SAMPLE_BRAND = Path("examples/brands/example-studio")
 DEFAULT_SANDBOX_IMAGE = "design-agent-sandbox:local"
 
@@ -52,6 +62,24 @@ class ModelSpec(BaseModel):
         return f"{self.provider}:{self.model}"
 
 
+@dataclass(frozen=True)
+class ModelOptions:
+    """One role's model settings beyond the model itself (`DESIGN_AGENT_<ROLE>_MODEL_*`)."""
+
+    #: Whose settings these are, for messages that name them.
+    role: ModelRole = "lead"
+    base_url: str | None = None
+    api_key_env: str | None = None
+    max_output_tokens: int | None = None
+    #: A JSON object for the model's constructor, parsed where the model is built.
+    kwargs: str | None = None
+    vision: bool | None = None
+
+    def setting(self, name: str) -> str:
+        """The environment name of one of these settings (`BASE_URL` -> `DESIGN_AGENT_..._BASE_URL`)."""
+        return f"DESIGN_AGENT_{ROLE_PREFIX[self.role].upper()}MODEL_{name}"
+
+
 def _alias(*names: str) -> AliasChoices:
     return AliasChoices(*names)
 
@@ -71,17 +99,41 @@ class Settings(BaseSettings):
     # Models
     model: str = DEFAULT_MODEL_SPEC
     model_effort: str | None = None
-    """Lead effort; unset uses the registry default for the model (`high` for Claude 5)."""
+    """Lead effort; unset uses the model's default (`high` for Claude 5)."""
     helper_model: str | None = None
     look_model: str | None = None
     tool_selector_model: str | None = None
     learning_model: str | None = None
     """A cheaper model for the post-job review (`learn_from_job`); unset uses a low-effort helper."""
-    model_base_url: str | None = None
-    model_api_key_env: str | None = None
-    """Name of the env var holding the key for a compatible endpoint at `model_base_url`."""
     helper_effort_cap: str | None = None
     """Caps every helper's effort (for example `xhigh`) for cost control."""
+    # Each role's model settings, `DESIGN_AGENT_<ROLE>_MODEL_*` (`ModelOptions`): an
+    # OpenAI-compatible endpoint and the name of the variable holding its key, an output budget, a
+    # JSON object for the model's constructor, and whether it takes images when its capability data
+    # does not say or is wrong.
+    model_base_url: str | None = None
+    model_api_key_env: str | None = None
+    model_max_output_tokens: int | None = Field(default=None, gt=0)
+    model_kwargs: str | None = None
+    model_vision: bool | None = None
+    helper_model_base_url: str | None = None
+    helper_model_api_key_env: str | None = None
+    helper_model_max_output_tokens: int | None = Field(default=None, gt=0)
+    helper_model_kwargs: str | None = None
+    helper_model_vision: bool | None = None
+    look_model_base_url: str | None = None
+    look_model_api_key_env: str | None = None
+    look_model_max_output_tokens: int | None = Field(default=None, gt=0)
+    look_model_kwargs: str | None = None
+    look_model_vision: bool | None = None
+    tool_selector_model_base_url: str | None = None
+    tool_selector_model_api_key_env: str | None = None
+    tool_selector_model_max_output_tokens: int | None = Field(default=None, gt=0)
+    tool_selector_model_kwargs: str | None = None
+    learning_model_base_url: str | None = None
+    learning_model_api_key_env: str | None = None
+    learning_model_max_output_tokens: int | None = Field(default=None, gt=0)
+    learning_model_kwargs: str | None = None
     model_timeout_seconds: float = Field(default=600.0, gt=0)
     """Stall ceiling for one model call: a call that never returns is worse than one that fails."""
     cache_ttl: CacheTtl = "1h"
@@ -123,7 +175,12 @@ class Settings(BaseSettings):
     private_fonts_dir: Path = Path("private-fonts")
 
     # Media providers (host tools; keys never enter the sandbox)
-    image_model: str = "gpt-image-2.5-flare"
+    image_model: str | None = None
+    """`openai:<id>`, `google:<id>` or a plain id; unset, the reachable provider's default."""
+    image_base_url: str | None = None
+    """An OpenAI-compatible images endpoint (`…/v1`); its key is the variable `image_api_key_env`
+    names, and only it goes there."""
+    image_api_key_env: str | None = None
     elevenlabs_api_key: SecretStr | None = Field(
         default=None, validation_alias=_alias("ELEVENLABS_API_KEY")
     )
@@ -219,6 +276,30 @@ class Settings(BaseSettings):
         "learning_model",
         "model_base_url",
         "model_api_key_env",
+        "model_max_output_tokens",
+        "model_kwargs",
+        "model_vision",
+        "helper_model_base_url",
+        "helper_model_api_key_env",
+        "helper_model_max_output_tokens",
+        "helper_model_kwargs",
+        "helper_model_vision",
+        "look_model_base_url",
+        "look_model_api_key_env",
+        "look_model_max_output_tokens",
+        "look_model_kwargs",
+        "look_model_vision",
+        "tool_selector_model_base_url",
+        "tool_selector_model_api_key_env",
+        "tool_selector_model_max_output_tokens",
+        "tool_selector_model_kwargs",
+        "learning_model_base_url",
+        "learning_model_api_key_env",
+        "learning_model_max_output_tokens",
+        "learning_model_kwargs",
+        "image_model",
+        "image_base_url",
+        "image_api_key_env",
         "sandbox_snapshot",
         "slack_background_color",
         "trace_host",
@@ -252,12 +333,26 @@ class Settings(BaseSettings):
     def lead_model(self) -> ModelSpec:
         return ModelSpec.parse(self.model)
 
-    def role_model(self, role: Literal["helper", "look", "tool_selector", "learning"]) -> ModelSpec:
+    def role_model(self, role: ModelRole) -> ModelSpec:
         """A role's model, defaulting to the lead's."""
+        if role == "lead":
+            return self.lead_model()
         raw = getattr(self, f"{role}_model")
         if raw is None:
             return self.lead_model()
         return ModelSpec.parse(raw, setting=f"DESIGN_AGENT_{role.upper()}_MODEL")
+
+    def model_options(self, role: ModelRole) -> ModelOptions:
+        """A role's own model settings, as set (`DESIGN_AGENT_<ROLE>_MODEL_*`)."""
+        prefix = f"{ROLE_PREFIX[role]}model_"
+        return ModelOptions(
+            role=role,
+            base_url=getattr(self, f"{prefix}base_url"),
+            api_key_env=getattr(self, f"{prefix}api_key_env"),
+            max_output_tokens=getattr(self, f"{prefix}max_output_tokens"),
+            kwargs=getattr(self, f"{prefix}kwargs"),
+            vision=getattr(self, f"{prefix}vision", None),
+        )
 
     def egress_allowlist(self) -> tuple[str, ...]:
         return tuple(h.strip() for h in self.sandbox_egress_allow.split(",") if h.strip())

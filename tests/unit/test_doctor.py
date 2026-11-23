@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from design_agent.config import Settings
-from design_agent.doctor import _check_mda_deploy
+from design_agent.doctor import _check_mda_deploy, _check_models
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -78,3 +78,15 @@ def test_the_model_key_in_env_or_a_gateway_model_needs_nothing_more(
     (root / ".env").unlink()
     gateway = _settings(monkeypatch, "langsmith:anthropic/claude-opus-5-5")
     assert _check_mda_deploy(root, gateway).status == "ok"
+
+
+def test_a_model_nothing_describes_or_prices_runs_with_both_said(tmp_path: Path) -> None:
+    settings = Settings(_env_file=None, model="mystery:model-1")  # type: ignore[call-arg]
+    checks = {check.name: check for check in _check_models(settings, tmp_path)}
+    lead = checks["model:lead"]
+    assert lead.status == "warn" and "unverified" in lead.detail
+    assert "DESIGN_AGENT_MODEL_VISION=1" in lead.detail
+    assert "run cost can't be counted" in lead.detail
+    registered = Settings(_env_file=None)  # type: ignore[call-arg]
+    roles = [c for c in _check_models(registered, tmp_path) if c.name != "model:key"]
+    assert {c.status for c in roles} == {"ok"}
