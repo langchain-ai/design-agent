@@ -56,6 +56,13 @@
   logged rather than refused. OpenAI-compatible and gateway routes get the repairs they need
   (`models/compat.py`). A model with no price in `config/prices.toml` still runs; `doctor` says
   its cost can't be counted.
+- `generate_image` picks the provider per call from its model: `openai:<id>`, `google:<id>`, or a
+  plain id by family, so an OpenAI deployment can make a Gemini image in the same thread. Any
+  OpenAI-compatible images endpoint works (`DESIGN_AGENT_IMAGE_BASE_URL` with the key
+  `DESIGN_AGENT_IMAGE_API_KEY_ENV` names). A model nothing reachable serves, or a malformed Google
+  id, is an error that says what to set instead of a quiet switch to another model; Google keeps
+  the images it made when some of `n` fail and says what failed. `DESIGN_AGENT_IMAGE_MODEL` is
+  unset by default and picks the reachable provider's default.
 - `doctor` says "ready for `mda deploy`" only when a deploy would work: until the snapshot is
   published and the lead model's key is in `.env` (a deploy ships `.env`, not the shell), its
   `mda-deploy` line lists what to do first. The deploy skill asks the setup questions up front,

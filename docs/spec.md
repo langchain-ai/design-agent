@@ -891,7 +891,9 @@ DESIGN_AGENT_BRAND_PATH=workspace/brand    # falls back to examples/brands/examp
 DESIGN_AGENT_PRIVATE_FONTS_DIR=private-fonts
 
 # Media (optional)
-DESIGN_AGENT_IMAGE_MODEL=
+DESIGN_AGENT_IMAGE_MODEL=           # openai:<id>, google:<id> or a plain id
+DESIGN_AGENT_IMAGE_BASE_URL=        # an OpenAI-compatible images endpoint
+DESIGN_AGENT_IMAGE_API_KEY_ENV=     # the variable holding its key
 ELEVENLABS_API_KEY=
 GROQ_API_KEY=
 

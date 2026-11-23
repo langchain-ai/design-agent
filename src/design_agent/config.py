@@ -175,7 +175,12 @@ class Settings(BaseSettings):
     private_fonts_dir: Path = Path("private-fonts")
 
     # Media providers (host tools; keys never enter the sandbox)
-    image_model: str = "gpt-image-2.5-flare"
+    image_model: str | None = None
+    """`openai:<id>`, `google:<id>` or a plain id; unset, the reachable provider's default."""
+    image_base_url: str | None = None
+    """An OpenAI-compatible images endpoint (`…/v1`); its key is the variable `image_api_key_env`
+    names, and only it goes there."""
+    image_api_key_env: str | None = None
     elevenlabs_api_key: SecretStr | None = Field(
         default=None, validation_alias=_alias("ELEVENLABS_API_KEY")
     )
@@ -289,6 +294,9 @@ class Settings(BaseSettings):
         "learning_model_api_key_env",
         "learning_model_max_output_tokens",
         "learning_model_kwargs",
+        "image_model",
+        "image_base_url",
+        "image_api_key_env",
         "sandbox_snapshot",
         "slack_background_color",
         "trace_host",

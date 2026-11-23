@@ -206,7 +206,7 @@ def missing_key(
     """The setting `spec` needs to be called and lacks, or None. Only keys the settings hold are
     checked; another provider's class reads its own variable and says when it is missing."""
     if options.base_url is not None:
-        if _named_key(options.api_key_env, project_root) is None:
+        if named_key(options.api_key_env, project_root) is None:
             return options.setting("API_KEY_ENV")
         return None
     if spec.via_gateway:
@@ -248,7 +248,7 @@ def _construct(
     spec, options = resolved.spec, resolved.options
     connection: dict[str, Any] = {}
     if options.base_url is not None:
-        key = _named_key(options.api_key_env, project_root)
+        key = named_key(options.api_key_env, project_root)
         if key is None:
             raise ModelConfigurationError(
                 f"{options.setting('BASE_URL')} needs {options.setting('API_KEY_ENV')} naming the "
@@ -361,7 +361,7 @@ def gateway_key(settings: Settings) -> str:
     return ""
 
 
-def _named_key(env_name: str | None, project_root: Path | None) -> str | None:
+def named_key(env_name: str | None, project_root: Path | None) -> str | None:
     """The value of the variable `env_name` from the process or the project `.env`."""
     if not env_name:
         return None

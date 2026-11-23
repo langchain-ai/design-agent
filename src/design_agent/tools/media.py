@@ -2,12 +2,12 @@
 
 Provider calls run on the host with keys from settings; the sandbox never holds a key. Results
 are written into the thread's sandbox as files and the model gets the path and a short summary.
-Nothing here sends a file to the person; delivery is `upload_files`.
+Which provider makes an image is decided per call by its model (`tools/images.py`). Nothing here
+sends a file to the person; delivery is `upload_files`.
 """
 
 from __future__ import annotations
 
-import asyncio
 import base64
 import binascii
 import json
@@ -17,7 +17,7 @@ import shlex
 import struct
 import zlib
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any
 
 import httpx
 from langchain.tools import ToolRuntime
@@ -25,7 +25,6 @@ from langchain_core.tools import BaseTool, StructuredTool
 from pydantic import JsonValue
 
 from design_agent.config import Settings
-from design_agent.models.factory import GATEWAY_NATIVE_ROUTES, GATEWAY_ORIGIN, gateway_key
 from design_agent.tools.files import (
     BackendFor,
     WorkspaceError,
@@ -34,130 +33,33 @@ from design_agent.tools.files import (
     workspace_path,
     write_bytes,
 )
+from design_agent.tools.images import ImageAsk, ImageError, ImageRoutes, image_routes
 
-OPENAI_BASE_URL = "https://api.openai.com/v1"
 ELEVENLABS = "https://api.elevenlabs.io/v1"
 GROQ_TRANSCRIPTIONS = "https://api.groq.com/openai/v1/audio/transcriptions"
 ELEVENLABS_CAP_MB = 25  # five minutes of 320 kbps mp3 is about 12 MB
 VOICE_ID = re.compile(r"[A-Za-z0-9]{10,40}")
 
 
-GOOGLE_API = "https://generativelanguage.googleapis.com/v1beta"
-#: The LangSmith Gateway's direct Google path, which passes Gemini API requests through.
-GATEWAY_GOOGLE = f"{GATEWAY_ORIGIN}/gemini/v1beta"
-#: Google makes images with Gemini image models through `generateContent` (Imagen is shut down).
-GOOGLE_IMAGE_MODEL = "gemini-nano-banana-2.1"
-#: A model id safe to put in the request path: never a value with `/`, `?`, `#` or `:`.
-GOOGLE_MODEL_ID = re.compile(r"gemini-[a-z0-9][a-z0-9.\-]*")
-GOOGLE_ASPECT_RATIOS = {
-    "1:1": 1.0,
-    "2:3": 2 / 3,
-    "3:2": 3 / 2,
-    "3:4": 3 / 4,
-    "4:3": 4 / 3,
-    "4:5": 4 / 5,
-    "5:4": 5 / 4,
-    "9:16": 9 / 16,
-    "16:9": 16 / 9,
-    "21:9": 21 / 9,
-}
-
-
-@dataclass(frozen=True)
-class ImageRoute:
-    """Where image generation goes, with the key for it and a name for messages. For OpenAI
-    `url` is the endpoint; for Google it is the models collection a model id is appended to."""
-
-    url: str
-    key: str
-    via: str
-    provider: Literal["openai", "google"] = "openai"
-
-
 def _secret(secret: Any) -> str | None:
     return (secret.get_secret_value() or None) if secret is not None else None
-
-
-def image_route(settings: Settings) -> ImageRoute | None:
-    """A provider key you set wins: OpenAI's, then Google's. Without one, a deployment that uses the
-    LangSmith Gateway (a `langsmith:` model or `LANGSMITH_GATEWAY_API_KEY`) goes through it, to
-    Google when the lead model is Google and to OpenAI otherwise. `DESIGN_AGENT_IMAGE_MODEL=gemini-…`
-    picks Google whenever Google is reachable. A key only ever goes to its own provider or the
-    gateway."""
-    openai = _secret(settings.openai_api_key)
-    google = _secret(settings.google_api_key)
-    uses_gateway = bool(_secret(settings.langsmith_gateway_api_key))
-    lead_is_google = False
-    try:
-        lead = settings.lead_model()
-        uses_gateway = uses_gateway or lead.via_gateway
-        provider = lead.upstream.provider if lead.via_gateway else lead.provider
-        lead_is_google = provider in ("google", "google_genai")
-    except ValueError:
-        pass
-    gateway = gateway_key(settings) if uses_gateway else ""
-    wants_google = settings.image_model.startswith("gemini-") or (lead_is_google and not openai)
-    if wants_google and google:
-        return ImageRoute(f"{GOOGLE_API}/models", google, "Google", provider="google")
-    if wants_google and gateway:
-        return ImageRoute(
-            f"{GATEWAY_GOOGLE}/models", gateway, "the LangSmith Gateway", provider="google"
-        )
-    if openai:
-        return ImageRoute(f"{OPENAI_BASE_URL}/images/generations", openai, "OpenAI")
-    if google:
-        return ImageRoute(f"{GOOGLE_API}/models", google, "Google", provider="google")
-    if gateway:
-        url = f"{GATEWAY_ORIGIN}{GATEWAY_NATIVE_ROUTES['openai']}/images/generations"
-        return ImageRoute(url, gateway, "the LangSmith Gateway")
-    return None
-
-
-def _google_model(requested: str | None, configured: str) -> str:
-    """The Gemini image model to call: the requested or configured id when it is a valid Gemini
-    model id (an OpenAI name or anything malformed falls back), else Google's default."""
-    for candidate in (requested, configured):
-        clean = (candidate or "").strip().removeprefix("models/").removeprefix("google_genai/")
-        clean = clean.removeprefix("google/")
-        if GOOGLE_MODEL_ID.fullmatch(clean):
-            return clean
-    return GOOGLE_IMAGE_MODEL
 
 
 @dataclass(frozen=True)
 class MediaKeys:
     """Provider credentials, held only by host tools."""
 
-    image: ImageRoute | None
+    images: ImageRoutes
     elevenlabs: str | None
     groq: str | None
-    image_model: str
 
     @classmethod
     def from_settings(cls, settings: Settings) -> MediaKeys:
         return cls(
-            image=image_route(settings),
+            images=image_routes(settings),
             elevenlabs=_secret(settings.elevenlabs_api_key),
             groq=_secret(settings.groq_api_key),
-            image_model=settings.image_model,
         )
-
-
-async def _download(url: str, *, cap_mb: int, provider: str) -> bytes:
-    """A bounded host download that never follows a redirect."""
-    try:
-        async with httpx.AsyncClient(timeout=120, follow_redirects=False) as client:
-            async with client.stream("GET", url) as response:
-                if response.status_code != 200:
-                    raise WorkspaceError(f"{provider} returned HTTP {response.status_code}.")
-                data = bytearray()
-                async for chunk in response.aiter_bytes():
-                    data.extend(chunk)
-                    if len(data) > cap_mb * 1024 * 1024:
-                        raise WorkspaceError(f"{provider} asset too large: limit {cap_mb} MB.")
-                return bytes(data)
-    except httpx.HTTPError:
-        raise WorkspaceError(f"{provider} download failed.") from None
 
 
 def _elevenlabs_error(response: httpx.Response) -> str:
@@ -225,123 +127,11 @@ def _word_timings(alignment: dict[str, list[Any]]) -> list[dict[str, JsonValue]]
     return words
 
 
-def _reason(response: httpx.Response) -> str:
-    """The provider's own reason for a refusal, which is what lets the model correct the call.
-
-    OpenAI answers `{"error": {"message": ...}}`; Google answers `{"error": {"message": ..., "status": ...}}`.
-    The message names the bad field or value and carries no credential, so it is safe to hand back.
-    Anything else reads as a bare status.
-    """
-    try:
-        payload = response.json()
-        error = payload.get("error")
-        message = None
-        if isinstance(error, dict):
-            detail_msgs: list[str] = []
-            if details := error.get("details"):
-                if isinstance(details, list):
-                    for item in details:
-                        if not isinstance(item, dict):
-                            continue
-                        for fv in item.get("fieldViolations", []):
-                            if isinstance(fv, dict) and fv.get("description"):
-                                field_prefix = f"{fv['field']}: " if fv.get("field") else ""
-                                detail_msgs.append(f"{field_prefix}{fv['description']}")
-                        for qv in item.get("violations", []):
-                            if isinstance(qv, dict) and qv.get("description"):
-                                detail_msgs.append(str(qv["description"]))
-                        if item.get("reason") and not detail_msgs:
-                            detail_msgs.append(str(item["reason"]))
-                        if not detail_msgs and (item.get("description") or item.get("message")):
-                            detail_msgs.append(str(item.get("description") or item.get("message")))
-
-            base_msg = error.get("message") or error.get("status")
-            if detail_msgs:
-                if (
-                    base_msg
-                    and base_msg not in detail_msgs
-                    and base_msg != "Request contains an invalid argument."
-                ):
-                    message = f"{base_msg} ({'; '.join(detail_msgs)})"
-                else:
-                    message = "; ".join(detail_msgs)
-            else:
-                message = base_msg
-        elif isinstance(error, str):
-            message = error
-        elif isinstance(payload.get("message"), str):
-            message = payload.get("message")
-    except (ValueError, AttributeError):
-        return "."
-    return f": {str(message).strip()[:300]}" if message else "."
-
-
-def _aspect_ratio_from_size(size: str) -> str:
-    """The supported Gemini aspect ratio closest to a size (`1792x1024`) or ratio (`16:9`)."""
-    text = size.strip().lower().replace("/", ":")
-    if text in GOOGLE_ASPECT_RATIOS:
-        return text
-    named = {
-        "square": "1:1",
-        "landscape": "16:9",
-        "wide": "16:9",
-        "portrait": "9:16",
-        "tall": "9:16",
-    }
-    if text in named:
-        return named[text]
-    for separator in ("x", ":"):
-        width, _, height = text.partition(separator)
-        try:
-            ratio = float(width) / float(height)
-        except (ValueError, ZeroDivisionError):
-            continue
-        if ratio > 0:
-            return min(
-                GOOGLE_ASPECT_RATIOS, key=lambda name: abs(GOOGLE_ASPECT_RATIOS[name] - ratio)
-            )
-    return "1:1"
-
-
-_IMAGE_GEN_CAP_MB = 40  # a high-quality 4K PNG can be several MB; bound the downloaded response
 _IMAGE_EXTENSIONS = {
     "image/png": (".png",),
     "image/jpeg": (".jpg", ".jpeg"),
     "image/webp": (".webp",),
 }
-
-
-def _gemini_images(payload: Any) -> tuple[list[tuple[bytes, str]], str]:
-    """The images in a Gemini `generateContent` answer, and Google's reason when there are none."""
-    images: list[tuple[bytes, str]] = []
-    reasons: list[str] = []
-    if not isinstance(payload, dict):
-        return images, ""
-    feedback = payload.get("promptFeedback")
-    if isinstance(feedback, dict) and feedback.get("blockReason"):
-        reasons.append(f"prompt blocked ({feedback['blockReason']})")
-    for candidate in payload.get("candidates") or []:
-        if not isinstance(candidate, dict):
-            continue
-        content = candidate.get("content")
-        parts = content.get("parts") if isinstance(content, dict) else None
-        found = False
-        for part in parts or []:
-            inline = part.get("inlineData") if isinstance(part, dict) else None
-            if not isinstance(inline, dict) or not inline.get("data"):
-                continue
-            encoded = str(inline["data"])
-            if len(encoded) > (_IMAGE_GEN_CAP_MB * 1024 * 1024 + 2) // 3 * 4:
-                reasons.append(f"image over {_IMAGE_GEN_CAP_MB} MB")
-                continue
-            images.append(
-                (base64.b64decode(encoded, validate=True), str(inline.get("mimeType") or ""))
-            )
-            found = True
-        finish = candidate.get("finishReason")
-        if not found and finish and finish != "STOP":
-            reasons.append(str(finish).lower())
-    return images, ", ".join(reasons)
 
 
 _PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
@@ -736,134 +526,45 @@ def build_media_tools(settings: Settings, backend_for: BackendFor) -> list[BaseT
         params: dict[str, JsonValue] | None = None,
         model: str | None = None,
     ) -> str:
-        """Generate images with OpenAI or Google image models and save them under /workspace.
+        """Generate images with OpenAI, Google or another configured image model and save them
+        under /workspace.
 
         Read the image-generation skill first. Anything with the logo or exact copy is built in
         HTML on brand, not left to the image model: composite real text and logos afterwards.
-        Model (default from DESIGN_AGENT_IMAGE_MODEL), size, quality, n and params pass through to
-        the provider, which validates them and explains a refusal. For n > 1 paths get _0, _1
+        `model` is `openai:<id>`, `google:<id>` or a plain id (`gpt-image-…`, `gemini-…`);
+        default DESIGN_AGENT_IMAGE_MODEL. Size, quality, n and params pass through to the
+        provider, which validates them and explains a refusal. For n > 1 paths get _0, _1
         suffixes. For a cut-out use background='transparent' and output_format='png' and ask for an
         isolated subject; the result reports whether the pixels really have alpha.
         """
         try:
             path = workspace_path(sandbox_path)
             backend = require_backend(backend_for, runtime)
-            route = keys.image
-            if route is None:
-                return (
-                    "image generation unavailable: no OPENAI_API_KEY or GOOGLE_API_KEY, and this "
-                    "deployment does not use the LangSmith Gateway."
-                )
-            bg = (
-                background
-                if background is not None
-                else (params.get("background") if params else None)
+            provider, model_id = keys.images.route(model)
+            ask = ImageAsk(
+                prompt=prompt,
+                size=size,
+                quality=quality,
+                n=n,
+                background=background,
+                output_format=output_format,
+                params=dict(params or {}),
             )
+            made = await provider.generate(model_id, ask)
+            bg = background if background is not None else ask.params.get("background")
             wants_alpha = str(bg or "").strip().lower() == "transparent"
-            raw_images: list[tuple[bytes, str]] = []
-
-            if route.provider == "google":
-                image_config: dict[str, JsonValue] = {"aspectRatio": _aspect_ratio_from_size(size)}
-                if quality == "high":
-                    image_config["imageSize"] = "2K"
-                for name, value in (params or {}).items():
-                    field = {"aspect_ratio": "aspectRatio", "image_size": "imageSize"}.get(
-                        name, name
-                    )
-                    if field in ("aspectRatio", "imageSize"):
-                        image_config[field] = value
-                request: dict[str, JsonValue] = {
-                    "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-                    "generationConfig": {
-                        "responseModalities": ["IMAGE"],
-                        "imageConfig": image_config,
-                    },
-                }
-                url = f"{route.url}/{_google_model(model, keys.image_model)}:generateContent"
-                headers = {"x-goog-api-key": route.key}
-                # One image per call: `n` becomes up to four calls made together.
-                async with httpx.AsyncClient(timeout=240, follow_redirects=False) as client:
-                    responses = await asyncio.gather(
-                        *(
-                            client.post(url, headers=headers, json=request)
-                            for _ in range(max(1, min(n, 4)))
-                        )
-                    )
-                refusals: list[str] = []
-                for response in responses:
-                    if response.status_code != 200:
-                        hint = (
-                            " (the gateway's workspace has no Google key; add one there or set "
-                            "GOOGLE_API_KEY)"
-                            if response.status_code == 424
-                            else ""
-                        )
-                        return (
-                            f"image generation failed: {route.via} HTTP {response.status_code}"
-                            f"{_reason(response)}{hint}"
-                        )
-                    images, refusal = _gemini_images(response.json())
-                    raw_images.extend(images)
-                    if refusal:
-                        refusals.append(refusal)
-                if not raw_images and refusals:
-                    return f"image generation refused by Google: {'; '.join(refusals)}."
-            else:
-                body: dict[str, JsonValue] = {
-                    "model": model or keys.image_model,
-                    "prompt": prompt,
-                    "size": size,
-                    "quality": quality,
-                    "n": n,
-                }
-                if background is not None:
-                    body["background"] = background
-                if output_format is not None:
-                    body["output_format"] = output_format
-                if params:
-                    body.update(params)
-                async with httpx.AsyncClient(timeout=240, follow_redirects=False) as client:
-                    response = await client.post(
-                        route.url, headers={"Authorization": f"Bearer {route.key}"}, json=body
-                    )
-                if response.status_code != 200:
-                    hint = (
-                        " (the gateway's workspace has no OpenAI key; add one there or set "
-                        "OPENAI_API_KEY)"
-                        if response.status_code == 424
-                        else ""
-                    )
-                    return (
-                        f"image generation failed: {route.via} HTTP {response.status_code}"
-                        f"{_reason(response)}{hint}"
-                    )
-                items = response.json().get("data") or []
-                for item in items:
-                    if not isinstance(item, dict):
-                        continue
-                    if item.get("b64_json"):
-                        encoded = item["b64_json"]
-                        if len(encoded) > (_IMAGE_GEN_CAP_MB * 1024 * 1024 + 2) // 3 * 4:
-                            return f"generated image too large: limit {_IMAGE_GEN_CAP_MB} MB."
-                        raw_images.append((base64.b64decode(encoded, validate=True), ""))
-                    elif item.get("url"):
-                        data = await _download(
-                            item["url"], cap_mb=_IMAGE_GEN_CAP_MB, provider="OpenAI image"
-                        )
-                        raw_images.append((data, ""))
-
             written: list[str] = []
-            reports: list[str] = []
+            reports: list[str] = list(made.notes)
             stem, extension = posixpath.splitext(path)
-            for index, (data, mime) in enumerate(raw_images):
+            for index, (data, mime) in enumerate(made.images):
                 # Google answers in its own format: name the file for what it holds.
                 kinds = _IMAGE_EXTENSIONS.get(mime, ())
                 suffix = extension if not kinds or extension.lower() in kinds else kinds[0]
-                target = f"{stem}_{index}{suffix}" if len(raw_images) > 1 else stem + suffix
+                target = f"{stem}_{index}{suffix}" if len(made.images) > 1 else stem + suffix
                 written.append(await write_bytes(backend, target, data))
                 if wants_alpha:
                     reports.append(_alpha_receipt(target, *_png_alpha_report(data)))
-            if written and wants_alpha and route.provider == "google":
+            if written and wants_alpha and provider.provider == "google":
                 reports.append(
                     "Google's image models make no transparent backgrounds: generate on a plain "
                     "ground and cut the subject out."
@@ -873,6 +574,8 @@ def build_media_tools(settings: Settings, backend_for: BackendFor) -> list[BaseT
                 if written
                 else "no images written."
             )
+        except ImageError as error:
+            return str(error)
         except WorkspaceError as error:
             return str(error)
         except httpx.HTTPError:

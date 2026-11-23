@@ -86,12 +86,21 @@ the way it is billed.
 
 ## Images
 
-Images come from the first of these that is set: `OPENAI_API_KEY` (OpenAI), `GOOGLE_API_KEY`
-(Google's Gemini image models), or, on a deployment that uses the gateway (a `langsmith:` model or
-`LANGSMITH_GATEWAY_API_KEY`), the gateway: its Google path when the lead model is Google, its OpenAI
-path otherwise, with the provider key stored in that gateway workspace.
-`DESIGN_AGENT_IMAGE_MODEL=gemini-…` (for example `gemini-nano-banana-2.1`) picks Google whenever
-Google is reachable. Google's image models make no transparent backgrounds.
+Each `generate_image` call goes to the provider its model names: `openai:<id>`, `google:<id>`, or a
+plain id by family (`gpt-image-…`, `dall-e-…` to OpenAI; `gemini-…`, `imagen-…` to Google). The
+default is `DESIGN_AGENT_IMAGE_MODEL`, else `gpt-image-2.5-flare` when OpenAI is reachable and
+`gemini-nano-banana-2.1` when only Google is (or the lead model is Google's).
+
+| Provider | Reached through, first that is set |
+| --- | --- |
+| OpenAI-compatible images | `DESIGN_AGENT_IMAGE_BASE_URL` with the key `DESIGN_AGENT_IMAGE_API_KEY_ENV` names (then any plain id goes there); `OPENAI_API_KEY`; the gateway's OpenAI path |
+| Google (Gemini image models) | `GOOGLE_API_KEY`; the gateway's Google path |
+
+The gateway is used by a deployment that uses it (a `langsmith:` model or
+`LANGSMITH_GATEWAY_API_KEY`), with the provider key stored in that gateway workspace. A key only
+goes to its own provider or the gateway, and a model id that reaches a URL must be URL-safe. A model
+nothing reachable serves is an error that says what to set, never another model. Google's image
+models make no transparent backgrounds and make one image per request (`n` up to 4).
 
 ## Cost and limits
 
