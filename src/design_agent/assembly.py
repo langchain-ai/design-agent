@@ -90,10 +90,10 @@ class AgentComponents:
 
 
 def _disclosure(settings: Settings, role: Any, injected: BaseChatModel | None) -> ToolDisclosure:
-    """How tools reach the model that will actually run: the configured one, or an injected one
-    (the scripted demo and tests), read from its provider and model name."""
+    """How tools reach the model that will actually run: the configured one (on its endpoint), or
+    an injected one (the scripted demo and tests), read from its provider and model name."""
     if injected is None:
-        return capabilities_for(resolve_model(settings, role).spec).disclosure
+        return resolve_model(settings, role).caps.disclosure
     try:
         spec = ModelSpec.parse(
             f"{getattr(injected, 'provider_name', '')}:{getattr(injected, 'model_name', '')}"

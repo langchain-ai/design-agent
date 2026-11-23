@@ -46,6 +46,16 @@
 
 ### Changed
 
+- Any LangChain chat model runs any role. A model the capability registry does not list is
+  described by its LangChain profile (image input, output limit, effort levels); a looking role is
+  refused only when that data says the model takes no images, and otherwise runs with a warning
+  (`doctor` shows it as unverified; `DESIGN_AGENT_<ROLE>_MODEL_VISION` settles it). Each role has
+  its own endpoint (`_BASE_URL`, `_API_KEY_ENV`), output budget (`_MAX_OUTPUT_TOKENS`) and
+  constructor arguments (`_KWARGS`, a JSON object with no endpoint or key). Effort goes to each
+  provider as its own parameter, and an effort a model does not take runs at the nearest it does,
+  logged rather than refused. OpenAI-compatible and gateway routes get the repairs they need
+  (`models/compat.py`). A model with no price in `config/prices.toml` still runs; `doctor` says
+  its cost can't be counted.
 - `doctor` says "ready for `mda deploy`" only when a deploy would work: until the snapshot is
   published and the lead model's key is in `.env` (a deploy ships `.env`, not the shell), its
   `mda-deploy` line lists what to do first. The deploy skill asks the setup questions up front,

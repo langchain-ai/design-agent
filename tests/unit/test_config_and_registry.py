@@ -15,11 +15,17 @@ from design_agent.models.registry import (
     ModelConfigurationError,
     ToolDisclosure,
     capabilities_for,
+    warn_once,
 )
 
 
 def settings(**values: object) -> Settings:
     return Settings(_env_file=None, **values)  # type: ignore[call-arg]
+
+
+@pytest.fixture(autouse=True)
+def fresh_warnings() -> None:
+    warn_once.cache_clear()
 
 
 def test_model_spec_parses_provider_and_gateway() -> None:
@@ -100,11 +106,122 @@ def test_high_effort_gets_the_output_floor() -> None:
     assert resolved.max_output_tokens >= HIGH_EFFORT_MIN_OUTPUT_TOKENS
 
 
-def test_models_without_vision_are_refused_for_looking_roles() -> None:
+def test_only_capability_data_that_says_no_images_refuses_a_looking_role(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    # A text-only model by its LangChain profile is refused, naming the override.
+    with pytest.raises(ModelConfigurationError, match="DESIGN_AGENT_MODEL_VISION"):
+        resolve_model(settings(model="mistralai:codestral-latest"), "lead", probe=True)
+    with pytest.raises(ModelConfigurationError, match="DESIGN_AGENT_LOOK_MODEL_VISION"):
+        resolve_model(settings(look_model="mistralai:codestral-latest"), "look", probe=True)
+    # A model nothing describes runs, with a warning; the override settles it either way.
+    unknown = resolve_model(settings(model="mystery:model-1"), "lead", probe=True)
+    assert unknown.caps.vision is None and unknown.caps.source == "unknown"
+    assert "no capability data says it takes images" in caplog.text
+    assert resolve_model(settings(model="mystery:model-1", model_vision=True)).caps.vision
     with pytest.raises(ModelConfigurationError, match="image input"):
-        resolve_model(settings(model="mystery:model-1"), "lead")
-    with pytest.raises(ModelConfigurationError, match="look"):
-        resolve_model(settings(look_model="mystery:model-1"), "look")
+        resolve_model(settings(helper_model="mystery:model-1", helper_model_vision=False), "helper")
+    # The tool selector never looks at images.
+    resolve_model(settings(tool_selector_model="mistralai:codestral-latest"), "tool_selector")
+
+
+def test_a_model_the_registry_lacks_is_described_by_its_langchain_profile() -> None:
+    s = settings(model="anthropic:claude-sonnet-4-5", anthropic_api_key="sk-test")
+    resolved = resolve_model(s, "lead", probe=True)
+    assert resolved.caps.source == "profile" and resolved.caps.vision is True
+    assert resolved.caps.disclosure is ToolDisclosure.PORTABLE_SELECTOR
+    assert resolved.max_output_tokens == 64_000, "its output budget comes from the profile"
+    model = build_chat_model(s, "lead")
+    assert model.max_tokens == 64_000  # type: ignore[attr-defined]
+    assert resolve_model(s, "lead").caps is UNKNOWN_MODEL, "no profile without probing"
+
+
+def test_each_role_has_its_own_endpoint_budget_and_constructor_arguments(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("HELPER_KEY", "helper-secret")
+    s = settings(
+        model="anthropic:claude-opus-5-5",
+        anthropic_api_key="sk-ant",
+        helper_model="openai:local-model",
+        helper_model_base_url="https://llm.example/v1",
+        helper_model_api_key_env="HELPER_KEY",
+        helper_model_max_output_tokens=8_000,
+        helper_model_kwargs='{"temperature": 0.2}',
+        helper_model_vision=True,
+    )
+    helper = build_chat_model(s, "helper")
+    assert helper.openai_api_base == "https://llm.example/v1"  # type: ignore[attr-defined]
+    assert helper.openai_api_key.get_secret_value() == "helper-secret"  # type: ignore[attr-defined]
+    assert helper.max_tokens == 8_000 and helper.temperature == 0.2  # type: ignore[attr-defined]
+    assert helper.use_responses_api is False, "an OpenAI-compatible endpoint is Chat Completions"  # type: ignore[attr-defined]
+    lead = build_chat_model(s, "lead")
+    assert lead.anthropic_api_url != "https://llm.example/v1"  # type: ignore[attr-defined]
+    # The lead starting a helper on the helper model, or `look` on it, reaches it the same way.
+    look = build_chat_model(s, "look", spec=ModelSpec.parse("openai:local-model"))
+    assert look.openai_api_base == "https://llm.example/v1"  # type: ignore[attr-defined]
+
+
+def test_a_helper_on_the_leads_model_reaches_the_leads_endpoint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("EXAMPLE_KEY", "secret")
+    s = settings(
+        model="openai:gpt-6-sol",
+        model_base_url="https://llm.example/v1",
+        model_api_key_env="EXAMPLE_KEY",
+        model_max_output_tokens=4_000,
+    )
+    helper = build_chat_model(s, "helper")
+    assert helper.openai_api_base == "https://llm.example/v1"  # type: ignore[attr-defined]
+    assert helper.max_tokens == 128_000, "the lead's budget is the lead's own"  # type: ignore[attr-defined]
+
+
+@pytest.mark.parametrize(
+    ("value", "match"),
+    [
+        ("not json", "JSON object"),
+        ("[1, 2]", "JSON object"),
+        ('{"base_url": "https://elsewhere.example"}', "may not set base_url"),
+        ('{"api_key": "sk"}', "may not set api_key"),
+        ('{"default_headers": {"x": "y"}}', "may not set default_headers"),
+    ],
+)
+def test_constructor_arguments_never_choose_an_endpoint_or_a_key(value: str, match: str) -> None:
+    with pytest.raises(ModelConfigurationError, match=match):
+        build_chat_model(settings(anthropic_api_key="sk", model_kwargs=value), "lead")
+
+
+def test_effort_maps_to_each_providers_parameter(caplog: pytest.LogCaptureFixture) -> None:
+    google = build_chat_model(
+        settings(model="google_genai:gemini-3.6-flash", google_api_key="g", model_effort="low"),
+        "lead",
+    )
+    assert google.reasoning_effort == "low"  # type: ignore[attr-defined]  # thinking_level
+    budget = build_chat_model(
+        settings(model="google_genai:gemini-2.5-flash", google_api_key="g", model_effort="high"),
+        "lead",
+    )
+    assert budget.thinking_budget == 24_576  # type: ignore[attr-defined]
+    chat = build_chat_model(
+        settings(
+            model="openai:gpt-6-sol",
+            model_effort="high",
+            model_base_url="https://llm.example/v1",
+            model_api_key_env="PATH",  # any variable that is set
+        ),
+        "lead",
+    )
+    assert chat.reasoning_effort == "high" and chat.reasoning is None  # type: ignore[attr-defined]
+    native = build_chat_model(settings(model="openai:gpt-6-sol", openai_api_key="sk"), "lead")
+    assert native.reasoning == {"effort": "medium"}  # type: ignore[attr-defined]
+    # No effort parameter: dropped with a warning, never refused.
+    mistral = resolve_model(
+        settings(model="mistralai:mistral-large-latest", model_effort="high"), probe=True
+    )
+    assert mistral.effort is None and "takes no effort setting" in caplog.text
+    # A level the model does not take runs at the most it takes under it.
+    assert resolve_model(settings(model_effort="minimal")).effort == "low"
 
 
 def test_anthropic_model_is_built_with_registry_behavior() -> None:

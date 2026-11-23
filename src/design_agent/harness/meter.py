@@ -165,11 +165,15 @@ def default_prices() -> Mapping[str, Price]:
 
 def price_of(model: str, prices: Mapping[str, Price] | None = None) -> Price | None:
     """The price for a model id, or for the longest listed id it extends (a dated snapshot).
-    A `provider:model` or gateway `provider:vendor/model` id is looked up by its model part."""
+    A `provider:model` or gateway `provider:vendor/model` id is looked up by its model part; an id
+    with its own colon (`llama3.3:70b`) as it is."""
     table = default_prices() if prices is None else prices
-    name = model.rpartition(":")[2].rpartition("/")[2]
-    if name in table:
-        return table[name]
+    after_provider = model.partition(":")[2] or model
+    names = dict.fromkeys((model, after_provider, after_provider.rpartition("/")[2]))
+    for name in names:
+        if name in table:
+            return table[name]
+    name = after_provider.rpartition("/")[2]
     matches = [listed for listed in table if name.startswith(f"{listed}-")]
     return table[max(matches, key=len)] if matches else None
 
