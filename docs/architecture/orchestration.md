@@ -61,7 +61,7 @@ batch that did start a run can be recognised by the adapter.
 
 Adapters live outside the harness. Self-hosted, the waker enqueues a run in the API process with a
 Postgres timer table for check-ins (SPEC §7.4). On MDA it uses public one-time runtime schedules on
-the current thread (`runtime/waker/mda.py`), with these constraints from managed-deepagents 0.9.4:
+the current thread (`runtime/waker/mda.py`), with these constraints from managed-deepagents 0.10.5:
 
 - **Latency.** A schedule's `at` must be at least a minute ahead and is rounded up to the next
   whole minute, so a wake-up lands 60–120 s after the event, plus the scheduler's own lag. The
@@ -198,7 +198,7 @@ by a person. The rendered list is headed as untrusted notes the next job weighs,
 
 | Primitive | Upstream today | Plan |
 | --- | --- | --- |
-| Background helpers on the lead's sandbox | Deep Agents async subagents run as server runs on their own threads; MDA does not build them yet | migrate when MDA runs async subagents on the lead's sandbox, then delete the in-process runner |
+| Background helpers on the lead's sandbox | MDA 0.10 builds each `"async": True` subagent as its own graph and shares the lead's sandbox with it | done on MDA: the lead's helpers are `worker` tasks (`middleware/async_helpers.py`); looks, pipelines and the post-job review still use the in-process runner, and self-hosted keeps it |
 | Durable transcripts | server runs are checkpointed; in-process subagents are not | keep the stub rules if replay still needs them |
-| Wake-ups | Deep Agents notifies a parent when a same-deployment async subagent finishes | becomes the native path for helper results once async subagents ship in MDA |
+| Wake-ups | Deep Agents notifies an idle parent when a same-deployment async subagent ends | the native path for MDA helper results; check-ins, watches and pipelines keep the `Waker` |
 | Event bus, attention rule, watchers, detached jobs, pipelines, looks, meter | none | candidates to upstream as they are |

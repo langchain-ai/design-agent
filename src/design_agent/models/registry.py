@@ -1,15 +1,22 @@
-"""Exact-id model capability registry.
+"""What the harness may rely on for a model: the exact-id registry, else its LangChain profile.
 
-Each entry records what the harness relies on for one `provider:model` id. Lookups are exact: no
-substring matching on provider or model names, so a new model takes the portable path until
-someone verifies it and adds an entry. `tests/unit/test_model_registry.py` cross-checks every
+Each registry entry records what the harness relies on for one `provider:model` id and is the only
+source that claims provider features (native tool search, prompt-cache lifetimes, context editing).
+Lookups are exact: no substring matching on provider or model names. A model without an entry is
+described by the profile LangChain publishes for it (`from_profile`: image input, output limit,
+effort levels) and runs on the portable path; a model with neither is unknown, and a role that
+looks at images runs it with a warning. `tests/unit/test_config_and_registry.py` cross-checks every
 entry against the limits the installed provider package publishes.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import logging
+from collections.abc import Mapping
+from dataclasses import dataclass, field, replace
 from enum import StrEnum
+from functools import cache
+from typing import Any
 
 from design_agent.config import ModelSpec
 
@@ -25,6 +32,10 @@ class ToolDisclosure(StrEnum):
     """Every tool bound on every call (scripted model only)."""
 
 
+_LOGGER = logging.getLogger(__name__)
+
+#: Every effort level any provider takes, least thinking first.
+EFFORT_ORDER = ("none", "minimal", "low", "medium", "high", "xhigh", "max")
 ANTHROPIC_EFFORTS = frozenset({"low", "medium", "high", "xhigh", "max"})
 OPENAI_EFFORTS = frozenset({"none", "low", "medium", "high", "xhigh", "max"})
 #: Anthropic's recommended output headroom for the two highest effort levels.
@@ -36,7 +47,8 @@ class ModelCapabilities:
     """What one exact model id supports. Only `verified` entries claim provider features."""
 
     provider: str
-    vision: bool
+    vision: bool | None
+    """None: no capability data says whether it takes images."""
     tool_calling: bool = True
     disclosure: ToolDisclosure = ToolDisclosure.PORTABLE_SELECTOR
     efforts: frozenset[str] = frozenset()
@@ -52,6 +64,10 @@ class ModelCapabilities:
     integration_package: str = ""
     image_tokens_per_megapixel: int | None = None
     """Approximate input tokens for a 1-megapixel image; drives the look tool's budget."""
+    thinking_budget: bool = False
+    """Google models that think to a token budget rather than a level (Gemini 2.5)."""
+    source: str = "registry"
+    """Where these facts come from: `registry`, `profile` (LangChain's) or `unknown`."""
     verified: bool = False
     notes: str = ""
     extra: dict[str, object] = field(default_factory=dict)
@@ -139,40 +155,85 @@ GATEWAY_NATIVE_PROVIDERS = frozenset({"anthropic", "openai"})
 
 UNKNOWN_MODEL = ModelCapabilities(
     provider="",
-    vision=False,
-    notes="Not in the registry: portable selector path and no provider-feature claims.",
+    vision=None,
+    source="unknown",
+    notes="No registry entry or LangChain profile: portable path, no provider-feature claims.",
 )
 
+#: Providers whose effort is Gemini's thinking level (or, before Gemini 3, a token budget).
+GOOGLE_PROVIDERS = frozenset({"google_genai", "google_vertexai"})
+#: The efforts a budget-thinking Gemini model is offered (`ModelCapabilities.thinking_budget`).
+BUDGET_EFFORTS = frozenset({"minimal", "low", "medium", "high"})
 
-def capabilities_for(spec: ModelSpec, *, base_url: str | None = None) -> ModelCapabilities:
-    """Exact lookup. A custom endpoint, or a gateway route that is not the provider's own API,
-    never inherits provider-native features."""
+
+def from_profile(provider: str, profile: Mapping[str, Any] | None) -> ModelCapabilities | None:
+    """A model's capabilities from its LangChain profile (`BaseChatModel.profile`), or None.
+
+    The profile says what the model takes, never which provider features the harness may use, so
+    the result is portable: no native tool search, cache lifetimes or context editing.
+    """
+    if not profile:
+        return None
+    levels = frozenset(
+        level
+        for level in profile.get("reasoning_effort_levels") or ()
+        if isinstance(level, str) and level in EFFORT_ORDER
+    )
+    budget = provider in GOOGLE_PROVIDERS and not levels and profile.get("reasoning_output") is True
+    efforts = levels or (BUDGET_EFFORTS if budget else frozenset())
+    default = profile.get("reasoning_effort_default")
+    image = profile.get("image_inputs")
+    return ModelCapabilities(
+        provider=provider,
+        vision=image if isinstance(image, bool) else None,
+        tool_calling=profile.get("tool_calling") is not False,
+        efforts=efforts,
+        default_effort=default if default in efforts else None,
+        context_window=_count(profile.get("max_input_tokens")),
+        max_output_tokens=_count(profile.get("max_output_tokens")),
+        streaming_tool_calls=profile.get("tool_call_streaming") is not False,
+        thinking_budget=budget,
+        source="profile",
+        notes="LangChain profile: portable path, no provider-feature claims.",
+    )
+
+
+def _count(value: object) -> int | None:
+    return value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else None
+
+
+def capabilities_for(
+    spec: ModelSpec, *, base_url: str | None = None, profile: Mapping[str, Any] | None = None
+) -> ModelCapabilities:
+    """The registry's exact entry, else what `profile` says, else `UNKNOWN_MODEL`. A custom
+    endpoint, or a gateway route that is not the provider's own API, never inherits
+    provider-native features."""
     if spec.via_gateway:
-        upstream = CAPABILITY_REGISTRY.get(str(spec.upstream), UNKNOWN_MODEL)
-        if spec.upstream.provider in GATEWAY_NATIVE_PROVIDERS:
-            return upstream
-        return _portable(upstream, "LangSmith Gateway shared route: portable selector.")
-    found = CAPABILITY_REGISTRY.get(str(spec), UNKNOWN_MODEL)
+        upstream = spec.upstream
+        found = _lookup(upstream, profile)
+        if upstream.provider in GATEWAY_NATIVE_PROVIDERS:
+            return found
+        return _portable(found, "LangSmith Gateway shared route: portable selector.")
+    found = _lookup(spec, profile)
     if base_url is not None and found.disclosure is ToolDisclosure.PROVIDER_NATIVE:
         return _portable(found, "custom base URL: provider-native search is not assumed.")
     return found
 
 
+def _lookup(spec: ModelSpec, profile: Mapping[str, Any] | None) -> ModelCapabilities:
+    return (
+        CAPABILITY_REGISTRY.get(str(spec)) or from_profile(spec.provider, profile) or UNKNOWN_MODEL
+    )
+
+
 def _portable(caps: ModelCapabilities, note: str) -> ModelCapabilities:
-    return ModelCapabilities(
-        provider=caps.provider,
-        vision=caps.vision,
-        tool_calling=caps.tool_calling,
+    return replace(
+        caps,
         disclosure=ToolDisclosure.PORTABLE_SELECTOR,
-        efforts=caps.efforts,
-        default_effort=caps.default_effort,
-        context_window=caps.context_window,
-        max_output_tokens=caps.max_output_tokens,
-        adaptive_thinking=caps.adaptive_thinking,
-        streaming_tool_calls=caps.streaming_tool_calls,
-        integration_package=caps.integration_package,
-        image_tokens_per_megapixel=caps.image_tokens_per_megapixel,
-        verified=caps.verified,
+        cache_ttls=frozenset(),
+        server_context_editing=False,
+        responses_api=False,
+        extra={},
         notes=note,
     )
 
@@ -181,28 +242,58 @@ class ModelConfigurationError(ValueError):
     """A model setting the harness cannot run with. The message is safe to print."""
 
 
-def require_vision(spec: ModelSpec, caps: ModelCapabilities, *, role: str) -> None:
-    """Lead, helper and look roles look at renders: refuse a model without image input."""
-    if not caps.vision:
+@cache
+def warn_once(message: str) -> None:
+    """Log a configuration warning once per process: models are built per role and per task."""
+    _LOGGER.warning("[models] %s", message)
+
+
+def require_vision(spec: ModelSpec, caps: ModelCapabilities, *, role: str, setting: str) -> None:
+    """Lead, helper and look look at renders: refuse a model whose capability data says it takes
+    no images. Without data it runs (the factory warns once; doctor shows it as unverified)."""
+    if caps.vision is False:
         raise ModelConfigurationError(
-            f"{role} model {spec} is not registered with image input; the {role} looks at its "
-            "own renders. Choose a vision model from the capability registry."
+            f"{role} model {spec} takes no image input (its {caps.source} says so), and the "
+            f"{role} looks at its own renders. Choose a vision model, or set {setting}=1 if that "
+            "is wrong."
         )
 
 
 def resolve_effort(
-    spec: ModelSpec, caps: ModelCapabilities, requested: str | None, *, role: str
+    spec: ModelSpec,
+    caps: ModelCapabilities,
+    requested: str | None,
+    *,
+    role: str,
+    quiet: bool = False,
 ) -> str | None:
-    """The effort to send: the request if the model supports it, else the model's default."""
-    effort = (requested or "").strip().lower() or caps.default_effort
+    """The effort to send for `requested`: as asked when the model takes it; else the most it
+    takes at or under the request (the least it takes, when none is that low); None when it takes
+    no effort setting. A clipped or dropped request is logged, never refused. A value that is no
+    effort level at all is a typo and is refused."""
+    asked = (requested or "").strip().lower()
+    if asked and asked not in EFFORT_ORDER:
+        raise ModelConfigurationError(
+            f"{role} effort {asked!r} is not an effort level; choose one of: "
+            + ", ".join(sorted(caps.efforts, key=EFFORT_ORDER.index) or EFFORT_ORDER)
+        )
+    effort = asked or caps.default_effort
     if effort is None:
         return None
     if not caps.efforts:
-        # Unknown or effort-less models: drop the request rather than send an unknown parameter.
+        if asked and not quiet:
+            warn_once(f"{spec} takes no effort setting; the {role}'s {asked!r} is dropped")
         return None
-    if effort not in caps.efforts:
-        allowed = ", ".join(sorted(caps.efforts))
-        raise ModelConfigurationError(
-            f"{role} effort {effort!r} is not supported by {spec}; choose one of: {allowed}"
-        )
-    return effort
+    if effort in caps.efforts:
+        return effort
+    clipped = clip_effort(effort, caps.efforts)
+    if not quiet:
+        warn_once(f"{spec} does not take effort {effort!r}; the {role} runs at {clipped!r}")
+    return clipped
+
+
+def clip_effort(effort: str, efforts: frozenset[str]) -> str:
+    """The most of `efforts` at or under `effort`, else the least of them."""
+    taken = sorted(efforts, key=EFFORT_ORDER.index)
+    under = [e for e in taken if EFFORT_ORDER.index(e) <= EFFORT_ORDER.index(effort)]
+    return under[-1] if under else taken[0]

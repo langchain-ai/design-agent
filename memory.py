@@ -12,13 +12,16 @@ context in a shared thread, which is why `instructions.md` says never to repeat 
 
 from managed_deepagents import ManagedServerRuntime, MemoryLayer, define_memory
 
+from design_agent.runtime.origin import origin_channel
+
 memory = define_memory(agent=MemoryLayer(), user=MemoryLayer())
 
 
 def slack_run(runtime: ManagedServerRuntime) -> bool:
-    """A run a Slack event started (a mention, a DM, a thread reply or an approval click).
+    """A run in a Slack thread: a mention, a DM, a reply, an approval click, or a wake-up there.
 
-    MDA sets the runtime's channel only for a channel run, from its own routing, never from the
-    context a caller sends; inspection, Studio, API and scheduled runs have none.
+    MDA sets a thread's origin from its own routing, never from the context a caller sends;
+    inspection, Studio and API runs have none. User memory still mounts only for a person.
     """
-    return runtime.channel is not None and runtime.channel.provider == "slack"
+    channel = origin_channel(runtime)
+    return channel is not None and channel.provider == "slack"

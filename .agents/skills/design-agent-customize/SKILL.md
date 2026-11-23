@@ -61,6 +61,12 @@ sibling skill of ours, or send the change upstream.
 
 ## Models and cost
 
-`uv run design-agent config set DESIGN_AGENT_MODEL=provider:model`, then
-`uv run design-agent test model`. `DESIGN_AGENT_JOB_BUDGET_USD` makes the agent ask before passing
-a budget; `DESIGN_AGENT_HELPER_EFFORT_CAP` caps helpers' effort. More: [Customization](../../../docs/customization.md).
+`uv run design-agent config set DESIGN_AGENT_MODEL=provider:model` (any LangChain chat model; a
+role's own is `DESIGN_AGENT_<ROLE>_MODEL`), then `uv run design-agent doctor` and
+`uv run design-agent test model`. `doctor` says what is known about each role's model: a model it
+calls unverified runs, but set `DESIGN_AGENT_<ROLE>_MODEL_VISION=1` only once you know it takes
+images, and add a price to `config/prices.toml` when it says the cost can't be counted. An
+OpenAI-compatible endpoint is `…_MODEL_BASE_URL` plus `…_MODEL_API_KEY_ENV`, the variable holding
+its key ([Models](../../../docs/models.md)). `DESIGN_AGENT_JOB_BUDGET_USD` makes the agent ask
+before passing a budget; `DESIGN_AGENT_HELPER_EFFORT_CAP` caps helpers' effort. More:
+[Customization](../../../docs/customization.md).

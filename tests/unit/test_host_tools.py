@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import json
+import re
 import struct
 import zlib
 from typing import Any
@@ -14,15 +15,15 @@ from deepagents.backends.protocol import FileDownloadResponse, FileUploadRespons
 
 from design_agent.config import Settings
 from design_agent.tools.fetch import FetchRefused, build_fetch_tool, check_url, public_address
-from design_agent.tools.media import (
+from design_agent.tools.images import (
     GATEWAY_GOOGLE,
     GOOGLE_API,
     GOOGLE_IMAGE_MODEL,
-    _google_model,
-    _png_alpha_report,
-    build_media_tools,
-    image_route,
+    OPENAI_IMAGE_MODEL,
+    ImageError,
+    image_routes,
 )
+from design_agent.tools.media import _png_alpha_report, build_media_tools
 
 
 class MemoryBackend:
@@ -202,6 +203,14 @@ def _settings(**values: Any) -> Settings:
     return Settings(_env_file=None, **values)  # type: ignore[call-arg]
 
 
+def image_route(settings: Settings, model: str | None = None) -> Any:
+    """The provider an unnamed (or named) model goes to; None when there is none."""
+    try:
+        return image_routes(settings).route(model)[0]
+    except ImageError:
+        return None
+
+
 def test_images_go_to_openai_with_its_key_else_through_the_gateway() -> None:
     direct = image_route(_settings(openai_api_key="sk-test", langsmith_gateway_api_key="lsv2-g"))
     assert direct is not None and direct.url.startswith("https://api.openai.com/")
@@ -244,7 +253,7 @@ async def test_a_gateway_without_an_openai_key_says_where_to_add_one(
 def test_images_pick_a_provider_and_a_key_never_crosses_to_another() -> None:
     google = image_route(_settings(google_api_key="aiza-direct"))
     assert google is not None and google.provider == "google"
-    assert google.url == f"{GOOGLE_API}/models" and google.key == "aiza-direct"
+    assert google.models_url == f"{GOOGLE_API}/models" and google.key == "aiza-direct"
 
     # A Google lead on the gateway goes through the gateway's Google path with the LangSmith key;
     # the LangSmith key never goes to Google itself.
@@ -254,8 +263,8 @@ def test_images_pick_a_provider_and_a_key_never_crosses_to_another() -> None:
     ):
         via_gateway = image_route(settings)
         assert via_gateway is not None and via_gateway.provider == "google"
-        assert via_gateway.url == f"{GATEWAY_GOOGLE}/models" and via_gateway.key == "lsv2-l"
-        assert "googleapis.com" not in via_gateway.url
+        assert via_gateway.models_url == f"{GATEWAY_GOOGLE}/models"
+        assert via_gateway.key == "lsv2-l" and "googleapis.com" not in via_gateway.models_url
 
     anthropic_lead = image_route(
         _settings(model="langsmith:anthropic/claude-opus-5-5", langsmith_api_key="lsv2-l")
@@ -264,28 +273,144 @@ def test_images_pick_a_provider_and_a_key_never_crosses_to_another() -> None:
 
     # A provider key you set wins; DESIGN_AGENT_IMAGE_MODEL=gemini-… chooses Google outright.
     both = _settings(openai_api_key="sk-test", google_api_key="aiza-direct")
-    assert image_route(both).provider == "openai"  # type: ignore[union-attr]
+    assert image_route(both).provider == "openai"
     chosen = _settings(
         openai_api_key="sk-test", google_api_key="aiza-direct", image_model="gemini-3-pro-image"
     )
-    assert image_route(chosen).provider == "google"  # type: ignore[union-attr]
+    assert image_route(chosen).provider == "google"
 
 
 @pytest.mark.parametrize(
-    ("requested", "configured", "model"),
+    ("model", "provider", "sent"),
     [
-        ("gemini-3-pro-image", "gpt-image-2.5-flare", "gemini-3-pro-image"),
-        ("models/gemini-3.1-flash-image", "gpt-image-2.5-flare", "gemini-3.1-flash-image"),
-        (None, "gemini-3.1-flash-lite-image", "gemini-3.1-flash-lite-image"),
-        ("gpt-image-2.5-flare", "gpt-image-2.5-flare", GOOGLE_IMAGE_MODEL),
-        ("gemini-x:generateContent?alt=sse#", "gpt-image-2.5-flare", GOOGLE_IMAGE_MODEL),
-        ("gemini-x/../../files", "gpt-image-2.5-flare", GOOGLE_IMAGE_MODEL),
+        ("gemini-3-pro-image", "google", "gemini-3-pro-image"),
+        ("google:models/gemini-3.1-flash-image", "google", "gemini-3.1-flash-image"),
+        ("GOOGLE:imagen-5", "google", "imagen-5"),
+        ("gpt-image-2.5-flare", "openai", "gpt-image-2.5-flare"),
+        ("openai:my-org/flux-dev:v2", "openai", "my-org/flux-dev:v2"),
+        (None, "openai", OPENAI_IMAGE_MODEL),
     ],
 )
-def test_only_a_well_formed_gemini_model_id_reaches_the_url(
-    requested: str | None, configured: str, model: str
+def test_each_call_goes_to_the_provider_its_model_names(
+    model: str | None, provider: str, sent: str
 ) -> None:
-    assert _google_model(requested, configured) == model
+    routes = image_routes(_settings(openai_api_key="sk-test", google_api_key="aiza-direct"))
+    chosen, model_id = routes.route(model)
+    assert (chosen.provider, model_id) == (provider, sent)
+
+
+@pytest.mark.parametrize(
+    ("settings", "model", "says"),
+    [
+        ({"openai_api_key": "sk-test"}, "gemini-3-pro-image", "set GOOGLE_API_KEY"),
+        ({"google_api_key": "aiza"}, "gpt-image-2.5-flare", "set OPENAI_API_KEY"),
+        ({"openai_api_key": "sk-test"}, "flux-dev", "openai:<model> or google:<model>"),
+        ({"openai_api_key": "sk-test", "image_model": "flux-dev"}, None, "no provider is known"),
+    ],
+)
+def test_a_model_nothing_serves_is_an_error_never_another_model(
+    settings: dict[str, Any], model: str | None, says: str
+) -> None:
+    with pytest.raises(ImageError, match=re.escape(says)):
+        image_routes(_settings(**settings)).route(model)
+
+
+@pytest.mark.parametrize(
+    "model", ["gemini-x:generateContent?alt=sse#", "gemini-x/../../files", "google:a%2Fb"]
+)
+async def test_only_a_url_safe_model_id_reaches_googles_url(
+    monkeypatch: pytest.MonkeyPatch, model: str
+) -> None:
+    tools, calls, backend = _google_tools(monkeypatch, _gemini(_png(2, 2, 255)))
+    result = await tools["generate_image"].coroutine(
+        prompt="x", sandbox_path="/workspace/projects/p/x.png", runtime=None, model=model
+    )  # type: ignore[misc]
+    assert "is not a Google model id" in result
+    assert not calls and not backend.files, "nothing was sent and nothing fell back"
+
+
+async def test_an_openai_deployment_makes_a_gemini_image_when_google_is_reachable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    tools, calls, backend = _google_tools(
+        monkeypatch, _gemini(_png(2, 2, 255)), openai_api_key="sk-openai"
+    )
+    result = await tools["generate_image"].coroutine(
+        prompt="a lamp",
+        sandbox_path="/workspace/projects/p/lamp.png",
+        runtime=None,
+        model="gemini-3-pro-image",
+    )  # type: ignore[misc]
+    assert result == "wrote /workspace/projects/p/lamp.png"
+    assert calls[0]["url"] == f"{GOOGLE_API}/models/gemini-3-pro-image:generateContent"
+    assert calls[0]["headers"] == {"x-goog-api-key": "aiza-test"}, "the OpenAI key stays home"
+
+
+async def test_a_custom_endpoint_gets_its_own_key_and_every_plain_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("IMAGES_KEY", "custom-secret")
+    payload = {"data": [{"b64_json": base64.b64encode(_png(2, 2, 255)).decode()}]}
+    seen: list[dict[str, Any]] = []
+
+    async def fake_post(self: httpx.AsyncClient, url: str, **kwargs: Any) -> httpx.Response:
+        seen.append({"url": url, **kwargs})
+        return httpx.Response(
+            200, content=json.dumps(payload).encode(), request=httpx.Request("POST", url)
+        )
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+    backend = MemoryBackend()
+    settings = _settings(
+        openai_api_key="sk-openai",
+        image_base_url="https://images.example/v1/",
+        image_api_key_env="IMAGES_KEY",
+        image_model="black-forest-labs/flux-dev",
+    )
+    tools = {t.name: t for t in build_media_tools(settings, lambda _rt: backend)}  # type: ignore[arg-type,return-value]
+    result = await tools["generate_image"].coroutine(
+        prompt="a lamp", sandbox_path="/workspace/projects/p/lamp.png", runtime=None
+    )  # type: ignore[misc]
+    assert result == "wrote /workspace/projects/p/lamp.png"
+    assert seen[0]["url"] == "https://images.example/v1/images/generations"
+    assert seen[0]["headers"] == {"Authorization": "Bearer custom-secret"}
+    assert seen[0]["json"]["model"] == "black-forest-labs/flux-dev"
+
+    keyless = _settings(image_base_url="https://images.example/v1", image_api_key_env="UNSET_KEY")
+    tools = {t.name: t for t in build_media_tools(keyless, lambda _rt: backend)}  # type: ignore[arg-type,return-value]
+    result = await tools["generate_image"].coroutine(
+        prompt="x", sandbox_path="/workspace/projects/p/x.png", runtime=None
+    )  # type: ignore[misc]
+    assert "DESIGN_AGENT_IMAGE_API_KEY_ENV" in result and len(seen) == 1
+
+
+async def test_google_keeps_the_images_it_made_and_says_what_failed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    answers = iter([200, 500, 200, 500])
+
+    async def fake_post(self: httpx.AsyncClient, url: str, **kwargs: Any) -> httpx.Response:
+        status = next(answers)
+        body = _gemini(_png(2, 2, 255)) if status == 200 else {"error": {"message": "busy"}}
+        return httpx.Response(
+            status, content=json.dumps(body).encode(), request=httpx.Request("POST", url)
+        )
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+    backend = MemoryBackend()
+    tools = {
+        t.name: t
+        for t in build_media_tools(_settings(google_api_key="aiza-test"), lambda _rt: backend)
+    }  # type: ignore[arg-type,return-value]
+    result = await tools["generate_image"].coroutine(
+        prompt="x", sandbox_path="/workspace/projects/p/x.png", runtime=None, n=6
+    )  # type: ignore[misc]
+    assert sorted(backend.files) == [
+        "/workspace/projects/p/x_0.png",
+        "/workspace/projects/p/x_1.png",
+    ]
+    assert "made 4 of the 6 asked" in result
+    assert "2 of 4 failed: Google HTTP 500: busy" in result
 
 
 def _gemini(*images: bytes, mime: str = "image/png") -> dict[str, Any]:

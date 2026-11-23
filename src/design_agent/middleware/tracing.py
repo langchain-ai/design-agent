@@ -50,6 +50,7 @@ from design_agent.harness import tasks
 from design_agent.middleware.background import CHECK_IN_MARK
 from design_agent.middleware.quiet import SENTINEL_MARK
 from design_agent.middleware.today import DATE_NOTE
+from design_agent.runtime.origin import origin_channel
 from design_agent.runtime.waker import wake_key
 from design_agent.tools.delivery import UPLOAD_TOOL, UPLOADED
 
@@ -148,7 +149,7 @@ def trigger_of(runtime: Any, messages: Sequence[object]) -> str:
         return "check_in"
     if SENTINEL_MARK in asked:
         return "watchdog"
-    event = getattr(getattr(runtime, "channel", None), "event", None)
+    event = getattr(origin_channel(runtime), "event", None)
     kind = event.get("type") if isinstance(event, Mapping) else None
     if kind == "schedule":
         return "schedule"
@@ -185,7 +186,7 @@ class RunTagsMiddleware(AgentMiddleware[AgentState[Any], Any, Any]):
         return "DesignAgentRunTags"
 
     def _surface_of(self, runtime: Any) -> str:
-        provider = getattr(getattr(runtime, "channel", None), "provider", None)
+        provider = getattr(origin_channel(runtime), "provider", None)
         if isinstance(provider, str) and provider:
             return provider
         return self._surface(runtime) if callable(self._surface) else self._surface

@@ -21,9 +21,8 @@ from design_agent.tools.delivery import UPLOADED
 
 def slack(kind: str = "message") -> Any:
     event = {"type": kind}
-    return SimpleNamespace(
-        channel=SimpleNamespace(provider="slack", event=event, raw_event={"user": "U0TESTUSER1"})
-    )
+    channel = SimpleNamespace(provider="slack", event=event, raw_event={"user": "U0TESTUSER1"})
+    return SimpleNamespace(thread=SimpleNamespace(origin=SimpleNamespace(channel=channel)))
 
 
 @pytest.mark.parametrize(

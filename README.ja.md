@@ -9,7 +9,7 @@
   <h1>Content Studio：Slack で動くオープンソースのデザインエージェント</h1>
   <p>
     <a href="LICENSE#gh-light-mode-only"><img src="https://shieldcn.dev/badge/license-Apache%202.0-006DDD.svg?variant=outline&logo=lu:Scale&mode=light" alt="License: Apache 2.0"></a><a href="LICENSE#gh-dark-mode-only"><img src="https://shieldcn.dev/badge/license-Apache%202.0-7FC8FF.svg?variant=outline&logo=lu:Scale&mode=dark" alt="License: Apache 2.0"></a>
-    <a href="https://www.python.org#gh-light-mode-only"><img src="https://shieldcn.dev/badge/python-3.11%2B-006DDD.svg?variant=outline&logo=python&mode=light" alt="Python 3.11+"></a><a href="https://www.python.org#gh-dark-mode-only"><img src="https://shieldcn.dev/badge/python-3.11%2B-7FC8FF.svg?variant=outline&logo=python&mode=dark" alt="Python 3.11+"></a>
+    <a href="https://www.python.org#gh-light-mode-only"><img src="https://shieldcn.dev/badge/python-3.12%2B-006DDD.svg?variant=outline&logo=python&mode=light" alt="Python 3.12+"></a><a href="https://www.python.org#gh-dark-mode-only"><img src="https://shieldcn.dev/badge/python-3.12%2B-7FC8FF.svg?variant=outline&logo=python&mode=dark" alt="Python 3.12+"></a>
     <a href="https://github.com/langchain-ai/deepagents#gh-light-mode-only"><img src="https://shieldcn.dev/badge/built%20on-Deep%20Agents-006DDD.svg?variant=outline&logo=lu:Layers&mode=light" alt="Built on Deep Agents"></a><a href="https://github.com/langchain-ai/deepagents#gh-dark-mode-only"><img src="https://shieldcn.dev/badge/built%20on-Deep%20Agents-7FC8FF.svg?variant=outline&logo=lu:Layers&mode=dark" alt="Built on Deep Agents"></a>
     <a href="https://docs.langchain.com/langsmith/python/managed-deep-agents-overview?utm_source=github&utm_medium=readme&utm_campaign=design-agent#gh-light-mode-only"><img src="https://shieldcn.dev/badge/deploy-Managed%20Deep%20Agents-006DDD.svg?variant=outline&logo=lu:Rocket&mode=light" alt="Deploy with Managed Deep Agents"></a><a href="https://docs.langchain.com/langsmith/python/managed-deep-agents-overview?utm_source=github&utm_medium=readme&utm_campaign=design-agent#gh-dark-mode-only"><img src="https://shieldcn.dev/badge/deploy-Managed%20Deep%20Agents-7FC8FF.svg?variant=outline&logo=lu:Rocket&mode=dark" alt="Deploy with Managed Deep Agents"></a>
   </p>
@@ -116,18 +116,17 @@ https://github.com/user-attachments/assets/65eac8e4-0fac-4a5a-9cca-02e26a0a8baa
 ```bash
 curl -fsSL https://raw.githubusercontent.com/langchain-ai/design-agent/main/install.sh | bash
 cd design-agent
-uv run design-agent config set LANGSMITH_API_KEY=lsv2_… ANTHROPIC_API_KEY=sk-ant-…
-uv run design-agent sandbox publish   # once per workspace, 10-15 min: the agent's computer
-uv run mda deploy                     # the agent itself, and its Slack app
+uv run design-agent config set LANGSMITH_API_KEY ANTHROPIC_API_KEY   # type each key; it stays hidden
+uv run mda deploy --agent-server-type dedicated   # the agent, its computer and its Slack app
 ```
 
 インストーラーは、[uv](https://docs.astral.sh/uv/) が入っていなければ導入し、リポジトリをクローンして依存関係をインストールします。`git clone` と `uv sync` でも同じことができます。
 
-最後の 2 つのコマンドは役割が違います。`sandbox publish` は、各スレッドが作業する Linux マシンを LangSmith ワークスペースのスナップショットとして構築します。この段階では、まだ話しかける相手はいません。`mda deploy` がエージェントをデプロイし、エージェントはスレッドごとにそのマシンを複製します。`sandbox publish` をやり直すのは、`sandbox/setup.sh` を変えたときだけです。
+`config set` はキーを 1 つずつ尋ね、入力は画面に表示されません。初回の `mda deploy` は、各スレッドが作業する Linux マシンを `sandbox/setup.sh` から構築し（10〜15 分）、以降はスレッドごとにそのコピーを使います。作り直すのはレシピを変えたときだけです。`dedicated` の Agent Server はリクエストの合間も動き続けるので、バックグラウンドのヘルパーが止まりません（指定しないと、ゼロまでスケールダウンする serverless になります）。
 
 **LangSmith Gateway を使う場合**：プロバイダーの API キーは不要です。`uv run design-agent config set DESIGN_AGENT_MODEL=langsmith:anthropic/claude-opus-5-5` を実行してください。エージェントは `LANGSMITH_GATEWAY_API_KEY`（なければ `LANGSMITH_API_KEY`）を使い、`OPENAI_API_KEY` がない場合は画像生成も Gateway 経由になります。その他の OpenAI 互換エンドポイントには、`DESIGN_AGENT_MODEL_BASE_URL` と `DESIGN_AGENT_MODEL_API_KEY_ENV` を設定してください（[モデル](docs/models.md)）。
 
-初回のデプロイでエージェントの Slack アプリがセットアップされます。Slack ワークスペースで承認し、チャンネルでエージェントをメンションしてください。LangChain でもこの形で運用しています。変更を試すときは `uv run mda deploy --name design-agent-test` でデプロイした別のコピーを使いましょう。エージェントモードが有効なワークスペースでは、`uv run mda deploy --agent-environment production`（または `staging`、`development`）でエージェントの指定した環境にデプロイできます。トレースは環境ごとに分かれるので、LangSmith でエージェントを開いて環境を選んでください。`uv run mda dev` のトレースは Local 環境に記録されます。キー、デプロイされる内容、動作確認については [MDA でデプロイする](docs/deploy-mda.md)を参照してください。
+初回のデプロイは Slack アプリをセットアップするので、自分のターミナルで、個人用アクセストークン（`lsv2_pt_…`。サービスキーでは Slack を設定できません）を使って実行してください。`mda deploy` が表示する Slack のリンクからワークスペースでアプリを承認すると（管理者の承認が必要な場合もあります）、Slack の確認後にデプロイが自動で続きます。その後エージェントから DM が届くので、返信するか、チャンネルに `/invite` してメンションしてください。LangChain でもこの形で運用しています。変更を試すときは `uv run mda deploy --name design-agent-test` でデプロイした別のコピーを使いましょう。エージェントモードが有効なワークスペースでは、`uv run mda deploy --agent-environment production`（または `staging`、`development`）でエージェントの指定した環境にデプロイできます。トレースは環境ごとに分かれるので、LangSmith でエージェントを開いて環境を選んでください。`uv run mda dev` のトレースは Local 環境に記録されます。キー、デプロイされる内容、動作確認については [MDA でデプロイする](docs/deploy-mda.md)を参照してください。
 
 **コーディングエージェントに任せることもできます。** Claude Code、Codex、Cursor でリポジトリを開き、やりたいことを伝えてください。[AGENTS.md](AGENTS.md) が各依頼を、手順をまとめた[スキル](.agents/skills/)に振り分けます：
 

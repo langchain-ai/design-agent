@@ -34,6 +34,8 @@ SAMPLE_BRAND = ROOT / "examples" / "brands" / "example-studio"
 #: Tools every Deep Agents graph has without our code (filesystem, shell, planning, delegation).
 DEEPAGENTS_TOOLS = frozenset(
     {"write_todos", "read_file", "write_file", "edit_file", "ls", "glob", "grep", "execute", "task"}
+    # MDA's async subagent tools (middleware/async_helpers.py).
+    | {"start_async_task", "check_async_task", "update_async_task", "cancel_async_task"}
 )
 #: snake_case words in these skills that are not tools: pipeline names, tool arguments, JSON fields.
 NOT_TOOLS = frozenset(

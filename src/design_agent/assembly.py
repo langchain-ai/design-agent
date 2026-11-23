@@ -22,6 +22,14 @@ from design_agent.config import ModelSpec, Settings
 from design_agent.harness.cache import StaggerGate
 from design_agent.harness.durable import TranscriptCheckpointMiddleware
 from design_agent.harness.tasks import running
+from design_agent.middleware.async_helpers import (
+    WORKER,
+    AsyncHelpersMiddleware,
+    WorkerDisclosure,
+    WorkerModelMiddleware,
+    WorkerNotesMiddleware,
+    choose,
+)
 from design_agent.middleware.background import (
     BackgroundHelpers,
     BackgroundTaskMiddleware,
@@ -51,11 +59,13 @@ from design_agent.middleware.tracing import RunTagsMiddleware, TraceLinks, templ
 from design_agent.middleware.watch_tools import WatchToolsMiddleware
 from design_agent.middleware.workspace import WorkspaceStagerMiddleware
 from design_agent.models.factory import Role, build_chat_model, resolve_model
+from design_agent.models.helpers import build_helper_model
 from design_agent.models.registry import ToolDisclosure, capabilities_for
 from design_agent.pipelines import PIPELINES
 from design_agent.runtime.profiles import RuntimeProfile
 from design_agent.runtime.sandbox.docker import current_thread_id
-from design_agent.subagents import build_subagents
+from design_agent.subagents import SKILLS as HELPER_SKILLS
+from design_agent.subagents import WORKER_PROMPT, build_subagents
 from design_agent.surfaces.slack.phrasebook import services
 from design_agent.tools.delivery import (
     DeliveryLedgerMiddleware,
@@ -87,13 +97,16 @@ class AgentComponents:
     manifest: Manifest
     pipelines: Mapping[str, Any] = field(default_factory=dict)
     mcp_servers: tuple[McpServer, ...] = ()
+    #: The async subagent every background task runs on, where the runtime has them
+    #: (`RuntimeProfile.async_helpers`); `agent.py` declares it inline for MDA's build.
+    worker: Mapping[str, Any] | None = None
 
 
 def _disclosure(settings: Settings, role: Any, injected: BaseChatModel | None) -> ToolDisclosure:
-    """How tools reach the model that will actually run: the configured one, or an injected one
-    (the scripted demo and tests), read from its provider and model name."""
+    """How tools reach the model that will actually run: the configured one (on its endpoint), or
+    an injected one (the scripted demo and tests), read from its provider and model name."""
     if injected is None:
-        return capabilities_for(resolve_model(settings, role).spec).disclosure
+        return resolve_model(settings, role).caps.disclosure
     try:
         spec = ModelSpec.parse(
             f"{getattr(injected, 'provider_name', '')}:{getattr(injected, 'model_name', '')}"
@@ -178,21 +191,19 @@ def build_agent_components(
                 role=role,
                 lead=lead_agent,
                 summaries=summaries,
-                disclosure=disclosure_for(
-                    disclosure, mcp_servers, selector, settings.mcp_max_tools
-                ),
+                disclosure=disclosure
+                if isinstance(disclosure, AgentMiddleware)
+                else disclosure_for(disclosure, mcp_servers, selector, settings.mcp_max_tools),
                 servers=mcp_servers,
             ),
         ]
 
     # Housekeeping first: its run ends in `before_agent`, before staging touches the sandbox.
-    # Quiet next, so its after_agent runs last of ours and rewrites a final `[quiet]` after every
+    # Quiet next, so its after_agent runs last of ours and settles a final `[quiet]` after every
     # other hook has seen the reply (middleware/quiet.py).
     middleware: list[AgentMiddleware[Any, Any, Any]] = [
         HousekeepingMiddleware(runtime.services),
-        QuietReplyMiddleware(
-            lambda thread: bool(running(thread)), current_thread_id, runtime.quiet_status
-        ),
+        QuietReplyMiddleware(lambda thread: bool(running(thread)), current_thread_id),
         WorkspaceStagerMiddleware(manifest, runtime.staging_for),
         DeliveryLedgerMiddleware(runtime.backend_for, thread_id_for=runtime.thread_id_for),
         *(
@@ -216,12 +227,26 @@ def build_agent_components(
             template=template_marker() if settings.template_telemetry else None,
         ),
     ]
+
+    def helper_build(model: str, effort: str) -> BaseChatModel:
+        override = overrides.get(effort) or overrides.get("helper")
+        if override is not None:
+            return override
+        return build_helper_model(settings, model, effort or None, project_root=root)
+
+    if runtime.async_helpers:
+        middleware.append(
+            AsyncHelpersMiddleware(
+                settings,
+                lambda model, effort: choose(settings, model, effort, project_root=root),
+            )
+        )
     slack = runtime.slack
     servers = services([s.name for s in mcp_servers])
     if slack is not None:
         # Steering reads follow-ups before progress draws the turn; both sit outside the model
         # guards, so a retried call shows as one step and a boundary's line counts as the reply.
-        if settings.enable_steering:
+        if settings.enable_steering and not runtime.native_steering:
             middleware.append(LeadSteeringMiddleware(slack, backend_for=runtime.backend_for))
         if settings.enable_progress:
             middleware.append(
@@ -234,8 +259,9 @@ def build_agent_components(
                 ReplyFooterMiddleware(slack, footers=Footers(traces=traces, inbox=inbox))
             )
     subagents: list[SubAgent] = []
+    worker: dict[str, Any] | None = None
     if runtime.services is not None:
-        background = BackgroundTaskMiddleware(runtime.services)
+        background = BackgroundTaskMiddleware(runtime.services, async_helpers=runtime.async_helpers)
 
         def helpers(call_runtime: Any) -> BackgroundHelpers:
             return BackgroundHelpers(background, call_runtime)
@@ -290,6 +316,30 @@ def build_agent_components(
         subagents = build_subagents(
             settings, middleware=helper_middleware, build_model=helper_model
         )
+        if runtime.async_helpers:
+            worker = {
+                "name": WORKER,
+                "description": "A helper on the model and effort you pick for each task.",
+                "system_prompt": WORKER_PROMPT,
+                "model": helper_model(settings, "helper", streaming=True),
+                "skills": list(HELPER_SKILLS),
+                "middleware": [
+                    WorkerModelMiddleware(helper_build),
+                    WorkerNotesMiddleware(),
+                    TodayMiddleware(),
+                    StaggerMiddleware(stagger),
+                    *guards(
+                        WORKER,
+                        lead_agent=False,
+                        disclosure=WorkerDisclosure(
+                            helper_disclosure,
+                            lambda chosen: disclosure_for(
+                                chosen, mcp_servers, selector, settings.mcp_max_tools
+                            ),
+                        ),
+                    ),
+                ],
+            }
     if settings.job_budget_usd is not None:
         middleware.append(JobBudgetMiddleware(settings.job_budget_usd))
     middleware += guards("lead", lead_agent=True, disclosure=_disclosure(settings, "lead", model))
@@ -306,4 +356,5 @@ def build_agent_components(
         manifest=manifest,
         pipelines=dict(PIPELINES),
         mcp_servers=tuple(mcp_servers),
+        worker=worker,
     )

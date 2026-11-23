@@ -14,7 +14,8 @@ from typing import Literal
 
 from design_agent.brand.schema import BrandPackError, load_brand_pack
 from design_agent.config import Settings
-from design_agent.models.factory import Role, resolve_model
+from design_agent.harness.meter import price_of
+from design_agent.models.factory import PROVIDER_KEYS, ResolvedModel, Role, resolve_model
 from design_agent.models.registry import ModelConfigurationError, ToolDisclosure
 
 Status = Literal["ok", "warn", "fail"]
@@ -26,11 +27,6 @@ PACKAGES = (
     "langchain-anthropic",
     "langchain-openai",
 )
-PROVIDER_KEYS = {
-    "anthropic": "anthropic_api_key",
-    "openai": "openai_api_key",
-    "google_genai": "google_api_key",
-}
 #: Keys a self-hosted install reads. `mda deploy` forwards every `.env` key but LangSmith's as a
 #: deployment secret, so these must not sit in the `.env` an MDA deploy runs from.
 SELF_HOSTED_KEYS = (
@@ -61,8 +57,8 @@ class Check:
 
 
 def _check_python() -> Check:
-    ok = sys.version_info >= (3, 11)
-    return Check("python", "ok" if ok else "fail", f"{platform.python_version()} (3.11+ required)")
+    ok = sys.version_info >= (3, 12)
+    return Check("python", "ok" if ok else "fail", f"{platform.python_version()} (3.12+ required)")
 
 
 def _check_packages() -> Check:
@@ -75,63 +71,82 @@ def _check_packages() -> Check:
     return Check("packages", "ok", ", ".join(versions))
 
 
-def _check_models(settings: Settings) -> list[Check]:
+def _check_models(settings: Settings, root: Path | None = None) -> list[Check]:
     checks: list[Check] = []
-    roles: tuple[Role, ...] = ("lead", "helper", "look")
+    roles: list[Role] = ["lead", "helper", "look"]
+    roles += [role for role in ("tool_selector", "learning") if getattr(settings, f"{role}_model")]
     for role in roles:
         try:
-            resolved = resolve_model(settings, role)
+            resolved = resolve_model(settings, role, probe=True, project_root=root)
         except (ModelConfigurationError, ValueError) as error:
             checks.append(Check(f"model:{role}", "fail", str(error)))
             continue
-        caps = resolved.caps
-        note = (
-            "registered"
-            if caps.verified
-            else "not in the registry: portable path, no provider features assumed"
-        )
-        disclosure = (
-            "native tool search"
-            if caps.disclosure is ToolDisclosure.PROVIDER_NATIVE
-            else "portable tool selector"
-        )
-        checks.append(
-            Check(
-                f"model:{role}",
-                "ok" if caps.verified else "warn",
-                f"{resolved.spec} effort={resolved.effort or 'default'} ({note}; {disclosure})",
-            )
-        )
+        checks.append(_model_check(role, resolved))
+    return checks + _check_model_key(settings)
+
+
+def _check_model_key(settings: Settings) -> list[Check]:
+    """Whether the lead model's key is set, when it is one the settings hold."""
     spec = settings.lead_model()
     provider = spec.upstream.provider if spec.via_gateway else spec.provider
     if spec.via_gateway:
         has_key = (
             settings.langsmith_gateway_api_key is not None or settings.langsmith_api_key is not None
         )
-        checks.append(
+        return [
             Check(
                 "model:key",
                 "ok" if has_key else "warn",
                 "LangSmith Gateway key " + ("set" if has_key else "missing"),
             )
-        )
-    elif field := PROVIDER_KEYS.get(provider):
+        ]
+    if field := PROVIDER_KEYS.get(provider):
         has_key = getattr(settings, field) is not None
         name = field.upper()
-        checks.append(
+        return [
             Check(
                 "model:key",
                 "ok" if has_key else "warn",
                 f"{name} {'set' if has_key else 'missing: `demo` works without it, `ask` does not'}",
             )
+        ]
+    return []
+
+
+def _model_check(role: Role, resolved: ResolvedModel) -> Check:
+    """What the harness knows about one role's model, and whether its cost can be counted."""
+    caps, spec = resolved.caps, resolved.spec
+    problems: list[str] = []
+    if caps.source == "registry":
+        note = "registered"
+    elif caps.source == "profile":
+        note = "LangChain profile: portable path, no provider features assumed"
+    else:
+        note = "unverified: no registry entry or LangChain profile, portable path"
+    if caps.vision is None and role in ("lead", "helper", "look"):
+        problems.append(
+            f"image input unverified (set {resolved.options.setting('VISION')}=1 once checked)"
         )
-    return checks
+    priced = spec.upstream if spec.via_gateway else spec
+    if spec.provider != "scripted" and price_of(str(priced)) is None:
+        problems.append("no price in config/prices.toml, so its run cost can't be counted")
+    disclosure = (
+        "native tool search"
+        if caps.disclosure is ToolDisclosure.PROVIDER_NATIVE
+        else "portable tool selector"
+    )
+    return Check(
+        f"model:{role}",
+        "warn" if problems else "ok",
+        f"{spec} effort={resolved.effort or 'default'} ({note}; {disclosure})"
+        + "".join(f"; {problem}" for problem in problems),
+    )
 
 
 def missing_model_key(settings: Settings) -> str | None:
     """The setting the lead model needs and lacks, or None (the CLI checks this before a turn)."""
-    for check in _check_models(settings):
-        if check.name == "model:key" and check.status != "ok":
+    for check in _check_model_key(settings):
+        if check.status != "ok":
             return (
                 check.detail.split(" ")[0]
                 if not check.detail.startswith("LangSmith")
@@ -194,17 +209,10 @@ def _check_node() -> Check:
 
 
 def _check_mda_project(root: Path) -> Check:
-    from design_agent.runtime.sandbox.publish import declared_base
-
     missing = [p for p in MDA_FILES if not (root / p).is_file()]
     if missing:
         return Check("mda-project", "warn", "missing " + ", ".join(missing))
-    published = declared_base(root) != "docker_image"
-    return Check(
-        "mda-project",
-        "ok",
-        "declarations present" + ("; sandbox declares the published snapshot" if published else ""),
-    )
+    return Check("mda-project", "ok", "declarations present")
 
 
 def deploy_model_key(settings: Settings) -> str | None:
@@ -219,13 +227,12 @@ def deploy_model_key(settings: Settings) -> str | None:
 def _check_mda_deploy(root: Path, settings: Settings | None = None) -> Check:
     """What would make a plain `mda deploy` of this checkout fail or ship the wrong thing.
 
-    "Ready" means a deploy works as it stands: the snapshot is published and the lead model's key
-    is in `.env` (a deploy ships `.env`, never the shell). Until then the check says what to do
-    first, as a warning, since a checkout that only runs the local demo needs neither.
+    "Ready" means a deploy works as it stands: the lead model's key is in `.env` (a deploy ships
+    `.env`, never the shell). Until then the check says what to do first, as a warning, since a
+    checkout that only runs the local demo needs no key.
     """
     from dotenv import dotenv_values
 
-    from design_agent.runtime.sandbox.publish import declared_base
     from design_agent.skills_lock import is_text, verify
 
     problems: list[str] = []
@@ -244,10 +251,6 @@ def _check_mda_deploy(root: Path, settings: Settings | None = None) -> Check:
         warnings.append("vendored skills differ from skills-lock.json (`skills verify`)")
     env_file = root / ".env"
     env = dotenv_values(env_file) if env_file.is_file() else {}
-    if (root / "sandbox" / "__init__.py").is_file() and declared_base(root) == "docker_image":
-        if settings is not None and settings.langsmith_api_key is None:
-            first.append("put LANGSMITH_API_KEY in .env (`config set LANGSMITH_API_KEY`)")
-        first.append("publish the sandbox snapshot (`sandbox publish`)")
     key = deploy_model_key(settings) if settings is not None else None
     if key and not (env.get(key) or "").strip():
         first.append(f"put {key} in .env (`config set {key}`); a deploy ships .env, not your shell")
@@ -306,7 +309,7 @@ def run_checks(settings: Settings, root: Path) -> list[Check]:
     return [
         _check_python(),
         _check_packages(),
-        *_check_models(settings),
+        *_check_models(settings, root),
         _check_brand(settings, root),
         _check_sandbox(settings),
         _check_node(),

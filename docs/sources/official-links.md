@@ -31,9 +31,14 @@ All MDA pages share the prefix `https://docs.langchain.com/langsmith/python/mana
   `Client.list_runs` (<https://docs.smith.langchain.com/reference/python/client>)
 - LangSmith sandboxes: <https://docs.langchain.com/langsmith/sandboxes> · regions:
   <https://docs.langchain.com/langsmith/regions-faq> · pricing: <https://www.langchain.com/pricing>
-- PyPI: <https://pypi.org/project/managed-deepagents/> (0.9.4 stable on 2026-10-20; `0.10.0.devN`
-  builds are cut from feature branches, never pin them) · <https://pypi.org/project/deepagents/>
-  (0.7.28)
+- PyPI: <https://pypi.org/project/managed-deepagents/> (0.10.5 stable; `.devN` builds are cut from
+  feature branches, never pin them; 0.10 needs Python 3.12 although its metadata says 3.11) ·
+  <https://pypi.org/project/deepagents/> (0.7.30+). The 0.10 line moved a run's channel to
+  `runtime.thread.origin.channel` (`runtime.channel` goes in 0.11), replaced
+  `trigger_on_all_messages` with `trigger_mode`, skips a reply of exactly `[quiet]`, adds steering
+  and an async general-purpose subagent to every agent, honors `fs_capacity_bytes` for
+  `docker_image` bakes (0.9.5), and makes new Agent Servers serverless unless
+  `--agent-server-type dedicated`.
 - SDK source is private to LangChain staff (`langchain-ai/managed-deepagents-sdk`; its
   examples directory holds the MIT-licensed lineage of the internal agent). Builders with access
   may read it for current behavior, but the public repository depends only on the published package

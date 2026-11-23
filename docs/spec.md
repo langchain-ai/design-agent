@@ -273,13 +273,15 @@ APIs, the self-hosted implementation, and its upstream status.
 
 ### 7.2 Background tasks
 
-Lead tools: `start_task(description, effort, label, wave?, wake_on_progress?)`, `check_tasks`,
-`cancel_task`, `resume_task`, `schedule_wakeup(minutes 1–1440, prompt, reason)`. Helper tool:
+Lead tools on Managed Deep Agents: `start_async_task(description, model?, effort?)`,
+`check_async_task`, `update_async_task`, `cancel_async_task`, `list_async_tasks`; self-hosted:
+`start_task(description, effort, label, wave?, wake_on_progress?)`, `resume_task`. Both: `check_tasks`,
+`cancel_task`, `schedule_wakeup(minutes 1–1440, prompt, reason)`. Helper tool:
 `report_progress(note, urgent?)`. A helper's final message and progress notes are all the lead sees.
 
 Contract:
 
-- `start_task` returns immediately with a task id; the lead tells the person what is running and when
+- Starting a helper returns immediately with a task id; the lead tells the person what is running and when
   to expect it, then ends its turn. A turn never ends on a promise that nothing has started.
 - Progress notes wait for the lead's next turn unless urgent or the lead asked to follow closely.
 - The lead is woken (a new turn on the same thread) when a task finishes, fails, stops early or is
@@ -287,14 +289,18 @@ Contract:
   notice lists what is still running. Replying `[quiet]` posts nothing.
 - A silent crash must surface: restarts produce "interrupted" notices, not silence.
 
-MDA implementation (managed-deepagents 0.9.3): MDA builds one graph per deployment and does not yet
-run async subagents that share the lead's sandbox (open upstream work: one graph per async subagent,
-background general-purpose subagent, lead-sandbox sharing, subagent posting into the lead's Slack
-thread, Slack approvals reaching subagent runs). Therefore v0.1 runs helpers in-process as asyncio
-tasks invoking the declared subagent graphs with the lead's sandbox backend, exactly like the internal
-reference, behind a `HelperRunner` protocol.
+MDA implementation (managed-deepagents 0.10.5): helpers the lead starts are MDA async subagents.
+`agent.py` declares one, `worker`, which MDA builds as its own graph; each task runs on its own thread
+on the Agent Server and shares the lead's sandbox. The lead picks the task's model (any
+`provider:model`) and effort; the choice is checked by building the model, travels on the task's run
+context, and is swapped in on every call (`middleware/async_helpers.py`). Deep Agents wakes an idle
+lead when a task ends, and `update_async_task` continues a task on its own history. Progress notes are
+kept in the deployment store and reach the lead at its next turn; an urgent one does not wake it, and a
+helper's live progress line in the Slack thread is not shown yet. Looks, pipeline steps and the
+post-job review still run in-process behind `HelperRunner`.
 
-Self-hosted implementation: the same in-process runner inside the API process, with helper records,
+Self-hosted implementation: an in-process runner (`start_task`) inside the API process, since there is
+no Agent Server, with helper records,
 transcripts, wake-ups and watches persisted in Postgres.
 
 ### 7.3 Durable helpers
@@ -453,10 +459,10 @@ Rules:
 - Never bake instructions, skills, brand packs, user data, fonts under license, credentials or `.env`
   values (MDA forwards non-reserved `.env` values to the bake builder; the recipe must not persist
   them).
-- Measure the final size. MDA bakes from a `docker_image` base with a fixed small filesystem capacity
-  (1 GiB as of 0.9.3), which a Chromium + ffmpeg + Node image can exceed. If it does, ship
-  `design-agent sandbox publish --fs-gib N` (LangSmith SDK, as the Paid Media Agent does) and declare
-  the published snapshot as the bake base; document both paths.
+- Measure the final size. MDA bakes from a `docker_image` base with the declared `fs_capacity_bytes`
+  (honored since 0.9.5; 1 GiB before), so the 1.3 GiB computer bakes on a plain `mda deploy`.
+  `design-agent sandbox publish --fs-gib N` still builds the same computer as a LangSmith snapshot
+  for local and self-hosted runs on LangSmith sandboxes.
 - Size: default 8 vCPU / 16 GiB for motion (renders take 8–40 s per second of film on CPU); document a
   2–4 vCPU profile for stills-only teams. Sizes pass through `define_sandbox` extra keys (`vcpus`,
   `mem_bytes`, `fs_capacity_bytes`); verify against the installed SDK.
@@ -716,13 +722,14 @@ See [Paper](partners/paper.md). Summary:
   inbound files to `/workspace/attachments/`, and renders approval cards for interrupts.
 - One Trigger channel per agent; Slack channels forbid `deploy --no-wait`; schedules and channels
   require `identity.py`.
-- MDA 0.9.3 offers `runtime.channel.post` (an extra text message) but no streaming or message
+- MDA 0.10 offers `runtime.thread.origin.channel.post` (an extra text message) but no streaming or message
   updates. Live progress, status and the footer therefore call the Slack Web API directly with the
   reserved agent connection `mda/slack-bot-token` and the channel/thread ids from `raw_event` (the
   documented pattern). Use Slack's agent streaming and status APIs where available; fall back to one
   updated message.
-- Track the 0.10 line: `trigger_mode="mention|thread|all"` replaces `trigger_on_all_messages`, and shell
-  environment will take precedence over the project `.env`.
+- On the 0.10 line `trigger_mode="mention|thread|all"` replaces `trigger_on_all_messages`
+  (`DESIGN_AGENT_SLACK_TRIGGER_MODE`), and the shell's `LANGSMITH_*` take precedence over the
+  project `.env` for the deploy.
 
 ### 14.2 Self-hosted Slack and API
 
@@ -832,15 +839,15 @@ uv.lock · Dockerfile · docker-compose.yml · .env.example · skills-lock.json 
 
 ### 18.2 Toolchain
 
-Python 3.11+ (MDA supports 3.11–3.14), uv, Pydantic v2, Ruff, mypy (strict for new modules; ported
+Python 3.12+ (MDA 0.10 needs 3.12; it supports up to 3.14), uv, Pydantic v2, Ruff, mypy (strict for new modules; ported
 harness modules may start in a documented gradual list that shrinks to zero before v0.1), pytest,
 Node only inside the sandbox recipe. One `pyproject.toml`, one lockfile, explicit upper bounds on fast
-pre-1.0 packages (`managed-deepagents>=0.9.3,<0.10`, `deepagents>=0.7.28,<0.8` at the time of writing;
+pre-1.0 packages (`managed-deepagents>=0.10.5,<0.11`, `deepagents>=0.7.30,<0.8` at the time of writing;
 never a `.devN` pin in a release).
 
 ### 18.3 CI
 
-- `ci.yml` (Python 3.11 and 3.13): lockfile install, Ruff, format, mypy, offline tests, scripted demo
+- `ci.yml` (Python 3.12 and 3.13): lockfile install, Ruff, format, mypy, offline tests, scripted demo
   (render steps skipped without Docker, executed in the render job), MDA definition import smoke,
   `skills verify` (vendored checksums), ban-list scan, docs link check.
 - Render job: build `sandbox/Dockerfile`, run the recipe probe and the render smoke tests (§20.2).
@@ -891,7 +898,9 @@ DESIGN_AGENT_BRAND_PATH=workspace/brand    # falls back to examples/brands/examp
 DESIGN_AGENT_PRIVATE_FONTS_DIR=private-fonts
 
 # Media (optional)
-DESIGN_AGENT_IMAGE_MODEL=
+DESIGN_AGENT_IMAGE_MODEL=           # openai:<id>, google:<id> or a plain id
+DESIGN_AGENT_IMAGE_BASE_URL=        # an OpenAI-compatible images endpoint
+DESIGN_AGENT_IMAGE_API_KEY_ENV=     # the variable holding its key
 ELEVENLABS_API_KEY=
 GROQ_API_KEY=
 

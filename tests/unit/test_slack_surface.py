@@ -33,7 +33,10 @@ EVENT = {
 
 def mda_runtime(event: dict[str, Any] | None, kind: str = "message", thread: str = "t-1") -> Any:
     channel = ChannelInfo(name="slack", provider="slack", event={"type": kind}, raw_event=event)  # type: ignore[arg-type]
-    return SimpleNamespace(channel=channel, config={"configurable": {"thread_id": thread}})
+    origin = None if channel is None else SimpleNamespace(channel=channel)
+    return SimpleNamespace(
+        thread=SimpleNamespace(origin=origin), config={"configurable": {"thread_id": thread}}
+    )
 
 
 def test_a_slack_event_names_its_thread_and_nothing_else() -> None:
@@ -59,7 +62,7 @@ async def test_the_mda_resolver_reads_the_verified_event_and_the_managed_token()
     resolver = MdaSlackResolver(token=token, transport=fake.transport)
     assert await resolver.target(mda_runtime(EVENT)) == target_from_event(EVENT)
     assert await resolver.target(mda_runtime(None, kind="schedule")) is None
-    assert await resolver.target(SimpleNamespace(channel=None)) is None
+    assert await resolver.target(SimpleNamespace(thread=None)) is None
     client = await resolver.client()
     assert client is not None and await resolver.client() is client and asked == ["token"]
     await client.call("auth.test")

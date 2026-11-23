@@ -7,8 +7,7 @@ so `mda deploy` deploys it as it is:
 ```bash
 git clone https://github.com/langchain-ai/design-agent.git && cd design-agent
 uv run design-agent config set LANGSMITH_API_KEY ANTHROPIC_API_KEY   # type each key; it stays hidden
-uv run design-agent sandbox publish
-uv run mda deploy
+uv run mda deploy --agent-server-type dedicated
 ```
 
 `uv run` uses the `mda` CLI pinned in `uv.lock`, so the CLI matches the SDK the agent is built on.
@@ -22,7 +21,7 @@ Deploy LangChain's open-source design agent to my Slack workspace with Managed D
 2. Read `AGENTS.md` and follow the `design-agent-deploy` skill.
 3. Tell me which keys you need. I'll type them myself with `uv run design-agent config set <KEY>` in my terminal; never ask me to paste a key in chat.
 4. Run `uv run design-agent doctor` and fix what it flags. Its `mda-deploy` line lists what a deploy still needs.
-5. Ask me before `uv run design-agent sandbox publish`, which bills. Then have me run the first deploy, `uv run mda deploy`, in my own terminal, since it sets up the Slack app.
+5. Have me run the first deploy, `uv run mda deploy --agent-server-type dedicated`, in my own terminal: it bills, builds the agent's computer and sets up the Slack app. Ask me before later deploys.
 6. When it's live, walk me through messaging the agent in Slack and sending a first request.
 ```
 
@@ -33,29 +32,27 @@ Deploy LangChain's open-source design agent to my Slack workspace with Managed D
 - A model key for your configured model ([Models](models.md)).
 - [uv](https://docs.astral.sh/uv/). Docker only if you want to test the sandbox recipe locally first.
 
-## 1. Publish the computer once
+## 1. The computer
 
-Each thread gets its own sandbox cloned from a snapshot of the recipe in `sandbox/setup.sh`
-(Chrome, ffmpeg, HyperFrames, D2, sharp, ECharts, fonts). The computer is about 1.3 GiB, more than
-the 1 GiB filesystem MDA gives a sandbox baked from a Docker image, so publish it as a snapshot with
-room for renders:
-
-```bash
-uv run design-agent sandbox publish --fs-gib 16
-```
-
-`publish` builds the snapshot in your workspace (sandbox time is billed), runs the recipe's probe
-in it, and rewrites `sandbox/__init__.py` to declare it. Publish again whenever the recipe changes;
-the snapshot name follows the recipe's hash. To prove the recipe locally first:
-`uv run design-agent sandbox build && uv run design-agent sandbox test`. Sizes and egress for MDA
-sandboxes are the constants in `sandbox/__init__.py` (MDA reads that file statically). Egress is
-default-deny: the agent's host tools fetch and generate, the sandbox only renders.
+Each thread gets its own sandbox cloned from a snapshot MDA bakes from the recipe in
+`sandbox/setup.sh` (Chrome, ffmpeg, HyperFrames, D2, sharp, ECharts, fonts) on the image declared in
+`sandbox/__init__.py`, with the 16 GiB filesystem declared there (about 1.3 GiB of it is the
+computer; the rest is room for renders). `mda deploy` bakes it on the first deploy and again only
+when the recipe changes, so those deploys take 10-15 minutes longer (sandbox time is billed). To
+prove the recipe locally first: `uv run design-agent sandbox build && uv run design-agent sandbox
+test`. Sizes and egress for MDA sandboxes are the constants in `sandbox/__init__.py` (MDA reads
+that file statically). Egress is default-deny: the agent's host tools fetch and generate, the
+sandbox only renders. (`design-agent sandbox publish` builds the same computer as a LangSmith
+snapshot for local and self-hosted runs on LangSmith sandboxes; an MDA deploy doesn't need it.)
 
 ## 2. Keys
 
 `mda deploy` forwards every key in `.env` as a deployment secret, except LangSmith's own
 (`LANGSMITH_API_KEY` signs the deploy and stays home). It never reads keys from your shell for
-the deployment. So keep `.env` to what the deployed agent uses: the model key, and optionally
+the deployment, with one exception: `LANGSMITH_API_KEY`, `LANGSMITH_ENDPOINT` and
+`LANGSMITH_WORKSPACE_ID` in your shell win over `.env` for the deploy itself, so unset a stale
+one if the deploy targets the wrong workspace. Use a personal access token (`lsv2_pt_…`): a service
+key can't set up the Slack channel. So keep `.env` to what the deployed agent uses: the model key, and optionally
 `OPENAI_API_KEY` (images, unless you use the LangSmith Gateway), `ELEVENLABS_API_KEY` (voice and music), `DESIGN_AGENT_*` and `PAPER_*`
 settings. Self-hosting keys (`SLACK_*`, `DATABASE_URL`, `DESIGN_AGENT_API_TOKENS`) don't belong in
 the `.env` you deploy from.
@@ -63,16 +60,22 @@ the `.env` you deploy from.
 ## 3. Deploy
 
 ```bash
-uv run mda deploy
+uv run mda deploy --agent-server-type dedicated
 ```
 
 MDA compiles the project, syncs `instructions.md` and `skills/` to Context Hub, uploads the source,
-bakes the sandbox recipe on your snapshot and waits until the deployment is live. On the first
-deploy it provisions the Slack app, named by `DESIGN_AGENT_SLACK_NAME`. If LangSmith hasn't been authorized for your Slack workspace yet, the CLI prints an HTTPS
-link: open it, pick the workspace, approve the access (a workspace admin may need to approve the
-app first), and press Enter in the terminal to continue. Once it's live, the agent sends you a
-DM; reply to start a thread, or `/invite` it to a channel and mention it there. Run `uv run mda
-deploy` again if you missed the link: it asks again until Slack is authorized. Channels
+bakes the sandbox recipe when it changed and waits until the deployment is live. A dedicated Agent
+Server keeps running between requests, which the in-process background helpers and their wake-ups
+need; without the flag a new deployment is serverless and can scale to zero. The type is set when
+the deployment is created; later deploys keep it.
+
+Run the first deploy in your own terminal: it provisions the Slack app, named by
+`DESIGN_AGENT_SLACK_NAME`, and waits for people. If LangSmith hasn't been authorized for your Slack
+workspace yet, the CLI prints an HTTPS link: open it in a browser signed in to Slack, pick the
+workspace and approve the access (a workspace admin may need to approve the app first); the deploy
+carries on by itself once Slack confirms. Once it's live, the agent sends you a DM; reply to start a
+thread, or `/invite` it to a channel and mention it there. `uv run mda channels setup` checks or
+finishes the Slack step later. Channels
 require `identity.py` (LangSmith API-key authentication by default; see MDA's identity docs for
 per-person identities).
 
@@ -87,10 +90,10 @@ To try a change without touching the deployment people use, deploy a separate co
 `uv run mda deploy --name design-agent-test`.
 
 **Before you deploy,** `uv run design-agent doctor` names what would make `mda deploy` fail or ship
-the wrong thing (`mda-deploy` and `mda-project`): the unpublished sandbox, a binary file under
-`skills/`, self-hosting keys in `.env`, a large `workspace/out/`. `uv run mda build` compiles what
+the wrong thing (`mda-deploy` and `mda-project`): a model key missing from `.env`, a binary file
+under `skills/`, self-hosting keys in `.env`, a large `workspace/out/`. `uv run mda build` compiles what
 would ship into `.mda/build/` without deploying. Without a `LANGSMITH_API_KEY` in `.env`, `mda deploy`
-offers a browser sign-in; `sandbox publish` needs the key.
+offers a browser sign-in.
 
 ## 4. Verify
 

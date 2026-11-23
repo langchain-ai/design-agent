@@ -135,7 +135,9 @@ class UsageMeterMiddleware(AgentMiddleware):
                 publish_usage(
                     message,
                     role=self.role,
-                    model=getattr(request.model, "model", None),
+                    # The model the call ran on: a helper's may be swapped in per task.
+                    model=getattr(request.model, "model", None)
+                    or getattr(request.model, "model_name", None),
                     write_ttl=write_ttl,
                     bus=self._bus,
                 )
