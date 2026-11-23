@@ -88,7 +88,7 @@ sandbox recipe and the MDA declarations. Git-ignored renders in `workspace/out/`
 toward MDA's 200 MB archive limit, so clear old ones before deploying.
 
 To try a change without touching the deployment people use, deploy a separate copy:
-`uv run mda deploy --name design-agent-test`.
+`uv run mda deploy --name design-agent-test --agent-server-type dedicated`.
 
 **Before you deploy,** `uv run design-agent doctor` names what would make `mda deploy` fail or ship
 the wrong thing (`mda-deploy` and `mda-project`): a model key missing from `.env`, a binary file
