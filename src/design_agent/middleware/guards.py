@@ -13,7 +13,7 @@ Outermost first (each wraps everything after it):
 7. `ToolHistoryMiddleware`: innermost, so it checks history against the final tool list.
 8. `UsageMeterMiddleware`: records each completed call.
 
-Tool-call boundaries (`task`, `upload_files`, MCP tools) wrap tool calls, not model calls, so their
+Tool-call boundaries (`task`, `upload_files`, host media, MCP tools) wrap tool calls, not model calls, so their
 place in the list does not matter; they come last.
 """
 
@@ -34,6 +34,7 @@ from design_agent.middleware.tool_disclosure import McpToolSelectorMiddleware, T
 from design_agent.middleware.tool_error_boundary import (
     DelegatedTaskErrorBoundary,
     FileDeliveryErrorBoundary,
+    HostMediaErrorBoundary,
 )
 from design_agent.middleware.tool_history import ToolHistoryMiddleware
 from design_agent.models.registry import ToolDisclosure
@@ -78,6 +79,7 @@ def model_guards(
     guards += [ToolHistoryMiddleware(), UsageMeterMiddleware(role)]
     if lead:
         guards += [DelegatedTaskErrorBoundary(), FileDeliveryErrorBoundary()]
+    guards.append(HostMediaErrorBoundary())
     if servers:
         guards.append(McpToolErrorBoundary([s.name for s in servers]))
     return guards
